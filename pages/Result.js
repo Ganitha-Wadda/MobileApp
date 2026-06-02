@@ -1,319 +1,211 @@
-// pages/Result.js ✅ FULL CODE
-// ✅ ONLY 5 labels translated (Result/Total/Correct/Percentage/Best Completed Result)
-// ✅ Sinhala legacy font applied ONLY to those translated labels
-// ✅ All other text stays English (no translation)
-import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Image,
-  ScrollView,
-  ActivityIndicator,
-} from "react-native";
-import coins from "../assets/coins.png";
-import { useGetMyCompletedPapersQuery } from "../app/attemptApi";
-import useT from "../app/i18n/useT";
+import { useState } from "react";
+
+const initialPapers = [
+  { id: 1, name: "Daily paper - 1", marks: "20/100" },
+  { id: 2, name: "", marks: "" },
+  { id: 3, name: "", marks: "" },
+  { id: 4, name: "", marks: "" },
+  { id: 5, name: "", marks: "" },
+  { id: 6, name: "", marks: "" },
+];
+
+const paperTypes = [
+  "Daily papers",
+  "Weekly papers",
+  "Monthly papers",
+  "Term papers",
+  "Final papers",
+];
 
 export default function Result() {
-  const { t, lang, sinFont } = useT();
+  const [selectedType, setSelectedType] = useState("Daily papers");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [papers] = useState(initialPapers);
 
-  const { data, isLoading, isError } = useGetMyCompletedPapersQuery();
-  const items = Array.isArray(data?.items) ? data.items : [];
-
-  const isSi = lang === "si";
-
-  // ✅ ONLY THESE 5 labels translated
-  const UI = {
-    pageTitle: isSi ? t("resultTitle") : "Result",
-    total: isSi ? t("resultTotal") : "Total",
-    correct: isSi ? t("resultCorrect") : "Correct",
-    percentage: isSi ? t("resultPercentage") : "Percentage",
-    best: isSi ? t("resultBest") : "Best Completed Result",
+  const handleSelect = (type) => {
+    setSelectedType(type);
+    setDropdownOpen(false);
   };
 
-  // ✅ Sinhala legacy font ONLY for translated labels
-  const LBL_REG = isSi ? sinFont("regular") : null;
-  const LBL_BOLD = isSi ? sinFont("bold") : null;
-
   return (
-    <View style={styles.screen}>
-      {/* ✅ ONLY this title uses legacy font when Sinhala */}
-      <Text style={[styles.pageTitle, LBL_BOLD]}>{UI.pageTitle}</Text>
+    <div
+      style={{
+        minHeight: "100vh",
+        backgroundColor: "#eeeaf8",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "flex-start",
+        paddingTop: "32px",
+        paddingBottom: "32px",
+        fontFamily: "'Segoe UI', sans-serif",
+      }}
+    >
+      <div style={{ width: "100%", maxWidth: "480px", padding: "0 16px" }}>
+        {/* Dropdown */}
+        <div style={{ position: "relative", marginBottom: "24px" }}>
+          <button
+            onClick={() => setDropdownOpen(!dropdownOpen)}
+            style={{
+              width: "100%",
+              backgroundColor: "#ffffff",
+              border: "none",
+              borderRadius: "16px",
+              padding: "18px 24px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              cursor: "pointer",
+              boxShadow: "0 2px 8px rgba(80,60,180,0.08)",
+            }}
+          >
+            <span
+              style={{
+                fontWeight: "700",
+                fontSize: "18px",
+                color: "#1a0a6b",
+                letterSpacing: "0.01em",
+              }}
+            >
+              {selectedType}
+            </span>
+            <span
+              style={{
+                color: "#3d2eb8",
+                fontSize: "20px",
+                transform: dropdownOpen ? "rotate(180deg)" : "rotate(0deg)",
+                transition: "transform 0.2s ease",
+                display: "inline-block",
+              }}
+            >
+              &#8964;
+            </span>
+          </button>
 
-      <ScrollView
-        contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* ✅ keep these English always (NO translation, NO legacy font) */}
-        {isLoading ? (
-          <View style={styles.stateWrap}>
-            <ActivityIndicator size="large" color="#214294" />
-            <Text style={styles.infoText}>Loading results...</Text>
-          </View>
-        ) : isError ? (
-          <View style={styles.stateCard}>
-            <Text style={styles.errorText}>Failed to load results</Text>
-          </View>
-        ) : items.length === 0 ? (
-          <View style={styles.stateCard}>
-            <Text style={styles.emptyText}>No completed papers yet</Text>
-          </View>
-        ) : (
-          items.map((paper) => {
-            const r = {
-              total: Number(paper.totalQuestions || 0),
-              correct: Number(paper.correct || 0),
-              percent: Number(paper.percentage || 0),
-              subject: String(paper.subject || ""),
-              coins: Number(paper.coins || 0),
-            };
+          {dropdownOpen && (
+            <div
+              style={{
+                position: "absolute",
+                top: "calc(100% + 8px)",
+                left: 0,
+                right: 0,
+                backgroundColor: "#ffffff",
+                borderRadius: "14px",
+                boxShadow: "0 4px 20px rgba(80,60,180,0.15)",
+                zIndex: 100,
+                overflow: "hidden",
+              }}
+            >
+              {paperTypes.map((type) => (
+                <button
+                  key={type}
+                  onClick={() => handleSelect(type)}
+                  style={{
+                    width: "100%",
+                    padding: "14px 24px",
+                    textAlign: "left",
+                    background:
+                      selectedType === type ? "#ede9fc" : "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    fontWeight: selectedType === type ? "700" : "500",
+                    fontSize: "16px",
+                    color: "#1a0a6b",
+                    borderBottom: "1px solid #eeeaf8",
+                  }}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
-            return (
-              <View key={paper.paperId} style={styles.paperCard}>
-                <View style={styles.headerRow}>
-                  <View style={styles.headerLeft}>
-                    {/* fetched title stays same */}
-                    <Text style={styles.paperTitle} numberOfLines={1}>
-                      {paper.paperTitle}
-                    </Text>
+        {/* Table Card */}
+        <div
+          style={{
+            backgroundColor: "#ffffff",
+            borderRadius: "20px",
+            overflow: "hidden",
+            boxShadow: "0 2px 12px rgba(80,60,180,0.07)",
+          }}
+        >
+          {/* Header Row */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              backgroundColor: "#ede9fc",
+              borderBottom: "1.5px solid #d8d2f5",
+            }}
+          >
+            <div
+              style={{
+                padding: "20px 24px",
+                fontWeight: "700",
+                fontSize: "15px",
+                color: "#1a0a6b",
+                borderRight: "1.5px solid #d8d2f5",
+              }}
+            >
+              paper name
+            </div>
+            <div
+              style={{
+                padding: "20px 24px",
+                fontWeight: "700",
+                fontSize: "15px",
+                color: "#1a0a6b",
+                textAlign: "center",
+              }}
+            >
+              Marks
+            </div>
+          </div>
 
-                    {/* fetched subject stays same */}
-                    <Text style={styles.subjectText} numberOfLines={1}>
-                      {r.subject || "Subject"}
-                    </Text>
-                  </View>
-
-                  <View style={styles.coinBadge}>
-                    <Image source={coins} style={styles.coinImg} />
-                    <Text style={styles.coinCount}>{r.coins}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.statsBox}>
-                  <View style={styles.statItem}>
-                    {/* ✅ ONLY label translated + legacy font */}
-                    <Text style={[styles.statLabel, LBL_REG]} numberOfLines={1}>
-                      {UI.total}
-                    </Text>
-                    <Text style={styles.statValue}>{r.total}</Text>
-                  </View>
-
-                  <View style={styles.statDivider} />
-
-                  <View style={styles.statItem}>
-                    {/* ✅ ONLY label translated + legacy font */}
-                    <Text style={[styles.statLabel, LBL_REG]} numberOfLines={1}>
-                      {UI.correct}
-                    </Text>
-                    <Text style={styles.statValue}>{r.correct}</Text>
-                  </View>
-
-                  <View style={styles.statDivider} />
-
-                  <View style={styles.statItem}>
-                    {/* ✅ ONLY label translated + legacy font */}
-                    <Text style={[styles.statLabel, LBL_REG]} numberOfLines={1}>
-                      {UI.percentage}
-                    </Text>
-                    <Text style={styles.statValue}>{r.percent}%</Text>
-                  </View>
-                </View>
-
-                <View style={styles.resultFooter}>
-                  {/* ✅ ONLY label translated + legacy font */}
-                  <Text style={[styles.resultFooterText, LBL_BOLD]}>
-                    {UI.best}
-                  </Text>
-                </View>
-              </View>
-            );
-          })
-        )}
-      </ScrollView>
-    </View>
+          {/* Data Rows */}
+          {papers.map((paper, index) => (
+            <div
+              key={paper.id}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                borderBottom:
+                  index < papers.length - 1
+                    ? "1.5px solid #ede9fc"
+                    : "none",
+                minHeight: "80px",
+              }}
+            >
+              <div
+                style={{
+                  padding: "20px 24px",
+                  fontWeight: "700",
+                  fontSize: "16px",
+                  color: "#1a0a6b",
+                  borderRight: "1.5px solid #ede9fc",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                {paper.name}
+              </div>
+              <div
+                style={{
+                  padding: "20px 24px",
+                  fontWeight: "700",
+                  fontSize: "16px",
+                  color: "#1a0a6b",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {paper.marks}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: "#F8FAFC",
-    paddingHorizontal: 16,
-    paddingTop: 22,
-  },
-
-  pageTitle: {
-    fontSize: 18,
-    fontWeight: "900",
-    color: "#214294",
-    textAlign: "center",
-    marginBottom: 10,
-  },
-
-  list: {
-    paddingBottom: 120,
-  },
-
-  stateWrap: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingTop: 30,
-  },
-
-  infoText: {
-    marginTop: 12,
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#64748B",
-    textAlign: "center",
-  },
-
-  stateCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    padding: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  errorText: {
-    color: "#E11D48",
-    fontWeight: "800",
-    textAlign: "center",
-    fontSize: 14,
-  },
-
-  emptyText: {
-    color: "#64748B",
-    fontWeight: "700",
-    textAlign: "center",
-    fontSize: 14,
-  },
-
-  paperCard: {
-    width: "100%",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    padding: 10,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 1,
-  },
-
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 8,
-  },
-
-  headerLeft: {
-    flex: 1,
-    paddingRight: 4,
-  },
-
-  paperTitle: {
-    fontSize: 12,
-    fontWeight: "900",
-    color: "#0F172A",
-    lineHeight: 16,
-  },
-
-  subjectText: {
-    marginTop: 2,
-    fontSize: 9,
-    fontWeight: "700",
-    color: "#64748B",
-  },
-
-  coinBadge: {
-    minWidth: 56,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FFF7ED",
-    borderWidth: 1,
-    borderColor: "#FED7AA",
-    borderRadius: 10,
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-  },
-
-  coinImg: {
-    width: 20,
-    height: 20,
-    resizeMode: "contain",
-    marginBottom: 1,
-  },
-
-  coinCount: {
-    fontSize: 11,
-    fontWeight: "900",
-    color: "#9A3412",
-  },
-
-  statsBox: {
-    marginTop: 8,
-    flexDirection: "row",
-    alignItems: "stretch",
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 10,
-    overflow: "hidden",
-  },
-
-  statItem: {
-    flex: 1,
-    minWidth: 0,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 7,
-    paddingHorizontal: 3,
-  },
-
-  statDivider: {
-    width: 1,
-    backgroundColor: "#E2E8F0",
-  },
-
-  statLabel: {
-    fontSize: 8,
-    fontWeight: "700",
-    color: "#64748B",
-    marginBottom: 2,
-    textAlign: "center",
-  },
-
-  statValue: {
-    fontSize: 12,
-    fontWeight: "900",
-    color: "#0F172A",
-    textAlign: "center",
-  },
-
-  resultFooter: {
-    marginTop: 8,
-    alignSelf: "center",
-    backgroundColor: "#EFF6FF",
-    borderWidth: 1,
-    borderColor: "#BFDBFE",
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-
-  resultFooterText: {
-    fontSize: 9,
-    fontWeight: "800",
-    color: "#1D4ED8",
-    letterSpacing: 0.1,
-  },
-});

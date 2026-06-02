@@ -1,501 +1,363 @@
-// pages/PastPaperMenu.js ✅ FULL FILE
-// same logic as DailyQuizMenu
-
-import React, { useMemo, useCallback, useState } from "react";
+import React from "react";
 import {
   View,
   Text,
-  StyleSheet,
-  Pressable,
+  TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
-  Alert,
+  StyleSheet,
+  SafeAreaView,
+  Dimensions,
+  StatusBar,
 } from "react-native";
-import { useNavigation, useFocusEffect } from "@react-navigation/native";
-import { Ionicons } from "@expo/vector-icons";
 
-import { useGetPublishedPapersQuery } from "../app/paperApi";
-import {
-  useStartAttemptMutation,
-  useGetMyAttemptsByPaperQuery,
-} from "../app/attemptApi";
-import { useGetMyPaymentStatusQuery } from "../app/paymentApi";
-import useT from "../app/i18n/useT";
+const { width } = Dimensions.get("window");
 
-const PRIMARY = "#1153ec";
-const RED_BTN = "#DC2626";
-const TAB_BAR_SPACE = 110;
+const years = [
+  {
+    year: "2015",
+    subtitle: "Build your skills step by step!",
+    emoji: "📋",
+    bgColor: "#EEF0FF",
+    starColor: "#A78BFA",
+    starSize: 18,
+  },
+  {
+    year: "2016",
+    subtitle: "Challenge yourself and learn!",
+    emoji: "📚",
+    bgColor: "#EEF0FF",
+    starColor: "#FBBF24",
+    starSize: 20,
+  },
+  {
+    year: "2017",
+    subtitle: "Think smart, score better!",
+    emoji: "💡",
+    bgColor: "#EEF0FF",
+    starColor: "#A78BFA",
+    starSize: 18,
+  },
+  {
+    year: "2018",
+    subtitle: "You've got this! Keep going!",
+    emoji: "🏆",
+    bgColor: "#EEF0FF",
+    starColor: "#F472B6",
+    starSize: 20,
+  },
+];
 
-const PaymentBadge = ({ payment, amount, T, isSi, sinFont }) => {
-  const type = String(payment || "free").toLowerCase();
-  const isPaid = type === "paid";
-  const isPractice = type === "practise" || type === "practice";
-
-  const bg = isPaid ? "#FEE2E2" : isPractice ? "#FEF3C7" : "#DCFCE7";
-  const text = isPaid ? "#991B1B" : isPractice ? "#92400E" : "#166534";
-
-  // ✅ Paid label must stay English (do NOT translate "Pay" or "Rs")
-  const paidLabel = `Pay • Rs ${Number(amount || 0)}`;
-
-  // ✅ Only translate practise/free
-  const label = isPaid ? paidLabel : isPractice ? T.practise : T.free;
-
+// Decorative dots
+const FloatingDots = () => {
   return (
-    <View style={[styles.badgeTopRight, { backgroundColor: bg }]}>
-      <Text
+    <>
+      <View
         style={[
-          styles.badgeText,
-          { color: text },
-          // ✅ Sinhala font only for practise/free
-          !isPaid && isSi ? sinFont("bold") : null,
+          styles.dot,
+          {
+            top: 18,
+            left: 22,
+            backgroundColor: "#F472B6",
+            width: 9,
+            height: 9,
+            borderRadius: 9,
+          },
         ]}
-      >
-        {label}
-      </Text>
-    </View>
+      />
+
+      <View
+        style={[
+          styles.dot,
+          {
+            top: 30,
+            right: 30,
+            backgroundColor: "#A78BFA",
+            width: 8,
+            height: 8,
+            borderRadius: 8,
+          },
+        ]}
+      />
+
+      <View
+        style={[
+          styles.dot,
+          {
+            top: 210,
+            left: 12,
+            backgroundColor: "#60A5FA",
+            width: 7,
+            height: 7,
+            borderRadius: 7,
+          },
+        ]}
+      />
+
+      <View
+        style={[
+          styles.dot,
+          {
+            top: 310,
+            right: 18,
+            backgroundColor: "#FBBF24",
+            width: 10,
+            height: 10,
+            borderRadius: 10,
+          },
+        ]}
+      />
+
+      <View
+        style={[
+          styles.dot,
+          {
+            top: 430,
+            left: 20,
+            backgroundColor: "#A78BFA",
+            width: 8,
+            height: 8,
+            borderRadius: 8,
+          },
+        ]}
+      />
+
+      <View
+        style={[
+          styles.dot,
+          {
+            top: 530,
+            right: 14,
+            backgroundColor: "#60A5FA",
+            width: 7,
+            height: 7,
+            borderRadius: 7,
+          },
+        ]}
+      />
+
+      <View
+        style={[
+          styles.dot,
+          {
+            top: 660,
+            left: 28,
+            backgroundColor: "#FBBF24",
+            width: 9,
+            height: 9,
+            borderRadius: 9,
+          },
+        ]}
+      />
+
+      <View
+        style={[
+          styles.dot,
+          {
+            top: 720,
+            right: 26,
+            backgroundColor: "#F472B6",
+            width: 8,
+            height: 8,
+            borderRadius: 8,
+          },
+        ]}
+      />
+    </>
   );
 };
 
-const PaperCard = ({
-  paper,
-  attemptsContext,
-  paymentContext,
-  onAttemptNow,
-  onViewResult,
-  onPayNow,
-  starting,
-  T,
-  isSi,
-  sinFont,
-}) => {
-  const payType = String(paper.payment || "free").toLowerCase();
-  const isPaidPaper = payType === "paid";
+const Star = ({ color, size }) => {
+  return <Text style={{ color, fontSize: size, lineHeight: size + 4 }}>✦</Text>;
+};
 
-  const unlocked = isPaidPaper ? !!paymentContext?.unlocked : true;
-  const attemptsLeft = Number(attemptsContext?.attemptsLeft ?? paper.attempts);
-  const isOver = attemptsLeft <= 0;
-
-  const showPayNow = isPaidPaper && !unlocked;
-  const btnText = showPayNow ? T.payNow : isOver ? T.viewResult : T.attemptNow;
-
-  const onPress = () => {
-    if (showPayNow) return onPayNow?.(paper);
-    if (isOver) return onViewResult?.(paper, attemptsContext);
-    return onAttemptNow?.(paper);
-  };
-
+const PastPaperCard = ({ item, onPress }) => {
   return (
     <View style={styles.card}>
-      <PaymentBadge
-        payment={paper.payment}
-        amount={paper.amount}
-        T={T}
-        isSi={isSi}
-        sinFont={sinFont}
-      />
-
-      <Text style={styles.cardTitle}>{paper.title}</Text>
-
-      <View style={styles.metaRowCenter}>
-        <View style={styles.metaItem}>
-          <Ionicons name="help-circle-outline" size={16} color="#64748B" />
-          <Text style={[styles.metaText, isSi ? sinFont("bold") : null]}>
-            {paper.mcqCount} {T.mcqs}
-          </Text>
-        </View>
-
-        <View style={styles.metaItem}>
-          <Ionicons name="time-outline" size={16} color="#64748B" />
-          <Text style={[styles.metaText, isSi ? sinFont("bold") : null]}>
-            {paper.timeMin} {T.min}
-          </Text>
-        </View>
-
-        <View style={styles.metaItem}>
-          <Ionicons name="repeat-outline" size={16} color="#64748B" />
-          <Text style={styles.metaText}>
-            {Math.max(attemptsLeft, 0)}/{paper.attempts} left
-          </Text>
+      {/* Icon circle on left */}
+      <View style={styles.iconWrapper}>
+        <View style={styles.iconCircle}>
+          <Text style={styles.iconEmoji}>{item.emoji}</Text>
         </View>
       </View>
 
-      <Pressable
-        onPress={onPress}
-        disabled={starting}
-        style={({ pressed }) => [
-          styles.btn,
-          pressed && styles.btnPressed,
-          starting && { opacity: 0.6 },
-          showPayNow && { backgroundColor: RED_BTN },
-          !showPayNow && isOver && styles.btnLight,
-        ]}
-      >
-        <Text
-          style={[
-            styles.btnText,
-            !showPayNow && isOver && styles.btnTextDark,
-            isSi ? sinFont("bold") : null,
-          ]}
-        >
-          {starting ? T.pleaseWait : btnText}
-        </Text>
+      {/* Divider */}
+      <View style={styles.divider} />
 
-        <Ionicons
-          name={
-            showPayNow
-              ? "card-outline"
-              : isOver
-              ? "document-text-outline"
-              : "arrow-forward"
-          }
-          size={18}
-          color={showPayNow ? "#FFFFFF" : isOver ? "#0F172A" : "#FFFFFF"}
-        />
-      </Pressable>
+      {/* Text and button */}
+      <View style={styles.cardContent}>
+        <Text style={styles.yearText}>{item.year}</Text>
+
+        <Text style={styles.subtitleText}>{item.subtitle}</Text>
+
+        <TouchableOpacity
+          style={styles.startButton}
+          onPress={() => onPress(item)}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.startButtonText}>Start</Text>
+          <Text style={styles.startButtonArrow}> →</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Decorative star */}
+      <View style={styles.cardStar}>
+        <Star color={item.starColor} size={item.starSize} />
+      </View>
     </View>
   );
 };
 
-const PaperCardWithStatus = ({
-  paper,
-  onAttemptNow,
-  onViewResult,
-  onPayNow,
-  starting,
-  T,
-  isSi,
-  sinFont,
-  refreshKey,
-}) => {
-  const {
-    data: attemptsContext,
-    isFetching: attemptsFetching,
-    refetch: refetchAttempts,
-  } = useGetMyAttemptsByPaperQuery(
-    { paperId: paper.id },
-    {
-      skip: !paper?.id,
-      refetchOnMountOrArgChange: true,
-      refetchOnFocus: true,
-    }
-  );
-
-  const payType = String(paper.payment || "free").toLowerCase();
-  const needsPayCheck = payType === "paid";
-
-  const {
-    data: paymentContext,
-    isFetching: payFetching,
-    refetch: refetchPay,
-  } = useGetMyPaymentStatusQuery(
-    { paperId: paper.id },
-    {
-      skip: !paper?.id || !needsPayCheck,
-      refetchOnMountOrArgChange: true,
-      refetchOnFocus: true,
-      refetchOnReconnect: true,
-    }
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      if (paper?.id) {
-        refetchAttempts?.();
-        if (needsPayCheck) refetchPay?.();
-      }
-    }, [paper?.id, needsPayCheck, refetchAttempts, refetchPay, refreshKey])
-  );
-
-  const safeAttempts = attemptsFetching ? null : attemptsContext;
-  const safePay = payFetching ? null : paymentContext;
-
-  return (
-    <PaperCard
-      paper={paper}
-      attemptsContext={safeAttempts}
-      paymentContext={
-        needsPayCheck ? safePay : { required: false, unlocked: true }
-      }
-      onAttemptNow={onAttemptNow}
-      onViewResult={onViewResult}
-      onPayNow={onPayNow}
-      starting={starting}
-      T={T}
-      isSi={isSi}
-      sinFont={sinFont}
-    />
-  );
-};
-
-export default function PastPaperMenu({ route }) {
-  const navigation = useNavigation();
-  const { t, lang, sinFont } = useT();
-  const isSi = lang === "si";
-
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  useFocusEffect(
-    useCallback(() => {
-      setRefreshKey((x) => x + 1);
-    }, [])
-  );
-
-  const T = useMemo(
-    () => ({
-      pageTitle: t("ppTitle"),
-      payNow: t("payNow"),
-      attemptNow: t("attemptNow"),
-      pleaseWait: t("pleaseWait"),
-      mcqs: t("mcqs"),
-      min: t("min"),
-      paid: t("paid"),
-      practise: t("practise"),
-      free: t("free"),
-      viewResult: t("viewResult"),
-    }),
-    [t]
-  );
-
-  const { gradeNumber, stream, subject } = route?.params || {};
-
-  const canFetch =
-    !!gradeNumber && !!subject && (Number(gradeNumber) < 12 || !!stream);
-
-  const { data: papersRaw = [], isLoading, isFetching, error } =
-    useGetPublishedPapersQuery(
-      {
-        gradeNumber,
-        paperType: "Past paper",
-        stream: Number(gradeNumber) >= 12 ? stream : null,
-        subject,
-      },
-      { skip: !canFetch }
-    );
-
-  const PAPERS = useMemo(() => {
-    return (Array.isArray(papersRaw) ? papersRaw : []).map((p) => ({
-      id: String(p?._id || ""),
-      title: String(p?.paperTitle || "Past paper"),
-      mcqCount: Number(p?.questionCount || 0),
-      timeMin: Number(p?.timeMinutes || 0),
-      attempts: Number(p?.attempts || 1),
-      payment: p?.payment,
-      amount: Number(p?.amount || 0),
-    }));
-  }, [papersRaw]);
-
-  const [startAttempt, { isLoading: starting }] = useStartAttemptMutation();
-
-  const onAttemptNow = async (paper) => {
-    try {
-      const res = await startAttempt({ paperId: paper.id }).unwrap();
-      const attemptId = String(res?.attempt?._id || "");
-      if (!attemptId) throw new Error("Attempt not created");
-
-      navigation.navigate("PaperPage", {
-        attemptId,
-        paperId: paper.id,
-        title: paper.title,
-        timeMin: Number(res?.paper?.timeMinutes || paper.timeMin || 10),
+export default function PastPaperMenu({ navigation, onSelectYear }) {
+  const handleStart = (item) => {
+    if (navigation) {
+      navigation.navigate("paperpage", {
+        pastPaperYear: item.year,
+        paperTitle: `Past Paper - ${item.year}`,
       });
-    } catch (e) {
-      const msg =
-        e?.status === 402
-          ? "Payment required. Please Pay Now."
-          : e?.data?.message || e?.message || "Try again";
-      Alert.alert("Cannot start", msg);
-    }
-  };
-
-  const onPayNow = (paper) => {
-    navigation.navigate("PaymentCheckout", {
-      paperId: paper.id,
-      title: paper.title,
-      amount: Number(paper.amount || 0),
-      backTo: route?.params || {},
-    });
-  };
-
-  const onViewResult = (paper, context) => {
-    const attemptId = String(context?.lastAttemptId || "");
-    if (!attemptId) {
-      Alert.alert("No result", "No submitted attempt found for this paper.");
-      return;
     }
 
-    navigation.navigate("ReviewPage", {
-      attemptId,
-      title: paper.title,
-    });
+    if (onSelectYear) {
+      onSelectYear(item.year);
+    }
   };
 
   return (
-    <View style={styles.screen}>
-      <Text style={[styles.pageTitle, isSi ? sinFont("bold") : null]}>
-        {T.pageTitle}
-      </Text>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F0F2FF" />
 
-      {!canFetch ? (
-        <View style={styles.center}>
-          <Text style={styles.infoText}>Grade / Stream / Subject not selected</Text>
-        </View>
-      ) : isLoading || isFetching ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={PRIMARY} />
-          <Text style={styles.infoText}>Loading papers...</Text>
-        </View>
-      ) : error ? (
-        <View style={styles.center}>
-          <Text style={styles.infoText}>Papers not available</Text>
-          <Text style={styles.infoTextSmall}>Check backend published papers.</Text>
-        </View>
-      ) : !PAPERS.length ? (
-        <View style={styles.center}>
-          <Text style={styles.infoText}>No Past Papers Found</Text>
-          <Text style={styles.infoTextSmall}>
-            Please publish past papers in dashboard.
-          </Text>
-        </View>
-      ) : (
+      <View style={styles.container}>
+        <FloatingDots />
+
         <ScrollView
-          contentContainerStyle={styles.list}
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {PAPERS.map((p) => (
-            <PaperCardWithStatus
-              key={p.id}
-              paper={p}
-              onAttemptNow={onAttemptNow}
-              onViewResult={onViewResult}
-              onPayNow={onPayNow}
-              starting={starting}
-              T={T}
-              isSi={isSi}
-              sinFont={sinFont}
-              refreshKey={refreshKey}
+          {years.map((item) => (
+            <PastPaperCard
+              key={item.year}
+              item={item}
+              onPress={handleStart}
             />
           ))}
         </ScrollView>
-      )}
-    </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
+  safeArea: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
-    padding: 16,
-    paddingTop: 18,
-    paddingBottom: 0,
+    backgroundColor: "#F0F2FF",
   },
 
-  pageTitle: {
-    fontSize: 22,
-    fontWeight: "900",
-    color: PRIMARY,
-    textAlign: "center",
-    marginBottom: 15,
+  container: {
+    flex: 1,
+    backgroundColor: "#F0F2FF",
+    position: "relative",
   },
 
-  list: { paddingBottom: TAB_BAR_SPACE, gap: 12 },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 32,
+    gap: 16,
+  },
+
+  dot: {
+    position: "absolute",
+    zIndex: 0,
+  },
 
   card: {
-    position: "relative",
     backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    elevation: 3,
+    borderRadius: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    shadowColor: "#C4C9F5",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 14,
+    elevation: 5,
+    position: "relative",
     overflow: "hidden",
   },
 
-  badgeTopRight: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    zIndex: 10,
-  },
-
-  badgeText: { fontWeight: "900", fontSize: 10 },
-
-  cardTitle: {
-    marginTop: 2,
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#0F172A",
-    textAlign: "center",
-    lineHeight: 30,
-    fontFamily: "AbhayaLibre_700Bold",
-    paddingHorizontal: 72,
-  },
-
-  metaRowCenter: {
-    marginTop: 12,
-    flexDirection: "row",
-    justifyContent: "center",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-
-  metaItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-
-  metaText: { fontSize: 11, fontWeight: "800", color: "#475569" },
-
-  btn: {
-    marginTop: 12,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: PRIMARY,
+  iconWrapper: {
+    width: 72,
     alignItems: "center",
     justifyContent: "center",
-    flexDirection: "row",
-    gap: 8,
   },
 
-  btnLight: {
-    backgroundColor: "#EEF2FF",
-    borderWidth: 1,
-    borderColor: "#C7D2FE",
+  iconCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: "#EEF0FF",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  btnPressed: { opacity: 0.9, transform: [{ scale: 0.99 }] },
-  btnText: { color: "#FFFFFF", fontSize: 12, fontWeight: "900" },
-  btnTextDark: { color: "#0F172A" },
 
-  center: {
+  iconEmoji: {
+    fontSize: 34,
+  },
+
+  divider: {
+    width: 1.5,
+    height: 70,
+    backgroundColor: "#E5E7F5",
+    marginHorizontal: 14,
+  },
+
+  cardContent: {
     flex: 1,
-    alignItems: "center",
     justifyContent: "center",
-    padding: 16,
-    paddingBottom: TAB_BAR_SPACE,
   },
-  infoText: {
+
+  yearText: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: "#1E1B4B",
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+
+  subtitleText: {
+    fontSize: 12.5,
+    color: "#8B8FAD",
+    fontWeight: "400",
+    marginBottom: 10,
+    lineHeight: 17,
+  },
+
+  startButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#5B4FCF",
+    borderRadius: 22,
+    paddingVertical: 7,
+    paddingHorizontal: 18,
+    alignSelf: "flex-start",
+  },
+
+  startButtonText: {
+    color: "#FFFFFF",
+    fontSize: 13.5,
+    fontWeight: "600",
+    letterSpacing: 0.3,
+  },
+
+  startButtonArrow: {
+    color: "#FFFFFF",
     fontSize: 14,
-    fontWeight: "900",
-    color: "#0F172A",
-    textAlign: "center",
-  },
-  infoTextSmall: {
-    marginTop: 8,
-    fontSize: 12,
     fontWeight: "700",
-    color: "#64748B",
-    textAlign: "center",
+  },
+
+  cardStar: {
+    position: "absolute",
+    top: 14,
+    right: 16,
   },
 });

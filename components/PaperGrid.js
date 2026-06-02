@@ -1,112 +1,183 @@
-import React, { useRef, useState, useEffect } from "react";
-import { View, Text, StyleSheet, Pressable, Animated, Image } from "react-native";
+import React from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  Platform,
+  useWindowDimensions,
+} from "react-native";
 import { useNavigation } from "@react-navigation/native";
 
-import topicwisepaper from "../assets/topicwisepaper.png";
-import pastpapers from "../assets/pastpapers.png";
-import modelpapers from "../assets/modelpapers.png";
-import dailyquizz from "../assets/dailyquizz.png";
+import dailyPapersImg from "../assets/dailypapers.png";
+import fiveHundredPapersImg from "../assets/500papers.png";
+import lessonByLessonImg from "../assets/lessonbylesson.png";
+import pastPapersImg from "../assets/pastpapers.png";
 
-import useT from "../app/i18n/useT";
+const CARD_COLORS = ["#FF4757", "#FF6348", "#1E90FF", "#6C5CE7"];
+
+const PAPERS = [
+  {
+    id: "daily",
+    label: "Daily papers",
+    image: dailyPapersImg,
+    route: "DailyPapers",
+  },
+  {
+    id: "500",
+    label: "500 papers",
+    image: fiveHundredPapersImg,
+    route: "FiveHundredPapers",
+  },
+  {
+    id: "lesson",
+    label: "Lesson By Lesson",
+    image: lessonByLessonImg,
+    route: "LessonByLesson",
+  },
+  {
+    id: "past",
+    label: "Past papers",
+    image: pastPapersImg,
+    route: "PastPaper",
+  },
+];
+
+const H_PAD = 14;
+const GAP = 10;
+const MAX_LAYOUT_W = 480;
 
 export default function PaperGrid() {
   const navigation = useNavigation();
-  const { t, sinFont } = useT();
+  const { width: winWidth } = useWindowDimensions();
 
-  const [active, setActive] = useState(null);
-  const timeoutRef = useRef(null);
+  const layoutWidth =
+    Platform.OS === "web" ? Math.min(winWidth, MAX_LAYOUT_W) : winWidth;
 
-  const scales = [
-    useRef(new Animated.Value(1)).current,
-    useRef(new Animated.Value(1)).current,
-    useRef(new Animated.Value(1)).current,
-    useRef(new Animated.Value(1)).current,
-  ];
-
-  const papers = [
-    { title: t("dailyQuiz"), img: dailyquizz, route: "DailyQuiz" },
-    { title: t("topicWise"), img: topicwisepaper, route: "TopicWisePaper" },
-    { title: t("modelPapers"), img: modelpapers, route: "ModelPaper" },
-    { title: t("pastPapers"), img: pastpapers, route: "PastPapers" },
-  ];
-
-  useEffect(() => {
-    return () => timeoutRef.current && clearTimeout(timeoutRef.current);
-  }, []);
-
-  const zoomOut = (index) => {
-    Animated.spring(scales[index], {
-      toValue: 1,
-      useNativeDriver: true,
-      friction: 6,
-    }).start();
-    setActive(null);
-  };
-
-  const onPressCard = (index) => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    if (active !== null && active !== index) zoomOut(active);
-
-    Animated.spring(scales[index], {
-      toValue: 1.06,
-      useNativeDriver: true,
-      friction: 6,
-    }).start();
-
-    setActive(index);
-
-    const selected = papers[index];
-    timeoutRef.current = setTimeout(() => {
-      zoomOut(index);
-      if (selected?.route) navigation.navigate(selected.route);
-    }, 180);
-  };
+  const cardWidth = (layoutWidth - H_PAD * 2 - GAP) / 2;
+  const cardHeight = Math.min(cardWidth * 0.78, 120);
+  const imgSize = Math.min(cardHeight * 0.42, 46);
 
   return (
-    <View style={styles.grid}>
-      {papers.map((item, idx) => (
-        <Pressable key={`${idx}`} onPress={() => onPressCard(idx)} style={styles.cardWrap}>
-          <Animated.View style={[styles.card, { transform: [{ scale: scales[idx] }] }]}>
-            <Image source={item.img} style={styles.icon} />
-            <Text style={[styles.text, sinFont("bold")]} numberOfLines={2}>
-              {item.title}
-            </Text>
-          </Animated.View>
-        </Pressable>
-      ))}
+    <View style={styles.wrapper}>
+      <View
+        style={[
+          styles.inner,
+          {
+            maxWidth: Platform.OS === "web" ? MAX_LAYOUT_W : undefined,
+          },
+        ]}
+      >
+        <Text style={styles.sectionTitle}>Papers</Text>
+
+        <View style={styles.grid}>
+          {PAPERS.map((item, index) => (
+            <TouchableOpacity
+              key={item.id}
+              style={[
+                styles.card,
+                {
+                  width: cardWidth,
+                  height: cardHeight,
+                  backgroundColor: CARD_COLORS[index],
+                },
+              ]}
+              onPress={() => navigation.navigate(item.route)}
+              activeOpacity={0.82}
+            >
+              <View
+                style={[
+                  styles.circle,
+                  {
+                    width: cardWidth * 0.6,
+                    height: cardWidth * 0.6,
+                    borderRadius: cardWidth * 0.3,
+                  },
+                ]}
+              />
+
+              <Image
+                source={item.image}
+                style={{ width: imgSize, height: imgSize }}
+                resizeMode="contain"
+              />
+
+              <Text
+                style={[styles.cardLabel, { maxWidth: cardWidth - 16 }]}
+                numberOfLines={2}
+              >
+                {item.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    width: "100%",
+    backgroundColor: "#6764FF",
+    alignItems: "center",
+    paddingTop: 10,
+    paddingBottom: 0,
+  },
+
+  inner: {
+    width: "100%",
+    paddingHorizontal: H_PAD,
+    alignSelf: "center",
+  },
+
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#FFFFFF",
+    marginBottom: 10,
+  },
+
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    marginTop: 12,
-    paddingBottom: 16,
   },
-  cardWrap: { width: "48%", height: 140, marginBottom: 12 },
+
   card: {
-    flex: 1,
-    backgroundColor: "#FDFEFF",
-    borderRadius: 16,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    justifyContent: "center",
+    borderRadius: 18,
     alignItems: "center",
+    justifyContent: "center",
+    marginBottom: GAP,
+    overflow: "hidden",
+    gap: 6,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 5,
   },
-  text: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#0F172A",
+
+  circle: {
+    position: "absolute",
+    bottom: -12,
+    right: -12,
+    backgroundColor: "rgba(0,0,0,0.12)",
+  },
+
+  cardLabel: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#FFFFFF",
     textAlign: "center",
-    marginBottom: 8,
-    paddingHorizontal: 8,
+    lineHeight: 17,
+    zIndex: 2,
+    ...Platform.select({
+      web: {
+        userSelect: "none",
+        WebkitFontSmoothing: "antialiased",
+      },
+    }),
   },
-  icon: { width: 80, height: 80, resizeMode: "contain" },
 });

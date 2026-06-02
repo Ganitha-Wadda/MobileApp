@@ -1,504 +1,513 @@
-// pages/DailyQuizMenu.js ✅ FULL FILE
-// logic aligned with other menu pages + keeps paid paper support + bottom spacing fixed
-
-import React, { useMemo, useCallback, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  Pressable,
+  TouchableOpacity,
+  Animated,
+  Dimensions,
   ScrollView,
-  ActivityIndicator,
-  Alert,
+  StatusBar,
 } from "react-native";
-import { useNavigation, useFocusEffect } from "@react-navigation/native";
-import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 
-import { useGetPublishedPapersQuery } from "../app/paperApi";
-import {
-  useStartAttemptMutation,
-  useGetMyAttemptsByPaperQuery,
-} from "../app/attemptApi";
-import { useGetMyPaymentStatusQuery } from "../app/paymentApi";
-import useT from "../app/i18n/useT";
+const { width, height } = Dimensions.get("window");
 
-const PRIMARY = "#1153ec";
-const RED_BTN = "#DC2626";
-const TAB_BAR_SPACE = 110;
+// ─── Paper data ───────────────────────────────────────────────────────────────
+const PAPERS = [
+  {
+    id: "1",
+    title: "Paper - 1",
+    subtitle: "Build your skills step by step!",
+    icon: "📋",
+    iconBg: ["#E8E4FF", "#D4CEFF"],
+    starColor: "#8B7CF8",
+  },
+  {
+    id: "2",
+    title: "Paper - 2",
+    subtitle: "Challenge yourself and learn!",
+    icon: "📚",
+    iconBg: ["#FFF3D4", "#FFE8A0"],
+    starColor: "#F5A623",
+  },
+  {
+    id: "3",
+    title: "Paper - 3",
+    subtitle: "Think smart, score better!",
+    icon: "💡",
+    iconBg: ["#E8F4FF", "#D0EAFF"],
+    starColor: "#5BC8FF",
+  },
+  {
+    id: "4",
+    title: "Paper - 4",
+    subtitle: "You've got this! Keep going!",
+    icon: "🏆",
+    iconBg: ["#FFF0E8", "#FFE0CC"],
+    starColor: "#FF6EB4",
+  },
+];
 
-const PaymentBadge = ({ payment, amount, T, isSi, sinFont }) => {
-  const type = String(payment || "free").toLowerCase();
-  const isPaid = type === "paid";
-  const isPractice = type === "practise" || type === "practice";
+// ─── Floating sparkle dot ─────────────────────────────────────────────────────
+const SparkDot = ({ style, delay = 0, color = "#E0D8FF" }) => {
+  const scaleAnim = useRef(new Animated.Value(0.4)).current;
 
-  const bg = isPaid ? "#FEE2E2" : isPractice ? "#FEF3C7" : "#DCFCE7";
-  const text = isPaid ? "#991B1B" : isPractice ? "#92400E" : "#166534";
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.timing(scaleAnim, {
+          toValue: 1.2,
+          duration: 1200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 0.4,
+          duration: 1200,
+          useNativeDriver: true,
+        }),
+      ])
+    );
 
-  // ✅ Paid label must stay English (do NOT translate "PAID" or "Rs")
-  const paidLabel = `Pay • Rs ${Number(amount || 0)}`;
+    loop.start();
 
-  // ✅ Only translate these 3 words: T.practise / T.free (Paid stays English)
-  const label = isPaid ? paidLabel : isPractice ? T.practise : T.free;
-
-  return (
-    <View style={[styles.badgeTopRight, { backgroundColor: bg }]}>
-      <Text
-        style={[
-          styles.badgeText,
-          { color: text },
-          // ✅ Apply Sinhala font ONLY for practise/free (not for paidLabel)
-          !isPaid && isSi ? sinFont("bold") : null,
-        ]}
-      >
-        {label}
-      </Text>
-    </View>
-  );
-};
-
-const PaperCard = ({
-  paper,
-  attemptsContext,
-  paymentContext,
-  onAttemptNow,
-  onViewResult,
-  onPayNow,
-  starting,
-  T,
-  isSi,
-  sinFont,
-}) => {
-  const payType = String(paper.payment || "free").toLowerCase();
-  const isPaidPaper = payType === "paid";
-
-  const unlocked = isPaidPaper ? !!paymentContext?.unlocked : true;
-  const attemptsLeft = Number(attemptsContext?.attemptsLeft ?? paper.attempts);
-  const isOver = attemptsLeft <= 0;
-
-  const showPayNow = isPaidPaper && !unlocked;
-
-  const btnText = showPayNow ? T.payNow : isOver ? T.viewResult : T.attemptNow;
-
-  const onPress = () => {
-    if (showPayNow) return onPayNow?.(paper);
-    if (isOver) return onViewResult?.(paper, attemptsContext);
-    return onAttemptNow?.(paper);
-  };
+    return () => loop.stop();
+  }, [delay, scaleAnim]);
 
   return (
-    <View style={styles.card}>
-      <PaymentBadge
-        payment={paper.payment}
-        amount={paper.amount}
-        T={T}
-        isSi={isSi}
-        sinFont={sinFont}
-      />
-
-      <Text style={styles.cardTitle}>{paper.title}</Text>
-
-      <View style={styles.metaRowCenter}>
-        <View style={styles.metaItem}>
-          <Ionicons name="help-circle-outline" size={16} color="#64748B" />
-          <Text style={[styles.metaText, isSi ? sinFont("bold") : null]}>
-            {paper.mcqCount} {T.mcqs}
-          </Text>
-        </View>
-
-        <View style={styles.metaItem}>
-          <Ionicons name="time-outline" size={16} color="#64748B" />
-          <Text style={[styles.metaText, isSi ? sinFont("bold") : null]}>
-            {paper.timeMin} {T.min}
-          </Text>
-        </View>
-
-        <View style={styles.metaItem}>
-          <Ionicons name="repeat-outline" size={16} color="#64748B" />
-          <Text style={styles.metaText}>
-            {Math.max(attemptsLeft, 0)}/{paper.attempts} left
-          </Text>
-        </View>
-      </View>
-
-      <Pressable
-        onPress={onPress}
-        disabled={starting}
-        style={({ pressed }) => [
-          styles.btn,
-          pressed && styles.btnPressed,
-          starting && { opacity: 0.6 },
-          showPayNow && { backgroundColor: RED_BTN },
-          !showPayNow && isOver && styles.btnLight,
-        ]}
-      >
-        <Text
-          style={[
-            styles.btnText,
-            !showPayNow && isOver && styles.btnTextDark,
-            isSi ? sinFont("bold") : null,
-          ]}
-        >
-          {starting ? T.pleaseWait : btnText}
-        </Text>
-
-        <Ionicons
-          name={
-            showPayNow
-              ? "card-outline"
-              : isOver
-              ? "document-text-outline"
-              : "arrow-forward"
-          }
-          size={18}
-          color={showPayNow ? "#FFFFFF" : isOver ? "#0F172A" : "#FFFFFF"}
-        />
-      </Pressable>
-    </View>
-  );
-};
-
-const PaperCardWithStatus = ({
-  paper,
-  onAttemptNow,
-  onViewResult,
-  onPayNow,
-  starting,
-  T,
-  isSi,
-  sinFont,
-  refreshKey,
-}) => {
-  const {
-    data: attemptsContext,
-    isFetching: attemptsFetching,
-    refetch: refetchAttempts,
-  } = useGetMyAttemptsByPaperQuery(
-    { paperId: paper.id },
-    {
-      skip: !paper?.id,
-      refetchOnMountOrArgChange: true,
-      refetchOnFocus: true,
-    }
-  );
-
-  const payType = String(paper.payment || "free").toLowerCase();
-  const needsPayCheck = payType === "paid";
-
-  const {
-    data: paymentContext,
-    isFetching: payFetching,
-    refetch: refetchPay,
-  } = useGetMyPaymentStatusQuery(
-    { paperId: paper.id },
-    {
-      skip: !paper?.id || !needsPayCheck,
-      refetchOnMountOrArgChange: true,
-      refetchOnFocus: true,
-      refetchOnReconnect: true,
-    }
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      if (paper?.id) {
-        refetchAttempts?.();
-        if (needsPayCheck) refetchPay?.();
-      }
-    }, [paper?.id, needsPayCheck, refetchAttempts, refetchPay, refreshKey])
-  );
-
-  const safeAttempts = attemptsFetching ? null : attemptsContext;
-  const safePay = payFetching ? null : paymentContext;
-
-  return (
-    <PaperCard
-      paper={paper}
-      attemptsContext={safeAttempts}
-      paymentContext={
-        needsPayCheck ? safePay : { required: false, unlocked: true }
-      }
-      onAttemptNow={onAttemptNow}
-      onViewResult={onViewResult}
-      onPayNow={onPayNow}
-      starting={starting}
-      T={T}
-      isSi={isSi}
-      sinFont={sinFont}
+    <Animated.View
+      style={[
+        {
+          position: "absolute",
+          width: 8,
+          height: 8,
+          borderRadius: 4,
+          backgroundColor: color,
+        },
+        style,
+        {
+          transform: [{ scale: scaleAnim }],
+        },
+      ]}
     />
   );
 };
 
-export default function DailyQuizMenu({ route }) {
-  const navigation = useNavigation();
-  const { t, lang, sinFont } = useT();
-  const isSi = lang === "si";
+// ─── Floating decorative star ────────────────────────────────────────────────
+const DecoStar = ({
+  style,
+  size = 22,
+  color = "#8B7CF8",
+  delay = 0,
+  filled = true,
+}) => {
+  const floatAnim = useRef(new Animated.Value(0)).current;
+  const opacityAnim = useRef(new Animated.Value(filled ? 0.85 : 0.4)).current;
 
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  useFocusEffect(
-    useCallback(() => {
-      setRefreshKey((x) => x + 1);
-    }, [])
-  );
-
-  const T = useMemo(
-    () => ({
-      pageTitle: t("dqTitle"),
-      payNow: t("payNow"),
-      attemptNow: t("attemptNow"),
-      pleaseWait: t("pleaseWait"),
-      mcqs: t("mcqs"),
-      min: t("min"),
-      paid: t("paid"),
-      practise: t("practise"),
-      free: t("free"),
-      viewResult: t("viewResult"),
-    }),
-    [t]
-  );
-
-  const { gradeNumber, stream, subject } = route?.params || {};
-
-  const canFetch =
-    !!gradeNumber && !!subject && (Number(gradeNumber) < 12 || !!stream);
-
-  const { data: papersRaw = [], isLoading, isFetching, error } =
-    useGetPublishedPapersQuery(
-      {
-        gradeNumber,
-        paperType: "Daily Quiz",
-        stream: Number(gradeNumber) >= 12 ? stream : null,
-        subject,
-      },
-      { skip: !canFetch }
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.parallel([
+          Animated.timing(floatAnim, {
+            toValue: -8,
+            duration: 2000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(opacityAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.parallel([
+          Animated.timing(floatAnim, {
+            toValue: 0,
+            duration: 2000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(opacityAnim, {
+            toValue: filled ? 0.85 : 0.4,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ]),
+      ])
     );
 
-  const PAPERS = useMemo(() => {
-    return (Array.isArray(papersRaw) ? papersRaw : []).map((p) => ({
-      id: String(p?._id || ""),
-      title: String(p?.paperTitle || "Daily Quiz"),
-      mcqCount: Number(p?.questionCount || 0),
-      timeMin: Number(p?.timeMinutes || 0),
-      attempts: Number(p?.attempts || 1),
-      payment: p?.payment,
-      amount: Number(p?.amount || 0),
-    }));
-  }, [papersRaw]);
+    loop.start();
 
-  const [startAttempt, { isLoading: starting }] = useStartAttemptMutation();
+    return () => loop.stop();
+  }, [delay, filled, floatAnim, opacityAnim]);
 
-  const onAttemptNow = async (paper) => {
-    try {
-      const res = await startAttempt({ paperId: paper.id }).unwrap();
-      const attemptId = String(res?.attempt?._id || "");
-      if (!attemptId) throw new Error("Attempt not created");
+  return (
+    <Animated.Text
+      style={[
+        {
+          position: "absolute",
+          fontSize: size,
+          color,
+        },
+        style,
+        {
+          opacity: opacityAnim,
+          transform: [{ translateY: floatAnim }],
+        },
+      ]}
+    >
+      {filled ? "★" : "☆"}
+    </Animated.Text>
+  );
+};
 
-      navigation.navigate("PaperPage", {
-        attemptId,
-        paperId: paper.id,
-        title: paper.title,
-        timeMin: Number(res?.paper?.timeMinutes || paper.timeMin || 10),
-      });
-    } catch (e) {
-      const msg =
-        e?.status === 402
-          ? "Payment required. Please Pay Now."
-          : e?.data?.message || e?.message || "Try again";
-      Alert.alert("Cannot start", msg);
-    }
+// ─── Paper card ───────────────────────────────────────────────────────────────
+const PaperCard = ({ item, index, navigation }) => {
+  const slideAnim = useRef(new Animated.Value(40)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const btnScale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 500,
+        delay: index * 120,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 500,
+        delay: index * 120,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fadeAnim, index, slideAnim]);
+
+  const handlePressIn = () => {
+    Animated.spring(btnScale, {
+      toValue: 0.93,
+      useNativeDriver: true,
+    }).start();
   };
 
-  const onPayNow = (paper) => {
-    navigation.navigate("PaymentCheckout", {
-      paperId: paper.id,
-      title: paper.title,
-      amount: Number(paper.amount || 0),
-      backTo: route?.params || {},
-    });
+  const handlePressOut = () => {
+    Animated.spring(btnScale, {
+      toValue: 1,
+      friction: 4,
+      useNativeDriver: true,
+    }).start();
   };
 
-  const onViewResult = (paper, context) => {
-    const attemptId = String(context?.lastAttemptId || "");
-    if (!attemptId) {
-      Alert.alert("No result", "No submitted attempt found for this paper.");
-      return;
-    }
-
-    navigation.navigate("ReviewPage", {
-      attemptId,
-      title: paper.title,
+  const handlePress = () => {
+    navigation.navigate("paperpage", {
+      paperId: item.id,
+      paperTitle: item.title,
     });
   };
 
   return (
-    <View style={styles.screen}>
-      <Text style={[styles.pageTitle, isSi ? sinFont("bold") : null]}>
-        {T.pageTitle}
-      </Text>
+    <Animated.View
+      style={[
+        styles.card,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
+    >
+      {/* Icon circle */}
+      <LinearGradient
+        colors={item.iconBg}
+        style={styles.iconCircle}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <Text style={styles.iconEmoji}>{item.icon}</Text>
+      </LinearGradient>
 
-      {!canFetch ? (
-        <View style={styles.center}>
-          <Text style={styles.infoText}>
-            Grade / Stream / Subject not selected
-          </Text>
-        </View>
-      ) : isLoading || isFetching ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={PRIMARY} />
-          <Text style={styles.infoText}>Loading papers...</Text>
-        </View>
-      ) : error ? (
-        <View style={styles.center}>
-          <Text style={styles.infoText}>Papers not available</Text>
-          <Text style={styles.infoTextSmall}>Check backend published papers.</Text>
-        </View>
-      ) : !PAPERS.length ? (
-        <View style={styles.center}>
-          <Text style={styles.infoText}>No Daily Quiz Papers Found</Text>
-          <Text style={styles.infoTextSmall}>
-            Please publish daily quiz papers in dashboard.
-          </Text>
-        </View>
-      ) : (
-        <ScrollView
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-        >
-          {PAPERS.map((p) => (
-            <PaperCardWithStatus
-              key={p.id}
-              paper={p}
-              onAttemptNow={onAttemptNow}
-              onViewResult={onViewResult}
-              onPayNow={onPayNow}
-              starting={starting}
-              T={T}
-              isSi={isSi}
-              sinFont={sinFont}
-              refreshKey={refreshKey}
-            />
-          ))}
-        </ScrollView>
-      )}
+      {/* Text block */}
+      <View style={styles.cardTextBlock}>
+        <Text style={styles.cardTitle}>{item.title}</Text>
+        <Text style={styles.cardSubtitle}>{item.subtitle}</Text>
+
+        {/* Start button */}
+        <Animated.View style={{ transform: [{ scale: btnScale }] }}>
+          <TouchableOpacity
+            activeOpacity={1}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+            onPress={handlePress}
+          >
+            <LinearGradient
+              colors={["#6B5BF5", "#4F3FE8"]}
+              style={styles.startBtn}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Text style={styles.startBtnText}>Start</Text>
+              <Text style={styles.startBtnArrow}>→</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </Animated.View>
+      </View>
+
+      {/* Top-right colored star */}
+      <Text style={[styles.cardStar, { color: item.starColor }]}>★</Text>
+    </Animated.View>
+  );
+};
+
+// ─── Main component ───────────────────────────────────────────────────────────
+export default function DailyQuizzmenu({ navigation }) {
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#ECEEFF" />
+
+      {/* Soft lavender background gradient */}
+      <LinearGradient
+        colors={["#ECEEFF", "#F0EEFF", "#E8ECFF"]}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+
+      {/* Background scattered sparkle dots */}
+      <SparkDot
+        style={{ top: height * 0.05, left: width * 0.06 }}
+        delay={0}
+        color="#D0CAFF"
+      />
+      <SparkDot
+        style={{ top: height * 0.09, right: width * 0.07 }}
+        delay={300}
+        color="#FFD6F0"
+      />
+      <SparkDot
+        style={{ top: height * 0.18, left: width * 0.1 }}
+        delay={150}
+        color="#D0CAFF"
+      />
+      <SparkDot
+        style={{ top: height * 0.3, right: width * 0.05 }}
+        delay={500}
+        color="#FFE0A0"
+      />
+      <SparkDot
+        style={{ top: height * 0.45, left: width * 0.04 }}
+        delay={200}
+        color="#D0CAFF"
+      />
+      <SparkDot
+        style={{ top: height * 0.55, right: width * 0.06 }}
+        delay={700}
+        color="#FFD6F0"
+      />
+      <SparkDot
+        style={{ top: height * 0.68, left: width * 0.07 }}
+        delay={400}
+        color="#D0CAFF"
+      />
+      <SparkDot
+        style={{ top: height * 0.78, right: width * 0.08 }}
+        delay={100}
+        color="#FFE0A0"
+      />
+      <SparkDot
+        style={{ top: height * 0.88, left: width * 0.12 }}
+        delay={600}
+        color="#D0CAFF"
+      />
+
+      {/* Background floating decorative stars */}
+      <DecoStar
+        style={{ top: height * 0.07, left: width * 0.03 }}
+        size={14}
+        color="#C8BFFF"
+        delay={0}
+        filled={false}
+      />
+      <DecoStar
+        style={{ top: height * 0.22, left: width * 0.02 }}
+        size={20}
+        color="#C8BFFF"
+        delay={400}
+        filled={false}
+      />
+      <DecoStar
+        style={{ top: height * 0.4, left: width * 0.03 }}
+        size={16}
+        color="#C8BFFF"
+        delay={200}
+        filled={false}
+      />
+      <DecoStar
+        style={{ top: height * 0.58, left: width * 0.02 }}
+        size={22}
+        color="#C8BFFF"
+        delay={600}
+        filled={false}
+      />
+      <DecoStar
+        style={{ top: height * 0.74, left: width * 0.04 }}
+        size={14}
+        color="#C8BFFF"
+        delay={300}
+        filled={false}
+      />
+
+      <DecoStar
+        style={{ top: height * 0.12, right: width * 0.03 }}
+        size={18}
+        color="#C8BFFF"
+        delay={100}
+        filled={false}
+      />
+      <DecoStar
+        style={{ top: height * 0.28, right: width * 0.02 }}
+        size={14}
+        color="#C8BFFF"
+        delay={500}
+        filled={false}
+      />
+      <DecoStar
+        style={{ top: height * 0.48, right: width * 0.03 }}
+        size={20}
+        color="#C8BFFF"
+        delay={250}
+        filled={false}
+      />
+      <DecoStar
+        style={{ top: height * 0.65, right: width * 0.02 }}
+        size={16}
+        color="#C8BFFF"
+        delay={700}
+        filled={false}
+      />
+      <DecoStar
+        style={{ top: height * 0.82, right: width * 0.04 }}
+        size={22}
+        color="#C8BFFF"
+        delay={350}
+        filled={false}
+      />
+
+      {/* Scrollable paper list */}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {PAPERS.map((item, index) => (
+          <PaperCard
+            key={item.id}
+            item={item}
+            index={index}
+            navigation={navigation}
+          />
+        ))}
+      </ScrollView>
     </View>
   );
 }
 
+// ─── Styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  screen: {
+  container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
-    padding: 16,
-    paddingTop: 18,
-    paddingBottom: 0,
+    backgroundColor: "#ECEEFF",
   },
 
-  pageTitle: {
-    fontSize: 22,
-    fontWeight: "900",
-    color: PRIMARY,
-    textAlign: "center",
-    marginBottom: 15,
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 28,
+    paddingBottom: 36,
+    gap: 16,
   },
-
-  list: { paddingBottom: TAB_BAR_SPACE, gap: 12 },
 
   card: {
-    position: "relative",
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    elevation: 3,
+    borderRadius: 22,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
+    shadowColor: "#7B6FCC",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 18,
+    elevation: 5,
+    position: "relative",
     overflow: "hidden",
   },
 
-  badgeTopRight: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    zIndex: 10,
+  iconCircle: {
+    width: 78,
+    height: 78,
+    borderRadius: 39,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 16,
+    flexShrink: 0,
   },
 
-  badgeText: { fontWeight: "900", fontSize: 10 },
+  iconEmoji: {
+    fontSize: 38,
+  },
+
+  cardTextBlock: {
+    flex: 1,
+    gap: 4,
+  },
 
   cardTitle: {
-    marginTop: 2,
+    fontSize: 19,
+    fontWeight: "800",
+    color: "#1A1A2E",
+    letterSpacing: 0.2,
+    marginBottom: 2,
+  },
+
+  cardSubtitle: {
+    fontSize: 13,
+    color: "#7E7EA0",
+    fontWeight: "400",
+    lineHeight: 18,
+    marginBottom: 10,
+  },
+
+  startBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 22,
+    borderRadius: 50,
+    gap: 8,
+    alignSelf: "flex-start",
+    shadowColor: "#4F3FE8",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+
+  startBtnText: {
+    color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "700",
-    color: "#0F172A",
-    textAlign: "center",
-    lineHeight: 30,
-    fontFamily: "AbhayaLibre_700Bold",
-    paddingHorizontal: 72,
+    letterSpacing: 0.3,
   },
 
-  metaRowCenter: {
-    marginTop: 12,
-    flexDirection: "row",
-    justifyContent: "center",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-
-  metaItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-
-  metaText: { fontSize: 11, fontWeight: "800", color: "#475569" },
-
-  btn: {
-    marginTop: 12,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: PRIMARY,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 8,
-  },
-
-  btnLight: {
-    backgroundColor: "#EEF2FF",
-    borderWidth: 1,
-    borderColor: "#C7D2FE",
-  },
-  btnPressed: { opacity: 0.9, transform: [{ scale: 0.99 }] },
-  btnText: { color: "#FFFFFF", fontSize: 12, fontWeight: "900" },
-  btnTextDark: { color: "#0F172A" },
-
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 16,
-    paddingBottom: TAB_BAR_SPACE,
-  },
-  infoText: {
-    fontSize: 14,
-    fontWeight: "900",
-    color: "#0F172A",
-    textAlign: "center",
-  },
-  infoTextSmall: {
-    marginTop: 8,
-    fontSize: 12,
+  startBtnArrow: {
+    color: "#FFFFFF",
+    fontSize: 16,
     fontWeight: "700",
-    color: "#64748B",
-    textAlign: "center",
+  },
+
+  cardStar: {
+    position: "absolute",
+    top: 14,
+    right: 16,
+    fontSize: 20,
   },
 });

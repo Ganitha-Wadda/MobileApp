@@ -1,404 +1,663 @@
-// pages/Live.js ✅ FULL CODE
-// ✅ ONLY these 5 texts translate when Sinhala (legacy font only for them):
-//    Live Classes, Date, Time, LIVE, Join Class
-// ✅ All other text stays English
-// ✅ Fetched data not translated
-import React, { useMemo } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  Pressable,
-  FlatList,
+  TouchableOpacity,
+  Image,
+  Animated,
   Linking,
-  ActivityIndicator,
+  StatusBar,
+  Dimensions,
 } from "react-native";
-import { useGetStudentLivesQuery } from "../app/liveApi";
-import useT from "../app/i18n/useT";
 
-const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const { width, height } = Dimensions.get("window");
 
-const formatDate = (iso) => {
-  try {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return "";
-    return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(
-      d.getDate()
-    ).padStart(2, "0")}`;
-  } catch {
-    return "";
-  }
-};
+const isSmallScreen = width < 380;
+const isShortScreen = height < 760;
+const isVeryShortScreen = height < 700;
 
-const formatTime = (iso) => {
-  try {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return "";
-    let h = d.getHours();
-    const m = String(d.getMinutes()).padStart(2, "0");
-    const ampm = h >= 12 ? "p.m." : "a.m.";
-    h = h % 12 || 12;
-    return `${h}.${m} ${ampm}`;
-  } catch {
-    return "";
-  }
-};
+// ── decorative star/sparkle component ──────────────────────────────────────
+const Star = ({ style, size = 18, color = "#A78BFA" }) => (
+  <Text style={[{ fontSize: size, position: "absolute", color }, style]}>
+    ★
+  </Text>
+);
 
-export default function Live() {
-  const { t, lang, sinFont } = useT();
-  const isSi = lang === "si";
-  const LBL_REG = isSi ? sinFont("regular") : null;
-  const LBL_BOLD = isSi ? sinFont("bold") : null;
+const Sparkle = ({ style, size = 12, color = "#C4B5FD" }) => (
+  <Text style={[{ fontSize: size, position: "absolute", color }, style]}>
+    ✦
+  </Text>
+);
 
-  const { data, isLoading, isFetching, error, refetch } =
-    useGetStudentLivesQuery();
+// ── pulsing LIVE dot ────────────────────────────────────────────────────────
+const LiveDot = () => {
+  const pulse = useRef(new Animated.Value(1)).current;
 
-  const lives = useMemo(() => {
-    const list = data?.lives || [];
-    const now = Date.now();
-
-    return list
-      .filter((x) => {
-        const t = new Date(x?.scheduledAt).getTime();
-        if (!t || Number.isNaN(t)) return false;
-        return now - t <= ONE_DAY_MS;
-      })
-      .sort(
-        (a, b) =>
-          new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime()
-      );
-  }, [data]);
-
-  const onJoin = async (url) => {
-    if (!url) return;
-    const can = await Linking.canOpenURL(url);
-    if (can) Linking.openURL(url);
-  };
-
-  // ✅ ONLY 5 strings translated
-  const UI = {
-    pageTitle: isSi ? t("liveTitle") : "Live Classes",
-    date: isSi ? t("liveDate") : "Date",
-    time: isSi ? t("liveTime") : "Time",
-    live: isSi ? t("liveBadge") : "LIVE",
-    join: isSi ? t("liveJoin") : "Join Class",
-  };
-
-  if (isLoading) {
-    return (
-      <View style={[styles.screen, styles.centerWrap]}>
-        <ActivityIndicator size="large" color="#DC2626" />
-        {/* keep English */}
-        <Text style={styles.stateText}>Loading live classes...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={[styles.screen, styles.centerWrap]}>
-        <View style={styles.stateCard}>
-          {/* keep English */}
-          <Text style={styles.errorTitle}>Failed to load live classes</Text>
-          <Pressable onPress={refetch} style={styles.retryBtn}>
-            {/* keep English */}
-            <Text style={styles.retryBtnText}>Retry</Text>
-          </Pressable>
-        </View>
-      </View>
-    );
-  }
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1.6,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, []);
 
   return (
-    <View style={styles.screen}>
-      {/* ✅ translated title + legacy font only */}
-      <Text style={[styles.pageTitle, LBL_BOLD]}>{UI.pageTitle}</Text>
+    <View style={styles.liveDotWrapper}>
+      <Animated.View
+        style={[styles.liveDotRing, { transform: [{ scale: pulse }] }]}
+      />
+      <View style={styles.liveDot} />
+    </View>
+  );
+};
 
-      {isFetching ? (
-        <View style={styles.refreshWrap}>
-          {/* keep English */}
-          <Text style={styles.refreshText}>Refreshing...</Text>
-        </View>
-      ) : null}
+// ── main screen ─────────────────────────────────────────────────────────────
+export default function Live() {
+  const cardScale = useRef(new Animated.Value(0.94)).current;
+  const cardOpacity = useRef(new Animated.Value(0)).current;
+  const btnTranslate = useRef(new Animated.Value(30)).current;
 
-      {lives.length === 0 ? (
-        <View style={styles.emptyWrap}>
-          {/* keep English */}
-          <Text style={styles.emptyText}>No live classes right now.</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={lives}
-          keyExtractor={(item) => String(item?._id)}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-          renderItem={({ item }) => {
-            const title = item?.title || "Live Class";
-            const teacher = item?.teacherNames?.[0] || "Teacher";
-            const dateText = formatDate(item?.scheduledAt);
-            const timeText = formatTime(item?.scheduledAt);
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(cardScale, {
+        toValue: 1,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+      Animated.timing(cardOpacity, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      Animated.spring(btnTranslate, {
+        toValue: 0,
+        friction: 7,
+        delay: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
-            return (
-              <View style={styles.card}>
-                <View style={styles.headerRow}>
-                  <View style={styles.headerLeft}>
-                    {/* fetched title stays same */}
-                    <Text style={styles.title} numberOfLines={1}>
-                      {title}
-                    </Text>
-                    {/* fetched teacher stays same */}
-                    <Text style={styles.teacher} numberOfLines={1}>
-                      {teacher}
-                    </Text>
-                  </View>
+  const handleLink = (url) => {
+    Linking.openURL(url).catch(() => {});
+  };
 
-                  <View style={styles.liveBadge}>
-                    <View style={styles.liveDot} />
-                    {/* ✅ translated LIVE badge + legacy font only */}
-                    <Text style={[styles.liveBadgeText, LBL_BOLD]}>{UI.live}</Text>
-                  </View>
-                </View>
+  return (
+    <View style={styles.root}>
+      <StatusBar barStyle="dark-content" backgroundColor="#EDE9FE" />
 
-                <View style={styles.infoRow}>
-                  <View style={styles.infoItem}>
-                    {/* ✅ translated label + legacy font only */}
-                    <Text style={[styles.infoLabel, LBL_REG]}>{UI.date}</Text>
-                    <Text style={styles.infoValue} numberOfLines={1}>
-                      {dateText || "-"}
-                    </Text>
-                  </View>
+      <View style={styles.container}>
+        {/* header */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <View style={styles.liveIconBg}>
+              <Text style={styles.liveIconPlay}>▶</Text>
 
-                  <View style={styles.infoDivider} />
-
-                  <View style={styles.infoItem}>
-                    {/* ✅ translated label + legacy font only */}
-                    <Text style={[styles.infoLabel, LBL_REG]}>{UI.time}</Text>
-                    <Text style={styles.infoValue} numberOfLines={1}>
-                      {timeText || "-"}
-                    </Text>
-                  </View>
-                </View>
-
-                <Pressable
-                  style={styles.joinBtn}
-                  onPress={() => onJoin(item?.zoomLink)}
-                >
-                  {/* ✅ translated Join Class + legacy font only */}
-                  <Text style={[styles.joinBtnText, LBL_BOLD]}>{UI.join}</Text>
-                </Pressable>
+              <View style={styles.liveBadge}>
+                <Text style={styles.liveBadgeText}>LIVE</Text>
               </View>
-            );
-          }}
-        />
-      )}
+            </View>
+
+            <View style={styles.headerTextBox}>
+              <Text style={styles.headerTitle}>Today's Live Session</Text>
+              <Text style={styles.headerSub}>Join your class and learn live!</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity style={styles.calendarBtn} activeOpacity={0.8}>
+            <Text style={styles.calendarIcon}>📅</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* main card */}
+        <Animated.View
+          style={[
+            styles.card,
+            {
+              transform: [{ scale: cardScale }],
+              opacity: cardOpacity,
+            },
+          ]}
+        >
+          {/* floating decoration */}
+          <Star
+            style={{ top: isVeryShortScreen ? 16 : 20, left: 24 }}
+            size={isVeryShortScreen ? 17 : 19}
+            color="#7C3AED"
+          />
+
+          <Sparkle
+            style={{ top: isVeryShortScreen ? 32 : 40, right: 30 }}
+            size={isVeryShortScreen ? 10 : 12}
+            color="#C084FC"
+          />
+
+          <Sparkle
+            style={{ top: isVeryShortScreen ? 72 : 88, left: 55 }}
+            size={9}
+            color="#818CF8"
+          />
+
+          <Star
+            style={{ top: isVeryShortScreen ? 100 : 118, right: 18 }}
+            size={isVeryShortScreen ? 22 : 24}
+            color="#FBBF24"
+          />
+
+          <Sparkle
+            style={{ bottom: isVeryShortScreen ? 120 : 140, right: 40 }}
+            size={10}
+            color="#A78BFA"
+          />
+
+          <Sparkle
+            style={{ bottom: isVeryShortScreen ? 160 : 185, left: 30 }}
+            size={9}
+            color="#C4B5FD"
+          />
+
+          {/* cloud blobs */}
+          <Text
+            style={[
+              styles.cloud,
+              {
+                top: isVeryShortScreen ? 78 : 92,
+                left: -10,
+                fontSize: isVeryShortScreen ? 32 : 38,
+              },
+            ]}
+          >
+            ☁️
+          </Text>
+
+          <Text
+            style={[
+              styles.cloud,
+              {
+                bottom: isVeryShortScreen ? 88 : 110,
+                right: -6,
+                fontSize: isVeryShortScreen ? 28 : 32,
+              },
+            ]}
+          >
+            ☁️
+          </Text>
+
+          {/* LIVE NOW badge */}
+          <View style={styles.liveNowBadge}>
+            <LiveDot />
+            <Text style={styles.liveNowText}>LIVE NOW</Text>
+          </View>
+
+          {/* class name */}
+          <View style={styles.classNameRow}>
+            <Text style={styles.classDecor}>≻</Text>
+            <Text style={styles.className}>Chakkre</Text>
+            <Text style={styles.classDecor}>≺</Text>
+          </View>
+
+          {/* avatar */}
+          <View style={styles.avatarWrapper}>
+            <View style={styles.avatarRing}>
+              <View style={styles.avatarInner}>
+                <Image
+                  source={require("F:/public_folder/Ganitha Wadda/App/assets/charithsir.png")}
+                  style={styles.avatar}
+                  resizeMode="cover"
+                />
+              </View>
+            </View>
+
+            <View style={styles.cameraBadge}>
+              <Text style={styles.cameraIcon}>🎥</Text>
+            </View>
+          </View>
+
+          {/* teacher info */}
+          <Text style={styles.teacherName}>Charith Gimhan</Text>
+          <Text style={styles.teacherRole}>Psychology consultant</Text>
+
+          {/* divider */}
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerStar}>★</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* action buttons */}
+          <Animated.View
+            style={[
+              styles.buttonsBlock,
+              {
+                transform: [{ translateY: btnTranslate }],
+              },
+            ]}
+          >
+            <TouchableOpacity
+              style={[styles.linkBtn, styles.linkBtn1]}
+              onPress={() => handleLink("https://zoom.us/j/your-link-1")}
+              activeOpacity={0.82}
+            >
+              <View style={styles.btnIconCircle}>
+                <Text style={styles.btnIcon}>🎥</Text>
+              </View>
+
+              <Text style={styles.linkBtnText}>Live Link 1</Text>
+              <Text style={styles.linkBtnArrow}>›</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.linkBtn, styles.linkBtn2]}
+              onPress={() => handleLink("https://zoom.us/j/your-link-2")}
+              activeOpacity={0.82}
+            >
+              <View style={styles.btnIconCircle}>
+                <Text style={styles.btnIcon}>🎥</Text>
+              </View>
+
+              <Text style={styles.linkBtnText}>Live Link 2</Text>
+              <Text style={styles.linkBtnArrow}>›</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </Animated.View>
+
+        {/* reminder strip */}
+        <View style={styles.reminderStrip}>
+          <View style={styles.reminderIcon}>
+            <Text style={styles.reminderIconText}>🛡️</Text>
+          </View>
+
+          <View style={styles.reminderTextBox}>
+            <Text style={styles.reminderTitle}>Be ready and stay on time!</Text>
+            <Text style={styles.reminderSub}>
+              Make sure you have a good internet connection and join a few minutes
+              early.
+            </Text>
+          </View>
+
+          <Text style={styles.clockIcon}>⏰</Text>
+        </View>
+      </View>
     </View>
   );
 }
 
+// ── styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  screen: {
+  root: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
-    paddingHorizontal: 16,
-    paddingTop: 16,
+    backgroundColor: "#EDE9FE",
   },
 
-  centerWrap: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  pageTitle: {
-    textAlign: "center",
-    fontSize: 18,
-    fontWeight: "900",
-    color: "#DC2626",
-    marginBottom: 10,
-  },
-
-  refreshWrap: {
-    alignItems: "center",
-    marginBottom: 8,
-  },
-
-  refreshText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#64748B",
-  },
-
-  stateText: {
-    marginTop: 12,
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#64748B",
-  },
-
-  stateCard: {
+  container: {
+    flex: 1,
     width: "100%",
-    maxWidth: 360,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 16,
+    backgroundColor: "#EDE9FE",
+    paddingHorizontal: isSmallScreen ? 14 : 18,
+    paddingTop: isVeryShortScreen ? 8 : 12,
+    paddingBottom: isVeryShortScreen ? 8 : 12,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
+    justifyContent: "center",
   },
 
-  errorTitle: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#0F172A",
-    textAlign: "center",
+  header: {
+    width: "100%",
+    maxWidth: 480,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: isVeryShortScreen ? 7 : 9,
   },
 
-  retryBtn: {
-    marginTop: 10,
-    backgroundColor: "#DC2626",
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
   },
 
-  retryBtnText: {
+  liveIconBg: {
+    width: isVeryShortScreen ? 38 : 42,
+    height: isVeryShortScreen ? 38 : 42,
+    borderRadius: 14,
+    backgroundColor: "#7C3AED",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  liveIconPlay: {
     color: "#FFFFFF",
-    fontSize: 12,
+    fontSize: isVeryShortScreen ? 14 : 16,
+  },
+
+  liveBadge: {
+    position: "absolute",
+    bottom: -4,
+    right: -4,
+    backgroundColor: "#EF4444",
+    borderRadius: 6,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+  },
+
+  liveBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 7,
     fontWeight: "800",
   },
 
-  emptyWrap: {
-    marginTop: 20,
+  headerTextBox: {
+    marginLeft: 10,
+    flex: 1,
+  },
+
+  headerTitle: {
+    fontSize: isVeryShortScreen ? 13 : 15,
+    fontWeight: "800",
+    color: "#1E1B4B",
+  },
+
+  headerSub: {
+    fontSize: isVeryShortScreen ? 9.5 : 10.5,
+    color: "#7C6FCD",
+    marginTop: 1,
+  },
+
+  calendarBtn: {
+    width: isVeryShortScreen ? 34 : 38,
+    height: isVeryShortScreen ? 34 : 38,
+    borderRadius: 13,
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#7C3AED",
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 3,
+    marginLeft: 8,
   },
 
-  emptyText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#64748B",
-    textAlign: "center",
-  },
-
-  listContent: {
-    paddingBottom: 120,
+  calendarIcon: {
+    fontSize: isVeryShortScreen ? 16 : 18,
   },
 
   card: {
     width: "100%",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    padding: 10,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-
-  headerRow: {
-    flexDirection: "row",
+    maxWidth: 480,
+    backgroundColor: "#F5F3FF",
+    borderRadius: 24,
+    paddingHorizontal: isSmallScreen ? 16 : 20,
+    paddingTop: isVeryShortScreen ? 10 : 13,
+    paddingBottom: isVeryShortScreen ? 12 : 15,
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-  },
-
-  headerLeft: {
-    flex: 1,
-    paddingRight: 4,
-  },
-
-  title: {
-    fontSize: 12,
-    fontWeight: "900",
-    color: "#0F172A",
-  },
-
-  teacher: {
-    marginTop: 2,
-    fontSize: 9,
-    fontWeight: "700",
-    color: "#64748B",
-  },
-
-  liveBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FEF2F2",
-    borderWidth: 1,
-    borderColor: "#FECACA",
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 999,
-    backgroundColor: "#DC2626",
-    marginRight: 5,
-  },
-
-  liveBadgeText: {
-    fontSize: 9,
-    fontWeight: "900",
-    color: "#DC2626",
-    letterSpacing: 0.3,
-  },
-
-  infoRow: {
-    marginTop: 8,
-    marginBottom: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 10,
+    shadowColor: "#7C3AED",
+    shadowOpacity: 0.14,
+    shadowRadius: 20,
+    elevation: 8,
     overflow: "hidden",
   },
 
-  infoItem: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
+  cloud: {
+    position: "absolute",
+    opacity: 0.48,
   },
 
-  infoDivider: {
-    width: 1,
-    alignSelf: "stretch",
-    backgroundColor: "#E2E8F0",
+  liveNowBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#EDE9FE",
+    borderRadius: 20,
+    paddingHorizontal: isVeryShortScreen ? 10 : 12,
+    paddingVertical: isVeryShortScreen ? 3 : 4,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    marginBottom: isVeryShortScreen ? 5 : 7,
   },
 
-  infoLabel: {
-    fontSize: 9,
+  liveDotWrapper: {
+    width: 11,
+    height: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 6,
+  },
+
+  liveDotRing: {
+    position: "absolute",
+    width: 11,
+    height: 11,
+    borderRadius: 6,
+    backgroundColor: "#FCA5A5",
+    opacity: 0.45,
+  },
+
+  liveDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "#EF4444",
+  },
+
+  liveNowText: {
+    fontSize: isVeryShortScreen ? 9.5 : 10.5,
     fontWeight: "700",
-    color: "#64748B",
+    color: "#374151",
+    letterSpacing: 0.7,
+  },
+
+  classNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: isVeryShortScreen ? 7 : 9,
+  },
+
+  classDecor: {
+    fontSize: isVeryShortScreen ? 16 : 18,
+    color: "#FBBF24",
+    marginHorizontal: 7,
+    fontWeight: "900",
+  },
+
+  className: {
+    fontSize: isVeryShortScreen ? 22 : 25,
+    fontWeight: "900",
+    color: "#1E1B4B",
+    letterSpacing: 0.5,
+  },
+
+  avatarWrapper: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: isVeryShortScreen ? 7 : 9,
+  },
+
+  avatarRing: {
+    width: isVeryShortScreen ? 102 : isShortScreen ? 112 : 125,
+    height: isVeryShortScreen ? 102 : isShortScreen ? 112 : 125,
+    borderRadius: isVeryShortScreen ? 51 : isShortScreen ? 56 : 63,
+    borderWidth: 3,
+    borderColor: "#C4B5FD",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FAD4D4",
+  },
+
+  avatarInner: {
+    width: isVeryShortScreen ? 94 : isShortScreen ? 104 : 116,
+    height: isVeryShortScreen ? 94 : isShortScreen ? 104 : 116,
+    borderRadius: isVeryShortScreen ? 47 : isShortScreen ? 52 : 58,
+    overflow: "hidden",
+    backgroundColor: "#FDE8E8",
+  },
+
+  avatar: {
+    width: "100%",
+    height: "100%",
+  },
+
+  cameraBadge: {
+    position: "absolute",
+    bottom: 3,
+    right: 3,
+    width: isVeryShortScreen ? 30 : 34,
+    height: isVeryShortScreen ? 30 : 34,
+    borderRadius: 18,
+    backgroundColor: "#7C3AED",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#4C1D95",
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+
+  cameraIcon: {
+    fontSize: isVeryShortScreen ? 14 : 16,
+  },
+
+  teacherName: {
+    fontSize: isVeryShortScreen ? 16 : 18,
+    fontWeight: "800",
+    color: "#1E1B4B",
     marginBottom: 2,
   },
 
-  infoValue: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#0F172A",
+  teacherRole: {
+    fontSize: isVeryShortScreen ? 11 : 12,
+    color: "#7C6FCD",
+    marginBottom: isVeryShortScreen ? 7 : 9,
   },
 
-  joinBtn: {
-    alignSelf: "center",
-    minWidth: 126,
-    backgroundColor: "#DC2626",
-    borderRadius: 10,
-    paddingHorizontal: 18,
-    paddingVertical: 9,
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
+    marginBottom: isVeryShortScreen ? 8 : 10,
+  },
+
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#DDD6FE",
+  },
+
+  dividerStar: {
+    marginHorizontal: 9,
+    fontSize: isVeryShortScreen ? 13 : 15,
+    color: "#FBBF24",
+  },
+
+  buttonsBlock: {
+    width: "100%",
+  },
+
+  linkBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 50,
+    paddingVertical: isVeryShortScreen ? 8 : 10,
+    paddingHorizontal: 16,
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+
+  linkBtn1: {
+    backgroundColor: "#EF4444",
+    shadowColor: "#EF4444",
+    marginBottom: isVeryShortScreen ? 7 : 9,
+  },
+
+  linkBtn2: {
+    backgroundColor: "#7C3AED",
+    shadowColor: "#7C3AED",
+  },
+
+  btnIconCircle: {
+    width: isVeryShortScreen ? 28 : 32,
+    height: isVeryShortScreen ? 28 : 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.25)",
     alignItems: "center",
     justifyContent: "center",
+    marginRight: 10,
   },
 
-  joinBtnText: {
+  btnIcon: {
+    fontSize: isVeryShortScreen ? 13 : 15,
+  },
+
+  linkBtnText: {
+    flex: 1,
     color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "900",
+    fontSize: isVeryShortScreen ? 13 : 14,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+  },
+
+  linkBtnArrow: {
+    color: "#FFFFFF",
+    fontSize: isVeryShortScreen ? 20 : 23,
+    fontWeight: "300",
+    lineHeight: isVeryShortScreen ? 22 : 25,
+  },
+
+  reminderStrip: {
+    width: "100%",
+    maxWidth: 480,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#EDE9FE",
+    borderRadius: 18,
+    paddingVertical: isVeryShortScreen ? 8 : 10,
+    paddingHorizontal: isVeryShortScreen ? 10 : 12,
+    marginTop: isVeryShortScreen ? 8 : 10,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+  },
+
+  reminderIcon: {
+    width: isVeryShortScreen ? 32 : 36,
+    height: isVeryShortScreen ? 32 : 36,
+    borderRadius: 11,
+    backgroundColor: "#7C3AED",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+
+  reminderIconText: {
+    fontSize: isVeryShortScreen ? 16 : 18,
+  },
+
+  reminderTextBox: {
+    flex: 1,
+  },
+
+  reminderTitle: {
+    fontSize: isVeryShortScreen ? 11.5 : 12.5,
+    fontWeight: "800",
+    color: "#1E1B4B",
+    marginBottom: 2,
+  },
+
+  reminderSub: {
+    fontSize: isVeryShortScreen ? 9.5 : 10.5,
+    color: "#6B7280",
+    lineHeight: isVeryShortScreen ? 13 : 14,
+  },
+
+  clockIcon: {
+    fontSize: isVeryShortScreen ? 26 : 32,
+    marginLeft: 6,
   },
 });

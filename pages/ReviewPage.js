@@ -1,584 +1,680 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  Pressable,
-  FlatList,
+  TouchableOpacity,
   SafeAreaView,
-  Modal,
-  ActivityIndicator,
-  Alert,
   ScrollView,
+  StatusBar,
+  Dimensions,
+  Platform,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import YoutubePlayer from "react-native-youtube-iframe";
+import { LinearGradient } from "expo-linear-gradient";
 
-import ReviewQuestionCard from "../components/ReviewQuestionCard";
-import {
-  useGetAttemptReviewQuery,
-  useStartAttemptMutation,
-} from "../app/attemptApi";
-import useT from "../app/i18n/useT";
+const { width } = Dimensions.get("window");
 
-const BG = "#FFFFFF";
-const TEXT_DARK = "#0F172A";
-const MUTED = "#94A3B8";
-const BLUE = "#2563EB";
-const GREEN = "#16A34A";
-
-function getYouTubeId(url = "") {
-  try {
-    const u = String(url);
-    const m1 = u.match(/[?&]v=([^&]+)/);
-    if (m1?.[1]) return m1[1];
-    const m2 = u.match(/youtu\.be\/([^?&]+)/);
-    if (m2?.[1]) return m2[1];
-    const m3 = u.match(/embed\/([^?&]+)/);
-    if (m3?.[1]) return m3[1];
-    return "";
-  } catch {
-    return "";
-  }
-}
-
-export default function ReviewPage({ navigation, route }) {
-  const attemptId = route?.params?.attemptId || "";
-  const title = route?.params?.title || "Daily Quiz";
-
-  const { t, lang, sinFont } = useT();
-  const isSi = lang === "si";
-
-  const T = useMemo(
-    () => ({
-      correctAnswers: t("correctAnswersLbl"),
-      reviewNotAvailable: t("reviewNotAvailableLbl"),
-      examPerformance: t("examPerformanceLbl"),
-      home: t("homeLbl"),
-      improvementNeed: t("improvementNeedLbl"),
-      allCorrect: t("allCorrectLbl"),
-      explainVideo: t("explainVideoLbl"),
-      stillNotAvailable: t("stillNotAvailableLbl"),
-      explainLogic: t("explainLogicLbl"),
-      explanation: t("explanationLbl"),
-      close: t("closeLbl"),
-      loadingReview: t("loadingReviewLbl"),
-      retry: t("retryLbl"),
-      starting: t("startingLbl"),
-      retryBtn: t("retryBtnLbl"),
-      startNextAttemptTitle: t("startNextAttemptTitle"),
-      startNextAttemptYes: t("startNextAttemptYes"),
-      cancel: t("cancelLbl"),
-      cannotStartTitle: t("cannotStartTitle"),
-    }),
-    [t]
-  );
-
-  const { data, isLoading, isFetching, error, refetch } = useGetAttemptReviewQuery(
-    { attemptId },
-    { skip: !attemptId }
-  );
-
-  const result = data?.result || {};
-  const wrongFirst = Array.isArray(data?.wrongFirst) ? data.wrongFirst : [];
-  const correctAfter = Array.isArray(data?.correctAfter) ? data.correctAfter : [];
-
-  const total = Number(
-    result?.totalQuestions || wrongFirst.length + correctAfter.length || 0
-  );
-  const correctCount = Number(result?.correctCount || correctAfter.length || 0);
-
-  const scorePercent = Number(
-    result?.percentage || (total ? Math.round((correctCount / total) * 100) : 0)
-  );
-
-  const paperId = String(data?.meta?.paperId || "");
-  const attemptsAllowed = Number(data?.meta?.attemptsAllowed || 1);
-  const attemptNo = Number(data?.meta?.attemptNo || 1);
-  const attemptsLeft = Number(data?.meta?.attemptsLeft ?? 0);
-  const nextAttemptNo = Number(data?.meta?.nextAttemptNo || attemptNo + 1);
-
-  const canRetry = !!paperId && attemptsLeft > 0;
-
-  const [startAttempt, { isLoading: starting }] = useStartAttemptMutation();
-
-  const [expanded, setExpanded] = useState({});
-  const [videoOpen, setVideoOpen] = useState(false);
-  const [logicOpen, setLogicOpen] = useState(false);
-  const [activeVideoUrl, setActiveVideoUrl] = useState("");
-  const [activeLogicText, setActiveLogicText] = useState("");
-
-  const toggleReveal = (key) => setExpanded((p) => ({ ...p, [key]: !p?.[key] }));
-
-  const openVideo = (item) => {
-    const url = item?.explanationVideoUrl || "";
-    setActiveVideoUrl(url);
-    setVideoOpen(true);
-  };
-
-  const openLogic = (item) => {
-    const text = item?.explanationText || "No explanation added yet.";
-    setActiveLogicText(String(text));
-    setLogicOpen(true);
-  };
-
-  const videoId = useMemo(() => getYouTubeId(activeVideoUrl), [activeVideoUrl]);
-
-  const mergedList = useMemo(() => {
-    if (!correctAfter.length) return wrongFirst;
-    return [
-      ...wrongFirst,
-      { __type: "SECTION_CORRECT", _id: "__SECTION_CORRECT__" },
-      ...correctAfter,
-    ];
-  }, [wrongFirst, correctAfter]);
-
-  const renderItem = ({ item, index }) => {
-    if (item?.__type === "SECTION_CORRECT") {
-      // ✅ Correct Answers section header = GREEN + BOLD
-      return (
-        <Text
-          style={[
-            styles.sectionTitle,
-            styles.sectionTitleGreen,
-            isSi ? sinFont("bold") : null,
-          ]}
-        >
-          {T.correctAnswers}
-        </Text>
-      );
-    }
-
-    const key = String(item?._id || index);
-    const revealed = !!expanded[key];
-
-    return (
-      <ReviewQuestionCard
-        item={item}
-        revealed={revealed}
-        onToggleReveal={() => toggleReveal(key)}
-        onExplainVideo={() => openVideo(item)}
-        onExplainLogic={() => openLogic(item)}
-      />
-    );
-  };
-
-  const onHome = () => navigation.navigate("Home");
-
-  const onRetry = () => {
-    if (!canRetry) return;
-
-    Alert.alert(
-      T.startNextAttemptTitle,
-      `Do you want to practice attempt ${nextAttemptNo}?\n\nAttempts: ${attemptNo}/${attemptsAllowed} completed`,
-      [
-        { text: T.cancel, style: "cancel" },
-        {
-          text: T.startNextAttemptYes,
-          onPress: async () => {
-            try {
-              const res = await startAttempt({ paperId }).unwrap();
-              const newAttemptId = String(res?.attempt?._id || "");
-              if (!newAttemptId) throw new Error("Attempt not created");
-
-              navigation.replace("PaperPage", {
-                attemptId: newAttemptId,
-                paperId,
-                title,
-                timeMin: Number(res?.paper?.timeMinutes || 10),
-              });
-            } catch (e) {
-              Alert.alert(
-                T.cannotStartTitle,
-                e?.data?.message || e?.message || "Try again"
-              );
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  if (isLoading || isFetching) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={BLUE} />
-        <Text style={[styles.helper, isSi ? sinFont("bold") : null]}>
-          {T.loadingReview}
-        </Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.center}>
-        <Text style={[styles.helper, isSi ? sinFont("bold") : null]}>
-          {T.reviewNotAvailable}
-        </Text>
-        <Pressable style={styles.retryBtn} onPress={refetch}>
-          <Text style={[styles.retryText, isSi ? sinFont("bold") : null]}>
-            {T.retryBtn}
-          </Text>
-        </Pressable>
-      </View>
-    );
-  }
+export default function ReviewPage({ navigation }) {
+  const [showAnswer, setShowAnswer] = useState(true);
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.container}>
-        <View style={styles.scoreWrap}>
-          <Text style={styles.scoreText}>{Math.round(scorePercent)}%</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8F7FF" />
 
-          <Text style={[styles.scoreSub, isSi ? sinFont("bold") : null]}>
-            {T.examPerformance}
-          </Text>
+      <View style={styles.mainContainer}>
+        {/* Background decoration */}
+        <View style={[styles.bgDot, styles.bgDotOne]} />
+        <View style={[styles.bgDot, styles.bgDotTwo]} />
+        <View style={[styles.bgDot, styles.bgDotThree]} />
+        <View style={[styles.bgDot, styles.bgDotFour]} />
 
-          <View style={styles.scoreBtns}>
-            <Pressable onPress={onHome} style={styles.btnLight}>
-              <Text style={[styles.btnLightText, isSi ? sinFont("bold") : null]}>
-                {T.home}
-              </Text>
-            </Pressable>
+        <Text style={[styles.bgStar, styles.bgStarOne]}>✦</Text>
+        <Text style={[styles.bgStar, styles.bgStarTwo]}>✦</Text>
+        <Text style={[styles.bgStar, styles.bgStarThree]}>✦</Text>
+        <Text style={[styles.bgStar, styles.bgStarFour]}>✦</Text>
 
-            {canRetry ? (
-              <Pressable
-                onPress={onRetry}
-                style={styles.btnBlue}
-                disabled={starting}
-              >
-                <Text style={[styles.btnBlueText, isSi ? sinFont("bold") : null]}>
-                  {starting ? T.starting : T.retry}
-                </Text>
-              </Pressable>
-            ) : null}
-          </View>
-        </View>
-
-        {wrongFirst.length > 0 ? (
-          // ✅ improvement need = BOLD (no green requested)
-          <Text style={[styles.sectionTitle, styles.sectionTitleBold, isSi ? sinFont("bold") : null]}>
-            {T.improvementNeed}
-          </Text>
-        ) : (
-          // ✅ Your All answers correct = GREEN + BOLD
-          <Text
-            style={[
-              styles.sectionTitle,
-              styles.sectionTitleGreen,
-              isSi ? sinFont("bold") : null,
-            ]}
-          >
-            {T.allCorrect}
-          </Text>
-        )}
-
-        <FlatList
-          data={mergedList}
-          keyExtractor={(item, idx) => String(item?._id || idx)}
-          renderItem={renderItem}
+        <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 120 }}
-        />
+          contentContainerStyle={styles.scrollContent}
+        >
+          {/* Top result card */}
+          <View style={styles.resultCard}>
+            <View style={[styles.smallDot, styles.resultDotOne]} />
+            <View style={[styles.smallDot, styles.resultDotTwo]} />
+            <View style={[styles.smallDot, styles.resultDotThree]} />
+            <View style={[styles.smallDot, styles.resultDotFour]} />
 
-        {/* VIDEO MODAL */}
-        <Modal visible={videoOpen} transparent animationType="fade">
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalCard}>
-              <View style={styles.modalHeader}>
-                <View style={styles.modalTitleWrap}>
-                  <View style={styles.modalIconCircle}>
-                    <Ionicons name="play-circle-outline" size={18} color={BLUE} />
-                  </View>
-                  <Text style={[styles.modalTitle, isSi ? sinFont("bold") : null]}>
-                    {T.explainVideo}
-                  </Text>
-                </View>
+            <Text style={[styles.resultStar, styles.resultStarLeft]}>✦</Text>
+            <Text style={[styles.resultStar, styles.resultStarRight]}>✦</Text>
 
-                <Pressable onPress={() => setVideoOpen(false)} hitSlop={10}>
-                  <Ionicons name="close" size={22} color={TEXT_DARK} />
-                </Pressable>
+            <Text style={styles.percentageText}>100%</Text>
+            <Text style={styles.resultSubtitle}>Excellent Result</Text>
+
+            <View style={styles.badgePill}>
+              <View style={styles.badgeCircle}>
+                <Text style={styles.badgeIcon}>🏅</Text>
               </View>
-
-              <View style={styles.videoBox}>
-                {videoId ? (
-                  <YoutubePlayer height={210} play={false} videoId={videoId} />
-                ) : (
-                  <Text style={[styles.modalBody, isSi ? sinFont("bold") : null]}>
-                    {T.stillNotAvailable}
-                  </Text>
-                )}
-              </View>
+              <Text style={styles.badgeText}>Gold Badge</Text>
             </View>
           </View>
-        </Modal>
 
-        {/* LOGIC MODAL */}
-        <Modal visible={logicOpen} transparent animationType="fade">
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalCard}>
-              <View style={styles.modalHeader}>
-                <View style={styles.modalTitleWrap}>
-                  <View style={styles.modalIconCircle}>
-                    <Ionicons name="bulb-outline" size={18} color={BLUE} />
-                  </View>
-                  <Text style={[styles.modalTitle, isSi ? sinFont("bold") : null]}>
-                    {T.explainLogic}
-                  </Text>
+          {/* Section title */}
+          <View style={styles.sectionTitleRow}>
+            <Text style={styles.sectionStar}>✦</Text>
+            <Text style={styles.sectionTitle}>Today’s Lesson Result</Text>
+            <View style={styles.titleDotsWrapper}>
+              <View style={styles.titleDotPurple} />
+              <View style={styles.titleDotPink} />
+            </View>
+          </View>
+
+          {/* Question card */}
+          <View style={styles.questionCard}>
+            <View style={styles.questionTopRow}>
+              <Text style={styles.questionTitle}>Question - 1</Text>
+
+              <View style={styles.completedBadge}>
+                <View style={styles.completedCircle}>
+                  <Text style={styles.completedTick}>✓</Text>
                 </View>
-
-                <Pressable onPress={() => setLogicOpen(false)} hitSlop={10}>
-                  <Ionicons name="close" size={22} color={TEXT_DARK} />
-                </Pressable>
+                <Text style={styles.completedText}>Completed</Text>
               </View>
+            </View>
 
-              <View style={styles.logicCard}>
-                <Text style={[styles.logicLabel, isSi ? sinFont("bold") : null]}>
-                  {T.explanation}
-                </Text>
+            <Text style={styles.questionText}>i. 2 x 3 ?</Text>
 
-                <ScrollView
-                  showsVerticalScrollIndicator={false}
-                  contentContainerStyle={styles.logicScroll}
-                >
-                  <Text style={styles.logicText}>{activeLogicText}</Text>
-                </ScrollView>
+            {/* Hide answer dropdown */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={styles.hideAnswerBox}
+              onPress={() => setShowAnswer(!showAnswer)}
+            >
+              <Text style={styles.hideAnswerText}>
+                {showAnswer ? "Hide answer" : "Show answer"}
+              </Text>
+              <Text style={styles.chevron}>{showAnswer ? "⌄" : "›"}</Text>
+            </TouchableOpacity>
+
+            {showAnswer && (
+              <View style={styles.answerBox}>
+                <Text style={styles.yourAnswerLabel}>Your answer</Text>
+                <Text style={styles.yourAnswerText}>2</Text>
+
+                <View style={styles.answerDivider} />
+
+                <Text style={styles.correctAnswerLabel}>Correct answer</Text>
+                <Text style={styles.correctAnswerText}>2</Text>
               </View>
+            )}
 
-              <Pressable
-                onPress={() => setLogicOpen(false)}
-                style={styles.logicCloseBtn}
+            <View style={styles.buttonRow}>
+              <TouchableOpacity activeOpacity={0.85} style={styles.logicButton}>
+                <Text style={styles.logicButtonText}>Explain Logic</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={styles.videoButtonWrapper}
               >
-                <Text
-                  style={[styles.logicCloseBtnText, isSi ? sinFont("bold") : null]}
+                <LinearGradient
+                  colors={["#7B5CFF", "#263CFF"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.videoButton}
                 >
-                  {T.close}
-                </Text>
-              </Pressable>
+                  <Text style={styles.videoButtonText}>Explain video</Text>
+                </LinearGradient>
+              </TouchableOpacity>
             </View>
           </View>
-        </Modal>
+        </ScrollView>
+
+        {/* Bottom flowers / cloud style decoration */}
+        <View style={styles.bottomDecoration}>
+          <View style={[styles.cloud, styles.cloudOne]} />
+          <View style={[styles.cloud, styles.cloudTwo]} />
+          <View style={[styles.cloud, styles.cloudThree]} />
+          <View style={[styles.cloud, styles.cloudFour]} />
+
+          <View style={[styles.leaf, styles.leftLeafOne]} />
+          <View style={[styles.leaf, styles.leftLeafTwo]} />
+          <View style={[styles.leaf, styles.leftLeafThree]} />
+
+          <View style={[styles.leaf, styles.rightLeafOne]} />
+          <View style={[styles.leaf, styles.rightLeafTwo]} />
+          <View style={[styles.leaf, styles.rightLeafThree]} />
+        </View>
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: BG },
-  container: { flex: 1, backgroundColor: BG, paddingHorizontal: 14, paddingTop: 8 },
-
-  scoreWrap: {
-    alignSelf: "center",
-    width: "85%",
-    backgroundColor: "#F8FAFC",
-    borderRadius: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    alignItems: "center",
-    marginTop: 4,
-  },
-
-  scoreText: { fontSize: 34, fontWeight: "900", color: BLUE },
-
-  scoreSub: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: MUTED,
-    marginTop: 2,
-    letterSpacing: 1,
-  },
-
-  scoreBtns: { flexDirection: "row", gap: 10, marginTop: 12 },
-
-  btnLight: {
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-
-  btnLightText: { fontWeight: "800", color: TEXT_DARK, fontSize: 12 },
-
-  btnBlue: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: BLUE,
-  },
-
-  btnBlueText: { fontWeight: "900", color: "#FFFFFF", fontSize: 12 },
-
-  scoreMeta: {
-    marginTop: 10,
-    fontSize: 12,
-    color: MUTED,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-
-  attemptMeta: {
-    marginTop: 6,
-    fontSize: 11,
-    color: "#64748B",
-    fontWeight: "800",
-    textAlign: "center",
-  },
-
-  sectionTitle: {
-    marginTop: 14,
-    marginBottom: 8,
-    color: MUTED,
-    fontWeight: "800",
-    fontSize: 12,
-  },
-
-  // ✅ improvement need bold
-  sectionTitleBold: {
-    fontWeight: "900",
-  },
-
-  // ✅ green + bold
-  sectionTitleGreen: {
-    color: GREEN,
-    fontWeight: "900",
-  },
-
-  modalOverlay: {
+  safeArea: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
+    backgroundColor: "#F8F7FF",
+  },
+
+  mainContainer: {
+    flex: 1,
+    backgroundColor: "#F8F7FF",
+    position: "relative",
+    overflow: "hidden",
+  },
+
+  scrollContent: {
+    paddingHorizontal: 14,
+    paddingTop: Platform.OS === "android" ? 12 : 8,
+    paddingBottom: 100,
+  },
+
+  resultCard: {
+    width: "100%",
+    minHeight: 180,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 14,
+    paddingTop: 18,
+    paddingBottom: 16,
+    marginBottom: 26,
+    position: "relative",
+
+    shadowColor: "#C8C7DE",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.28,
+    shadowRadius: 18,
+    elevation: 7,
   },
 
-  modalCard: {
-    width: "100%",
-    maxWidth: 520,
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 14,
+  percentageText: {
+    fontSize: 56,
+    fontWeight: "900",
+    color: "#3151F5",
+    letterSpacing: 2,
+    lineHeight: 62,
+  },
+
+  resultSubtitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#5F6174",
+    marginTop: 8,
+    marginBottom: 16,
+  },
+
+  badgePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 28,
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+    minWidth: 175,
+    justifyContent: "center",
+
     borderWidth: 1,
-    borderColor: "#E2E8F0",
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
+    borderColor: "#ECECF5",
+
+    shadowColor: "#C8C7DE",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
     elevation: 4,
   },
 
-  modalHeader: {
+  badgeCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFF0C7",
+    marginRight: 12,
+  },
+
+  badgeIcon: {
+    fontSize: 22,
+  },
+
+  badgeText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#666579",
+  },
+
+  resultStar: {
+    position: "absolute",
+    fontSize: 22,
+    color: "#F6C342",
+    fontWeight: "900",
+  },
+
+  resultStarLeft: {
+    top: 49,
+    left: width * 0.24,
+  },
+
+  resultStarRight: {
+    top: 49,
+    right: width * 0.24,
+  },
+
+  smallDot: {
+    position: "absolute",
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+  },
+
+  resultDotOne: {
+    top: 46,
+    left: width * 0.21,
+    backgroundColor: "#B8B1FF",
+  },
+
+  resultDotTwo: {
+    top: 58,
+    left: width * 0.225,
+    backgroundColor: "#8FD0FF",
+  },
+
+  resultDotThree: {
+    top: 46,
+    right: width * 0.21,
+    backgroundColor: "#B8B1FF",
+  },
+
+  resultDotFour: {
+    top: 58,
+    right: width * 0.225,
+    backgroundColor: "#8FD0FF",
+  },
+
+  sectionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 14,
+    paddingHorizontal: 8,
+  },
+
+  sectionStar: {
+    fontSize: 21,
+    color: "#F6C342",
+    fontWeight: "900",
+    marginRight: 12,
+  },
+
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#101943",
+    letterSpacing: 0.2,
+  },
+
+  titleDotsWrapper: {
+    marginLeft: 7,
+    marginTop: -10,
+  },
+
+  titleDotPurple: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: "#B8B1FF",
+    marginBottom: 8,
+  },
+
+  titleDotPink: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#FFC7DD",
+    marginLeft: 8,
+  },
+
+  questionCard: {
+    width: "100%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 18,
+
+    shadowColor: "#C8C7DE",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.24,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+
+  questionTopRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: 42,
   },
 
-  modalTitleWrap: {
+  questionTitle: {
+    fontSize: 23,
+    fontWeight: "900",
+    color: "#09091A",
+    letterSpacing: 0.3,
+  },
+
+  completedBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    backgroundColor: "#18AF4B",
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
   },
 
-  modalIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#EFF6FF",
+  completedCircle: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 6,
+  },
+
+  completedTick: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: "#18AF4B",
+    lineHeight: 14,
+  },
+
+  completedText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+
+  questionText: {
+    fontSize: 24,
+    fontWeight: "900",
+    color: "#050505",
+    marginBottom: 24,
+    letterSpacing: 0.5,
+  },
+
+  hideAnswerBox: {
+    height: 42,
+    borderTopLeftRadius: 11,
+    borderTopRightRadius: 11,
     borderWidth: 1,
-    borderColor: "#DBEAFE",
+    borderColor: "#E3E5F3",
+    backgroundColor: "#F9FAFF",
+    paddingHorizontal: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  hideAnswerText: {
+    fontSize: 18,
+    fontWeight: "500",
+    color: "#111111",
+  },
+
+  chevron: {
+    fontSize: 28,
+    fontWeight: "600",
+    color: "#0E1742",
+    marginTop: -5,
+  },
+
+  answerBox: {
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: "#ECEEF8",
+    backgroundColor: "#FFFFFF",
+    borderBottomLeftRadius: 11,
+    borderBottomRightRadius: 11,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 14,
+    marginBottom: 16,
+  },
+
+  yourAnswerLabel: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#C92333",
+    letterSpacing: 0.4,
+    marginBottom: 4,
+  },
+
+  yourAnswerText: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#C92333",
+    marginBottom: 14,
+  },
+
+  answerDivider: {
+    height: 1,
+    backgroundColor: "#EEF0F8",
+    marginBottom: 14,
+  },
+
+  correctAnswerLabel: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#166B1B",
+    letterSpacing: 0.4,
+    marginBottom: 4,
+  },
+
+  correctAnswerText: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#166B1B",
+  },
+
+  buttonRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+
+  logicButton: {
+    flex: 1,
+    height: 42,
+    borderRadius: 9,
+    backgroundColor: "#090E39",
     alignItems: "center",
     justifyContent: "center",
   },
 
-  modalTitle: {
-    fontWeight: "900",
-    fontSize: 16,
-    color: TEXT_DARK,
-  },
-
-  modalBody: {
-    color: TEXT_DARK,
-    fontSize: 14,
-    fontWeight: "700",
-    lineHeight: 20,
-    textAlign: "center",
-    paddingVertical: 20,
-  },
-
-  videoBox: {
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 14,
-    overflow: "hidden",
-    backgroundColor: "#FFFFFF",
-  },
-
-  logicCard: {
-    backgroundColor: "#F8FAFC",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    padding: 12,
-    maxHeight: 300,
-  },
-
-  logicLabel: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#64748B",
-    marginBottom: 8,
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-  },
-
-  logicScroll: {
-    paddingBottom: 4,
-  },
-
-  logicText: {
-    color: TEXT_DARK,
-    fontSize: 14,
-    lineHeight: 22,
-    fontFamily: "NotoSerifSinhala_700Bold",
-  },
-
-  logicCloseBtn: {
-    marginTop: 12,
-    alignSelf: "flex-end",
-    backgroundColor: "#0B1220",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-
-  logicCloseBtnText: {
+  logicButtonText: {
     color: "#FFFFFF",
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: "900",
+    letterSpacing: 0.5,
   },
 
-  center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 16 },
+  videoButtonWrapper: {
+    flex: 1,
+  },
 
-  helper: {
-    marginTop: 10,
-    textAlign: "center",
-    color: "#64748B",
+  videoButton: {
+    height: 42,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  videoButtonText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "900",
+    letterSpacing: 0.5,
+  },
+
+  bgDot: {
+    position: "absolute",
+    borderRadius: 50,
+    zIndex: 0,
+  },
+
+  bgDotOne: {
+    top: 220,
+    left: 25,
+    width: 5,
+    height: 5,
+    backgroundColor: "#9ED4FF",
+  },
+
+  bgDotTwo: {
+    top: 345,
+    right: 8,
+    width: 7,
+    height: 7,
+    backgroundColor: "#CAB2FF",
+  },
+
+  bgDotThree: {
+    bottom: 72,
+    right: 15,
+    width: 12,
+    height: 12,
+    backgroundColor: "#E7DAFF",
+  },
+
+  bgDotFour: {
+    bottom: 34,
+    left: 100,
+    width: 8,
+    height: 8,
+    backgroundColor: "#EFEAFF",
+  },
+
+  bgStar: {
+    position: "absolute",
+    fontWeight: "900",
+    zIndex: 0,
+  },
+
+  bgStarOne: {
+    top: 225,
+    left: 23,
+    fontSize: 21,
+    color: "#F6C342",
+  },
+
+  bgStarTwo: {
+    bottom: 70,
+    right: 76,
+    fontSize: 17,
+    color: "#D8D0FF",
+  },
+
+  bgStarThree: {
+    bottom: 38,
+    left: 175,
+    fontSize: 14,
+    color: "#DDD5FF",
+  },
+
+  bgStarFour: {
+    bottom: 23,
+    right: 135,
     fontSize: 12,
-    fontWeight: "600",
+    color: "#E3DDFF",
   },
 
-  retryBtn: {
-    marginTop: 12,
-    backgroundColor: "#2563EB",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
+  bottomDecoration: {
+    position: "absolute",
+    width: "100%",
+    height: 78,
+    left: 0,
+    right: 0,
+    bottom: -14,
+    zIndex: 0,
   },
 
-  retryText: { color: "#fff", fontWeight: "900" },
+  cloud: {
+    position: "absolute",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 100,
+    opacity: 0.95,
+  },
+
+  cloudOne: {
+    width: 90,
+    height: 50,
+    left: 60,
+    bottom: -8,
+  },
+
+  cloudTwo: {
+    width: 75,
+    height: 48,
+    left: 105,
+    bottom: 20,
+  },
+
+  cloudThree: {
+    width: 95,
+    height: 55,
+    right: 70,
+    bottom: -6,
+  },
+
+  cloudFour: {
+    width: 65,
+    height: 42,
+    right: 110,
+    bottom: 17,
+  },
+
+  leaf: {
+    position: "absolute",
+    width: 22,
+    height: 58,
+    borderRadius: 20,
+    backgroundColor: "#B8AFFA",
+    opacity: 0.75,
+  },
+
+  leftLeafOne: {
+    left: 8,
+    bottom: -10,
+    transform: [{ rotate: "-12deg" }],
+  },
+
+  leftLeafTwo: {
+    left: 30,
+    bottom: -8,
+    transform: [{ rotate: "28deg" }],
+  },
+
+  leftLeafThree: {
+    left: 48,
+    bottom: 0,
+    transform: [{ rotate: "42deg" }],
+  },
+
+  rightLeafOne: {
+    right: 8,
+    bottom: -10,
+    transform: [{ rotate: "12deg" }],
+  },
+
+  rightLeafTwo: {
+    right: 32,
+    bottom: -6,
+    transform: [{ rotate: "-28deg" }],
+  },
+
+  rightLeafThree: {
+    right: 50,
+    bottom: 0,
+    transform: [{ rotate: "-42deg" }],
+  },
 });

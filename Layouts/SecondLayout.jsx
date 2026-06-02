@@ -1,23 +1,28 @@
-// Layouts/SecondLayout.js
 import React from "react";
-import { View, StyleSheet, SafeAreaView } from "react-native";
-import BottomNavigationBar from "../components/BottomNavigationBar";
+import { View, StyleSheet, Platform } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import TopBar from "../components/TopBar";
+import BottomNavigation from "../components/BottomNavigation";
 
-export default function SecondLayout({ children }) {
+const PURPLE_BG = "#6764FF";
+const PAGE_BG   = "#EDE9FE";
+
+export default function SecondLayout({ children, navigation }) {
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.container}>
+    <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+
+      <View style={styles.topBarArea}>
         <TopBar />
-
-        {/* Screen Content */}
-        <View style={styles.content}>{children}</View>
-
-        {/* Bottom Navigation */}
-        <View style={styles.bottomBarWrap}>
-          <BottomNavigationBar />
-        </View>
       </View>
+
+      <View style={styles.contentArea}>
+        {children}
+      </View>
+
+      <View style={styles.bottomArea}>
+        <BottomNavigation navigation={navigation} />
+      </View>
+
     </SafeAreaView>
   );
 }
@@ -25,20 +30,22 @@ export default function SecondLayout({ children }) {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: PAGE_BG,
   },
-
-  container: {
+  topBarArea: {
+    backgroundColor: PURPLE_BG,
+  },
+  contentArea: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    // On web: overflow hidden so the ScrollView inside clips correctly
+    // and doesn't bleed past the bottom nav
+    ...Platform.select({
+      web: {
+        overflow: "hidden",
+      },
+    }),
   },
-
-  content: {
-    flex: 1,
-    minHeight: 0,
-  },
-
-  bottomBarWrap: {
-    backgroundColor: "#F8FAFC",
+  bottomArea: {
+    backgroundColor: PURPLE_BG,
   },
 });

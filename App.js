@@ -1,198 +1,341 @@
-import React, { useEffect, useState } from "react";
-import { StatusBar, View, ActivityIndicator } from "react-native";
-import { Provider } from "react-redux";
-import store from "./app/store";
-
+import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
-import * as Font from "expo-font";
-import { NotoSerifSinhala_700Bold } from "@expo-google-fonts/noto-serif-sinhala";
-import {
-  AbhayaLibre_700Bold,
-  AbhayaLibre_400Regular,
-} from "@expo-google-fonts/abhaya-libre";
+import SplashScreen from "./pages/SplashScreen";
+import SelectLanguagePage from "./pages/SelectLanguagePage";
+import SignupScreen from "./pages/SignupScreen";
+import SignInScreen from "./pages/SignInScreen";
+import OtpScreen from "./pages/OtpScreen";
+import ResetPasswordScreen1 from "./pages/ResetPasswordScreen1";
+import ResetPasswordScreen2 from "./pages/ResetPasswordScreen2";
+import Notice from "./pages/Notice";
+import ChooseAvatar from "./pages/ChooseAvatar";
+import Home from "./pages/Home";
 
 import RootLayout from "./Layouts/RootLayout";
 import SecondLayout from "./Layouts/SecondLayout";
 
-import SplashScreen from "./pages/SplashScreen";
-import LanguageSelect from "./pages/LanguageSelect";
-import MainSelectgrade from "./pages/MainSelectgrade";
-import Sign from "./pages/Sign";
-import OTP from "./pages/OTP";
-import ForgotPassword from "./pages/ForgotPassword";
-
-import Home from "./pages/Home";
+import ShortzMenu from "./pages/ShortzMenu";
 import Live from "./pages/Live";
-import LMS from "./pages/LMS";
+import Recording from "./pages/Recording";
+import Game from "./pages/Game";
+import ParentPage from "./pages/Parentpage";
 import Result from "./pages/Result";
+import Attendance from "./pages/Attendance";
+import ViewShortLessonsScreen from "./pages/Viewshortlessonsscreen";
+import ShortVideoScreen from "./pages/Shortvideoscreen";
+import ActivityTemplate1 from "./pages/ActivityTemplate1";
+import ActivityTemplate2 from "./pages/Activitytemplate2";
+import ActivityTemplate3 from "./pages/Activitytemplate3";
+import ViewRecording from "./pages/Viewrecording";
 import Profile from "./pages/Profile";
-
-import Lessons from "./pages/Lessions";
-import ViewLesson from "./pages/ViewLesson";
-import IndexNumber from "./pages/IndexNumber";
-import Subjects from "./pages/Subject";
-import SubjectWithTeachers from "./pages/SubjectWithteacher";
-
-import DailyQuiz from "./pages/DailyQuiz";
-import TopicWisePaper from "./pages/TopicWisepaper";
-import ModelPaper from "./pages/Modelpaper";
-import PastPapers from "./pages/Pastpapers";
-
-import EnrollSubjects from "./pages/EnrollSubjects";
-import Registersubject from "./pages/Registersubject";
-
-import DailyQuizMenu from "./pages/DailyQuizzMenu";
-import TopicWiseMenu from "./pages/TopicWisemenu";
-import ModelPaperMenu from "./pages/ModelPaperMenu";
-import PastpaperMenu from "./pages/PastpaperMenu";
-
-import ReviewPage from "./pages/ReviewPage";
-import PaperPage from "./pages/paper";
-import PaymentCheckout from "./pages/PaymentCheckout";
+import Leaderboard from "./pages/Leaderboard";
+import DailyQuizz from "./pages/Dailyquizz";
+import FiveHundredPapers from "./pages/FiveHundredPapers";
+import LessonByLesson from "./pages/Lessonbylesson";
+import PastPaper from "./pages/Pastpaper";
+import DailyQuizzmenu from "./pages/Dailyquizzmenu";
+import FiveHundredPaperMenu from "./pages/FiveHundredPapersmenu";
+import LessonByLessonMenu from "./pages/lessonByLessonMenu";
+import PastPaperMenu from "./pages/PastPaperMenu";
+import Paperpage from "./pages/paperpage";
+import ReviewPage from "./pages/Reviewpage";
 
 const Stack = createNativeStackNavigator();
 
-const withSecondLayout = (ScreenComponent) => {
-  return function WrappedScreen(props) {
-    return (
-      <SecondLayout>
-        <ScreenComponent {...props} />
-      </SecondLayout>
-    );
-  };
-};
-
-const HomeWithLayout = withSecondLayout(Home);
-const LiveWithLayout = withSecondLayout(Live);
-const LMSWithLayout = withSecondLayout(LMS);
-const ResultWithLayout = withSecondLayout(Result);
-const ProfileWithLayout = withSecondLayout(Profile);
-
-const LessonsWithLayout = withSecondLayout(Lessons);
-const ViewLessonWithLayout = withSecondLayout(ViewLesson);
-const IndexNumberWithLayout = withSecondLayout(IndexNumber);
-const SubjectsWithLayout = withSecondLayout(Subjects);
-const SubjectWithTeachersWithLayout = withSecondLayout(SubjectWithTeachers);
-
-const EnrollSubjectsWithLayout = withSecondLayout(EnrollSubjects);
-const RegistersubjectWithLayout = withSecondLayout(Registersubject);
-
-const DailyQuizWithLayout = withSecondLayout(DailyQuiz);
-const TopicWisePaperWithLayout = withSecondLayout(TopicWisePaper);
-const ModelPaperWithLayout = withSecondLayout(ModelPaper);
-const PastPapersWithLayout = withSecondLayout(PastPapers);
-
-const DailyQuizMenuWithLayout = withSecondLayout(DailyQuizMenu);
-const TopicWiseMenuWithLayout = withSecondLayout(TopicWiseMenu);
-const ModelPaperMenuWithLayout = withSecondLayout(ModelPaperMenu);
-const PastpaperMenuWithLayout = withSecondLayout(PastpaperMenu);
-
-const ReviewPageWithLayout = withSecondLayout(ReviewPage);
-
 export default function App() {
-  const [fontsReady, setFontsReady] = useState(false);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        await Font.loadAsync({
-          FM_Derana: require("./assets/fonts/FM_Derana.ttf"),
-          FMEmaneex: require("./assets/fonts/FMEmaneex.ttf"),
-          NotoSerifSinhala_700Bold,
-          AbhayaLibre_700Bold,
-
-          // custom key for answers text
-          AbhayaLibre_300Bold: AbhayaLibre_400Regular,
-        });
-      } catch (e) {
-        console.log("Font load error:", e);
-      } finally {
-        setFontsReady(true);
-      }
-    })();
-  }, []);
-
-  if (!fontsReady) {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator size="small" color="#2563EB" />
-      </View>
-    );
-  }
-
   return (
-    <Provider store={store}>
-      <NavigationContainer>
-        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-        <RootLayout>
-          <Stack.Navigator
-            screenOptions={{ headerShown: false }}
-            initialRouteName="Splash"
-          >
-            <Stack.Screen name="Splash" component={SplashScreen} />
-            <Stack.Screen name="LanguageSelect" component={LanguageSelect} />
-            <Stack.Screen name="Sign" component={Sign} />
-            <Stack.Screen name="OTP" component={OTP} />
-            <Stack.Screen name="ForgotPassword" component={ForgotPassword} />
-            <Stack.Screen name="MainSelectgrade" component={MainSelectgrade} />
+    <NavigationContainer>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Splash">
+          {(props) => (
+            <RootLayout>
+              <SplashScreen {...props} />
+            </RootLayout>
+          )}
+        </Stack.Screen>
 
-            <Stack.Screen name="Home" component={HomeWithLayout} />
-            <Stack.Screen name="Live" component={LiveWithLayout} />
-            <Stack.Screen name="LMS" component={LMSWithLayout} />
-            <Stack.Screen name="Result" component={ResultWithLayout} />
-            <Stack.Screen name="Profile" component={ProfileWithLayout} />
-            <Stack.Screen name="PaymentCheckout" component={PaymentCheckout} />
+        <Stack.Screen name="SelectLanguage">
+          {(props) => (
+            <RootLayout>
+              <SelectLanguagePage {...props} />
+            </RootLayout>
+          )}
+        </Stack.Screen>
 
-            <Stack.Screen name="Subjects" component={SubjectsWithLayout} />
-            <Stack.Screen
-              name="SubjectWithTeachers"
-              component={SubjectWithTeachersWithLayout}
-            />
-            <Stack.Screen name="IndexNumber" component={IndexNumberWithLayout} />
-            <Stack.Screen name="Lessons" component={LessonsWithLayout} />
-            <Stack.Screen name="ViewLesson" component={ViewLessonWithLayout} />
+        <Stack.Screen name="Signup">
+          {(props) => (
+            <RootLayout>
+              <SignupScreen {...props} />
+            </RootLayout>
+          )}
+        </Stack.Screen>
 
-            <Stack.Screen
-              name="EnrollSubjects"
-              component={EnrollSubjectsWithLayout}
-            />
-            <Stack.Screen
-              name="Registersubject"
-              component={RegistersubjectWithLayout}
-            />
+        <Stack.Screen name="Signin">
+          {(props) => (
+            <RootLayout>
+              <SignInScreen {...props} />
+            </RootLayout>
+          )}
+        </Stack.Screen>
 
-            <Stack.Screen name="DailyQuiz" component={DailyQuizWithLayout} />
-            <Stack.Screen
-              name="TopicWisePaper"
-              component={TopicWisePaperWithLayout}
-            />
-            <Stack.Screen name="ModelPaper" component={ModelPaperWithLayout} />
-            <Stack.Screen name="PastPapers" component={PastPapersWithLayout} />
+        <Stack.Screen name="Otp">
+          {(props) => (
+            <RootLayout>
+              <OtpScreen {...props} />
+            </RootLayout>
+          )}
+        </Stack.Screen>
 
-            <Stack.Screen
-              name="DailyQuizMenu"
-              component={DailyQuizMenuWithLayout}
-            />
-            <Stack.Screen
-              name="TopicWiseMenu"
-              component={TopicWiseMenuWithLayout}
-            />
-            <Stack.Screen
-              name="ModelPaperMenu"
-              component={ModelPaperMenuWithLayout}
-            />
-            <Stack.Screen
-              name="PastpaperMenu"
-              component={PastpaperMenuWithLayout}
-            />
+        <Stack.Screen name="ResetPassword1">
+          {(props) => (
+            <RootLayout>
+              <ResetPasswordScreen1 {...props} />
+            </RootLayout>
+          )}
+        </Stack.Screen>
 
-            <Stack.Screen name="ReviewPage" component={ReviewPageWithLayout} />
-            <Stack.Screen name="PaperPage" component={PaperPage} />
-          </Stack.Navigator>
-        </RootLayout>
-      </NavigationContainer>
-    </Provider>
+        <Stack.Screen name="ResetPassword2">
+          {(props) => (
+            <RootLayout>
+              <ResetPasswordScreen2 {...props} />
+            </RootLayout>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="Notice">
+          {(props) => (
+            <RootLayout>
+              <Notice {...props} />
+            </RootLayout>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="ChooseAvatar">
+          {(props) => (
+            <RootLayout>
+              <ChooseAvatar {...props} />
+            </RootLayout>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="home">
+          {(props) => (
+            <SecondLayout navigation={props.navigation}>
+              <Home {...props} />
+            </SecondLayout>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="shortz">
+          {(props) => (
+            <SecondLayout navigation={props.navigation}>
+              <ShortzMenu {...props} />
+            </SecondLayout>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="live">
+          {(props) => (
+            <SecondLayout navigation={props.navigation}>
+              <Live {...props} />
+            </SecondLayout>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="recording">
+          {(props) => (
+            <SecondLayout navigation={props.navigation}>
+              <Recording {...props} />
+            </SecondLayout>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="game">
+          {(props) => (
+            <SecondLayout navigation={props.navigation}>
+              <Game {...props} />
+            </SecondLayout>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="parent">
+          {(props) => (
+            <SecondLayout navigation={props.navigation}>
+              <ParentPage {...props} />
+            </SecondLayout>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="result">
+          {(props) => (
+            <SecondLayout navigation={props.navigation}>
+              <Result {...props} />
+            </SecondLayout>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="attendance">
+          {(props) => (
+            <SecondLayout navigation={props.navigation}>
+              <Attendance {...props} />
+            </SecondLayout>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="ViewShortLessons">
+          {(props) => (
+            <SecondLayout navigation={props.navigation}>
+              <ViewShortLessonsScreen {...props} />
+            </SecondLayout>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="ShortVideo">
+          {(props) => (
+            <SecondLayout navigation={props.navigation}>
+              <ShortVideoScreen {...props} />
+            </SecondLayout>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="activitytemplate1">
+          {(props) => (
+            <SecondLayout navigation={props.navigation}>
+              <ActivityTemplate1 {...props} />
+            </SecondLayout>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="activitytemplate2">
+          {(props) => (
+            <SecondLayout navigation={props.navigation}>
+              <ActivityTemplate2 {...props} />
+            </SecondLayout>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="activitytemplate3">
+          {(props) => (
+            <SecondLayout navigation={props.navigation}>
+              <ActivityTemplate3 {...props} />
+            </SecondLayout>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="viewrecording">
+          {(props) => (
+            <SecondLayout navigation={props.navigation}>
+              <ViewRecording {...props} />
+            </SecondLayout>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="profile">
+          {(props) => (
+            <SecondLayout navigation={props.navigation}>
+              <Profile {...props} />
+            </SecondLayout>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="Leaderboard">
+          {(props) => (
+            <SecondLayout navigation={props.navigation}>
+              <Leaderboard {...props} />
+            </SecondLayout>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="DailyPapers">
+          {(props) => (
+            <SecondLayout navigation={props.navigation}>
+              <DailyQuizz {...props} />
+            </SecondLayout>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="DailyQuizz">
+          {(props) => (
+            <SecondLayout navigation={props.navigation}>
+              <DailyQuizz {...props} />
+            </SecondLayout>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="FiveHundredPapers">
+          {(props) => (
+            <SecondLayout navigation={props.navigation}>
+              <FiveHundredPapers {...props} />
+            </SecondLayout>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="LessonByLesson">
+          {(props) => (
+            <SecondLayout navigation={props.navigation}>
+              <LessonByLesson {...props} />
+            </SecondLayout>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="PastPaper">
+          {(props) => (
+            <SecondLayout navigation={props.navigation}>
+              <PastPaper {...props} />
+            </SecondLayout>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="DailyQuizzMenu">
+          {(props) => (
+            <SecondLayout navigation={props.navigation}>
+              <DailyQuizzmenu {...props} />
+            </SecondLayout>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="FiveHundredPaperMenu">
+          {(props) => (
+            <SecondLayout navigation={props.navigation}>
+              <FiveHundredPaperMenu {...props} />
+            </SecondLayout>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="LessonByLessonMenu">
+          {(props) => (
+            <SecondLayout navigation={props.navigation}>
+              <LessonByLessonMenu {...props} />
+            </SecondLayout>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="PastPaperMenu">
+          {(props) => (
+            <SecondLayout navigation={props.navigation}>
+              <PastPaperMenu {...props} />
+            </SecondLayout>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="paperpage">
+          {(props) => (
+            <SecondLayout navigation={props.navigation}>
+              <Paperpage {...props} />
+            </SecondLayout>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="reviewpage">
+          {(props) => (
+            <SecondLayout navigation={props.navigation}>
+              <ReviewPage {...props} />
+            </SecondLayout>
+          )}
+        </Stack.Screen>
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
