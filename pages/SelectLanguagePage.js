@@ -1,24 +1,43 @@
 import React from "react";
-import { View, Text, TouchableOpacity, Image, Dimensions, StyleSheet, SafeAreaView } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Image,
+  Dimensions,
+  StyleSheet,
+  SafeAreaView,
+} from "react-native";
+
 import Floating from "./Floating";
 
 export default function SelectLanguagePage({ navigation }) {
-  const { width, height } = Dimensions.get("screen"); // full screen including notch/status bar
+  const { width, height } = Dimensions.get("screen");
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Full-screen background */}
       <Image
         source={require("../assets/a_vertical_pastel_cartoon_illustration_scene_like.png")}
         style={styles.background}
         resizeMode="cover"
       />
 
-      {/* Floating numbers */}
-      <Floating text="2" startX={width * 0.05} startY={height * 0.25} color="#1B7EEF" size={width * 0.08} />
-      <Floating text="3" startX={width * 0.85} startY={height * 0.75} color="#FF9500" size={width * 0.08} />
+      <Floating
+        text="2"
+        startX={width * 0.05}
+        startY={height * 0.25}
+        color="#1B7EEF"
+        size={width * 0.08}
+      />
 
-      {/* Title */}
+      <Floating
+        text="3"
+        startX={width * 0.85}
+        startY={height * 0.75}
+        color="#FF9500"
+        size={width * 0.08}
+      />
+
       <View style={[styles.titleWrapper, { top: height * 0.3 }]}>
         <Text style={styles.title}>
           Select{"\n"}
@@ -26,15 +45,28 @@ export default function SelectLanguagePage({ navigation }) {
         </Text>
       </View>
 
-      {/* Language Buttons */}
       <View style={[styles.buttonContainer, { top: height * 0.45 }]}>
-        <TouchableOpacity style={styles.languageButton} onPress={() => navigation.navigate("Signup")}>
-          <View style={styles.langCircle}><Text style={styles.langLetter}>A</Text></View>
+        <TouchableOpacity
+          style={styles.languageButton}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate("Signup")}
+        >
+          <View style={styles.langCircle}>
+            <Text style={styles.langLetter}>A</Text>
+          </View>
+
           <Text style={styles.langText}>English</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.languageButton} onPress={() => navigation.navigate("Signup")}>
-          <View style={styles.langCircle}><Text style={styles.langLetter}>අ</Text></View>
+        <TouchableOpacity
+          style={styles.languageButton}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate("Signup")}
+        >
+          <View style={styles.langCircle}>
+            <Text style={styles.langLetter}>අ</Text>
+          </View>
+
           <Text style={styles.langText}>සිංහල</Text>
         </TouchableOpacity>
       </View>
@@ -43,18 +75,26 @@ export default function SelectLanguagePage({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  background: { 
-    flex: 1, 
-    width: "100%", 
-    height: "100%", 
-    position: "absolute" 
+  container: {
+    flex: 1,
+    overflow: "hidden",
+    backgroundColor: "#ffffff",
   },
+
+  background: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    top: 0,
+    left: 0,
+  },
+
   titleWrapper: {
     position: "absolute",
     width: "100%",
     alignItems: "center",
   },
+
   title: {
     fontSize: 45,
     fontWeight: "900",
@@ -64,17 +104,20 @@ const styles = StyleSheet.create({
     textShadowRadius: 4,
     textAlign: "center",
   },
+
   highlight: {
     color: "#FFD600",
     textShadowColor: "#FF6F00",
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 4,
   },
+
   buttonContainer: {
     position: "absolute",
     width: "100%",
     alignItems: "center",
   },
+
   languageButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -85,6 +128,7 @@ const styles = StyleSheet.create({
     width: "75%",
     marginVertical: 10,
   },
+
   langCircle: {
     width: 40,
     height: 40,
@@ -94,6 +138,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginRight: 14,
   },
-  langLetter: { color: "#fff", fontWeight: "900", fontSize: 20 },
-  langText: { fontSize: 18, fontWeight: "700", color: "#1E40AF" },
+
+  langLetter: {
+    color: "#ffffff",
+    fontWeight: "900",
+    fontSize: 20,
+  },
+
+  langText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1E40AF",
+  },
 });

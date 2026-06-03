@@ -3,74 +3,111 @@ import { BASE_URL } from "../api/api";
 
 export const authApi = createApi({
   reducerPath: "authApi",
+
   baseQuery: fetchBaseQuery({
     baseUrl: `${BASE_URL}/api/auth`,
+
     prepareHeaders: (headers, { getState }) => {
       const token = getState()?.auth?.token;
-      if (token) headers.set("Authorization", `Bearer ${token}`);
+
+      if (token) {
+        headers.set("Authorization", `Bearer ${token}`);
+      }
+
       headers.set("Content-Type", "application/json");
+
       return headers;
     },
+
     credentials: "include",
   }),
+
   endpoints: (builder) => ({
     signup: builder.mutation({
-      query: (body) => ({ url: "/signup", method: "POST", body }),
+      query: (body) => ({
+        url: "/signup",
+        method: "POST",
+        body,
+      }),
     }),
 
     verifySignupOtp: builder.mutation({
       query: ({ phonenumber, code }) => ({
-        url: "/whatsapp/verify-code",
+        url: "/verify-signup-otp",
         method: "POST",
-        body: { phonenumber, code },
-      }),
-    }),
-
-    verifyForgotOtp: builder.mutation({
-      query: ({ identifier, code }) => ({
-        url: "/whatsapp/verify-code",
-        method: "POST",
-        body: { identifier, code, purpose: "reset_password" },
+        body: {
+          phonenumber,
+          code,
+        },
       }),
     }),
 
     resendSignupOtp: builder.mutation({
       query: ({ phonenumber }) => ({
-        url: "/whatsapp/send-code",
+        url: "/resend-signup-otp",
         method: "POST",
-        body: { phonenumber },
+        body: {
+          phonenumber,
+        },
       }),
     }),
 
     signin: builder.mutation({
-      query: (body) => ({ url: "/signin", method: "POST", body }),
+      query: (body) => ({
+        url: "/signin",
+        method: "POST",
+        body,
+      }),
     }),
 
     signout: builder.mutation({
-      query: () => ({ url: "/signout", method: "POST" }),
-    }),
-
-    clearStudentSession: builder.mutation({
-      query: (body) => ({
-        url: "/student/clear-session",
+      query: () => ({
+        url: "/logout",
         method: "POST",
-        body,
       }),
     }),
 
-    forgotSendOtp: builder.mutation({
-      query: ({ identifier }) => ({
+    // ============= FORGOT PASSWORD MUTATIONS =============
+    forgotPasswordSendOtp: builder.mutation({
+      query: ({ phonenumber }) => ({
         url: "/forgot-password/send-otp",
         method: "POST",
-        body: { identifier },
+        body: {
+          phonenumber,
+        },
       }),
     }),
 
-    forgotReset: builder.mutation({
-      query: (body) => ({
+    forgotPasswordVerifyOtp: builder.mutation({
+      query: ({ phonenumber, code }) => ({
+        url: "/forgot-password/verify-otp",
+        method: "POST",
+        body: {
+          phonenumber,
+          code,
+        },
+      }),
+    }),
+
+    forgotPasswordReset: builder.mutation({
+      query: ({ phonenumber, password, confirmPassword }) => ({
         url: "/forgot-password/reset",
         method: "POST",
-        body,
+        body: {
+          phonenumber,
+          password,
+          confirmPassword,
+        },
+      }),
+    }),
+
+    forgotPasswordResendOtp: builder.mutation({
+      query: ({ phonenumber }) => ({
+        url: "/forgot-password/resend-otp",
+        method: "POST",
+        body: {
+          phonenumber,
+        },
       }),
     }),
   }),
@@ -79,11 +116,11 @@ export const authApi = createApi({
 export const {
   useSignupMutation,
   useVerifySignupOtpMutation,
-  useVerifyForgotOtpMutation,
   useResendSignupOtpMutation,
   useSigninMutation,
   useSignoutMutation,
-  useClearStudentSessionMutation,
-  useForgotSendOtpMutation,
-  useForgotResetMutation,
+  useForgotPasswordSendOtpMutation,
+  useForgotPasswordVerifyOtpMutation,
+  useForgotPasswordResetMutation,
+  useForgotPasswordResendOtpMutation,
 } = authApi;

@@ -7,6 +7,8 @@ const initialState = {
   selectedGrade: null,
   selectedStream: null,
   signupDistrict: "",
+  isForgotPasswordFlow: false,
+  forgotPasswordPhone: "",
 };
 
 const authSlice = createSlice({
@@ -23,6 +25,8 @@ const authSlice = createSlice({
       state.selectedGrade = null;
       state.selectedStream = null;
       state.signupDistrict = "";
+      state.isForgotPasswordFlow = false;
+      state.forgotPasswordPhone = "";
     },
     setPendingIdentity: (state, action) => {
       const { phone } = action.payload || {};
@@ -42,6 +46,14 @@ const authSlice = createSlice({
     setSignupDistrict: (state, action) => {
       state.signupDistrict = String(action.payload || "");
     },
+    setForgotPasswordFlow: (state, action) => {
+      state.isForgotPasswordFlow = true;
+      state.forgotPasswordPhone = action.payload || "";
+    },
+    clearForgotPasswordFlow: (state) => {
+      state.isForgotPasswordFlow = false;
+      state.forgotPasswordPhone = "";
+    },
   },
 });
 
@@ -52,6 +64,8 @@ export const {
   setGradeSelection,
   clearGradeSelection,
   setSignupDistrict,
+  setForgotPasswordFlow,
+  clearForgotPasswordFlow,
 } = authSlice.actions;
 
 export default authSlice.reducer;

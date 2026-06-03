@@ -11,6 +11,7 @@ import SignupScreen from "./pages/SignupScreen";
 import SignInScreen from "./pages/SignInScreen";
 import OtpScreen from "./pages/OtpScreen";
 import ResetPasswordScreen1 from "./pages/ResetPasswordScreen1";
+import ForgotPasswordOtp from "./pages/Forgotpasswordotp";
 import ResetPasswordScreen2 from "./pages/ResetPasswordScreen2";
 import Notice from "./pages/Notice";
 import ChooseAvatar from "./pages/ChooseAvatar";
@@ -102,7 +103,15 @@ export default function App() {
               )}
             </Stack.Screen>
 
-            <Stack.Screen name="ResetPassword2">
+            <Stack.Screen name="ForgotPasswordOtp">
+              {(props) => (
+                <RootLayout>
+                  <ForgotPasswordOtp {...props} />
+                </RootLayout>
+              )}
+            </Stack.Screen>
+
+            <Stack.Screen name="ResetPasswordScreen2">
               {(props) => (
                 <RootLayout>
                   <ResetPasswordScreen2 {...props} />

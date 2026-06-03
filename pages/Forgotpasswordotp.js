@@ -13,24 +13,25 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 
 import Floating from "../pages/Floating.js";
 import {
-  useVerifySignupOtpMutation,
-  useResendSignupOtpMutation,
+  useForgotPasswordVerifyOtpMutation,
+  useForgotPasswordResendOtpMutation,
 } from "../app/features/authApi.js";
-import { setToken } from "../app/features/authSlice.js";
-import { setUser } from "../app/features/userSlice.js";
 
 const { width, height } = Dimensions.get("window");
 
-export default function OtpScreen({ navigation }) {
-  const dispatch = useDispatch();
-  const [verifyOtp, { isLoading: isVerifying }] = useVerifySignupOtpMutation();
-  const [resendOtp, { isLoading: isResending }] = useResendSignupOtpMutation();
+export default function ForgotPasswordOtp({ navigation }) {
+  const [verifyOtp, { isLoading: isVerifying }] =
+    useForgotPasswordVerifyOtpMutation();
+  const [resendOtp, { isLoading: isResending }] =
+    useForgotPasswordResendOtpMutation();
 
-  const pendingPhone = useSelector((state) => state.auth?.pendingPhone);
+  const forgotPasswordPhone = useSelector(
+    (state) => state.auth?.forgotPasswordPhone
+  );
 
   const [otp, setOtp] = useState(Array(6).fill(""));
   const refs = useRef([]);
@@ -87,8 +88,8 @@ export default function OtpScreen({ navigation }) {
     setError("");
     setSuccess("");
 
-    if (!pendingPhone) {
-      setError("Phone number not found. Please sign up again.");
+    if (!forgotPasswordPhone) {
+      setError("Phone number not found. Please start over.");
       return;
     }
 
@@ -100,7 +101,7 @@ export default function OtpScreen({ navigation }) {
 
     try {
       const result = await verifyOtp({
-        phonenumber: pendingPhone,
+        phonenumber: forgotPasswordPhone,
         code,
       }).unwrap();
 
@@ -108,12 +109,9 @@ export default function OtpScreen({ navigation }) {
         setSuccess(result.message);
       }
 
-      // Small delay to show success message before navigating to Notice
+      // Navigate to password reset screen
       setTimeout(() => {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: "Notice" }],
-        });
+        navigation.navigate("ResetPasswordScreen2");
       }, 500);
     } catch (err) {
       const message =
@@ -128,14 +126,14 @@ export default function OtpScreen({ navigation }) {
     setError("");
     setSuccess("");
 
-    if (!pendingPhone) {
-      setError("Phone number not found. Please sign up again.");
+    if (!forgotPasswordPhone) {
+      setError("Phone number not found. Please start over.");
       return;
     }
 
     try {
       const result = await resendOtp({
-        phonenumber: pendingPhone,
+        phonenumber: forgotPasswordPhone,
       }).unwrap();
 
       setSuccess(
@@ -154,7 +152,7 @@ export default function OtpScreen({ navigation }) {
   };
 
   const handleGoBack = () => {
-    navigation.navigate("Signup");
+    navigation.navigate("ResetPassword1");
   };
 
   return (
@@ -209,7 +207,7 @@ export default function OtpScreen({ navigation }) {
               Enter <Text style={styles.highlight}>OTP</Text>
             </Text>
             <Text style={styles.subtitle}>
-              Enter the OTP sent to {pendingPhone}
+              Enter the OTP sent to {forgotPasswordPhone}
             </Text>
           </View>
 
@@ -290,13 +288,13 @@ export default function OtpScreen({ navigation }) {
             </TouchableOpacity>
           </View>
 
-          {/* Back to signup */}
+          {/* Back to Reset Password 1 */}
           <TouchableOpacity
             style={styles.backButton}
             onPress={handleGoBack}
             activeOpacity={0.8}
           >
-            <Text style={styles.backText}>← Back to Sign Up</Text>
+            <Text style={styles.backText}>← Back</Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
