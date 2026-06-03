@@ -37,8 +37,6 @@ const styles = StyleSheet.create({
   },
   contentArea: {
     flex: 1,
-    // On web: overflow hidden so the ScrollView inside clips correctly
-    // and doesn't bleed past the bottom nav
     ...Platform.select({
       web: {
         overflow: "hidden",

@@ -74,6 +74,7 @@
     "react-native-youtube-iframe": "^2.4.1",
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.15.1",
+    "redux-persist": "^6.0.0",
     "tesseract.js": "^6.0.1",
     "three": "^0.166.1"
   },
