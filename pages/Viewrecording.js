@@ -1,373 +1,467 @@
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useState } from "react";
 import {
   View,
   Text,
-  FlatList,
-  TouchableOpacity,
   StyleSheet,
+  ScrollView,
   Dimensions,
-  StatusBar,
+  Platform,
+  Pressable,
+  Modal,
+  Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { WebView } from "react-native-webview";
+import { Ionicons } from "@expo/vector-icons";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+import CrossWebView from "../components/CrossWebView";
+import YoutubePlayerBox from "../components/YoutubePlayerBox";
+import useT from "../app/i18n/useT";
 
-// ── Video player height: 16:9 landscape ratio ──
-const VIDEO_HEIGHT = Math.round((SCREEN_WIDTH - 32) * (9 / 16));
+const { width, height } = Dimensions.get("window");
 
-// ── Sample recordings data ──
-const RECORDINGS = [
-  {
-    id: "1",
-    title: "Recordings - 1",
-    subtitle: "Introduction to Fractions",
-    duration: "12:45",
-    date: "15 May 2024",
-    videoId: "dQw4w9WgXcQ",
-  },
-  
-];
+function escapeHtml(value = "") {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
 
-// ── Build self-contained YouTube iframe HTML ──
-const buildYouTubeHTML = (videoId) => `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+function getYouTubeId(url = "") {
+  if (!url) return "";
 
-    html, body {
-      width: 100%;
-      height: 100%;
-      background: #000;
-      overflow: hidden;
-    }
+  const cleanUrl = String(url).trim();
 
-    #container {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: #000;
-    }
+  const shortMatch = cleanUrl.match(/youtu\.be\/([A-Za-z0-9_-]{6,})/);
+  if (shortMatch?.[1]) return shortMatch[1];
 
-    iframe {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100% !important;
-      height: 100% !important;
-      border: none;
-    }
+  const watchMatch = cleanUrl.match(/[?&]v=([A-Za-z0-9_-]{6,})/);
+  if (watchMatch?.[1]) return watchMatch[1];
 
-    #yt-player {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-    }
-  </style>
-</head>
+  const embedMatch = cleanUrl.match(/youtube\.com\/embed\/([A-Za-z0-9_-]{6,})/);
+  if (embedMatch?.[1]) return embedMatch[1];
 
-<body>
-  <div id="container">
-    <div id="yt-player"></div>
-  </div>
+  const shortsMatch = cleanUrl.match(/youtube\.com\/shorts\/([A-Za-z0-9_-]{6,})/);
+  if (shortsMatch?.[1]) return shortsMatch[1];
 
-  <script>
-    var tag = document.createElement('script');
-    tag.src = 'https://www.youtube.com/iframe_api';
-    document.getElementsByTagName('head')[0].appendChild(tag);
+  return "";
+}
 
-    var player;
-
-    function onYouTubeIframeAPIReady() {
-      player = new YT.Player('yt-player', {
-        videoId: '${videoId}',
-        playerVars: {
-          autoplay: 0,
-          playsinline: 1,
-          controls: 1,
-          modestbranding: 1,
-          rel: 0,
-          showinfo: 0,
-          iv_load_policy: 3,
-          fs: 1
-        },
-        events: {
-          onError: function(e) {
-            if (e.data === 150 || e.data === 151 || e.data === 5) {
-              document.getElementById('container').innerHTML =
-                '<iframe src="https://www.youtube-nocookie.com/embed/${videoId}?playsinline=1&controls=1&modestbranding=1&rel=0" allow="autoplay; fullscreen; encrypted-media" allowfullscreen frameborder="0"></iframe>';
-            }
-          }
-        }
-      });
-    }
-  </script>
-</body>
-</html>
-`;
-
-// ── Recording List Item ──
-const RecordingItem = ({ item, isActive, onPress }) => (
-  <TouchableOpacity
-    style={[styles.recordingItem, isActive && styles.recordingItemActive]}
-    onPress={onPress}
-    activeOpacity={0.75}
-  >
-    <View style={[styles.iconBox, isActive && styles.iconBoxActive]}>
-      <View style={styles.videoIconOuter}>
-        <View style={styles.camBody} />
-        <View style={styles.camLens} />
-        <View style={styles.camTri} />
-      </View>
-    </View>
-
-    <View style={styles.recordingTextWrap}>
-      <Text
-        style={[styles.recordingTitle, isActive && styles.recordingTitleActive]}
-      >
-        {item.title}
-      </Text>
-
-      <Text style={styles.recordingSubtitle}>{item.subtitle}</Text>
-
-      <Text style={styles.recordingMeta}>
-        {item.duration} · {item.date}
-      </Text>
-    </View>
-
-    {isActive && <View style={styles.activeDot} />}
-  </TouchableOpacity>
-);
-
-// ── Main Screen ──
-export default function ViewRecording({ route }) {
-  const selectedRecordingId = route?.params?.recordingId
-    ? String(route.params.recordingId)
-    : RECORDINGS[0].id;
-
-  const [activeId, setActiveId] = useState(selectedRecordingId);
-
-  useEffect(() => {
-    if (route?.params?.recordingId) {
-      setActiveId(String(route.params.recordingId));
-    }
-  }, [route?.params?.recordingId]);
-
-  const activeRecording =
-    RECORDINGS.find((recording) => recording.id === activeId) || RECORDINGS[0];
+function isDirectVideoFile(url = "") {
+  const cleanUrl = String(url || "").trim().toLowerCase();
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+    /\.mp4(\?|#|$)/i.test(cleanUrl) ||
+    /\.m3u8(\?|#|$)/i.test(cleanUrl) ||
+    /\.mov(\?|#|$)/i.test(cleanUrl) ||
+    /\.webm(\?|#|$)/i.test(cleanUrl)
+  );
+}
 
-      <View style={styles.headerBar}>
-        <Text style={styles.pageTitle}>Recordings</Text>
-      </View>
+function getVideoHtml(url = "") {
+  const safeUrl = String(url || "").trim();
+  if (!safeUrl) return "";
 
-      <View style={styles.playerWrapper}>
-        <View style={styles.playerContainer}>
-          <WebView
-            key={activeId}
-            style={styles.webview}
-            originWhitelist={["*"]}
-            source={{
-              html: buildYouTubeHTML(activeRecording.videoId),
-              baseUrl: "https://www.youtube.com",
-            }}
-            javaScriptEnabled
-            domStorageEnabled
-            allowsFullscreenVideo
-            allowsInlineMediaPlayback
-            mediaPlaybackRequiresUserAction={false}
-            androidLayerType="hardware"
-            scrollEnabled={false}
-            userAgent="Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.144 Mobile Safari/537.36"
-          />
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <style>
+          html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            overflow: hidden;
+          }
+          video {
+            width: 100%;
+            height: 100%;
+            background: #000;
+          }
+        </style>
+      </head>
+      <body>
+        <video controls playsinline webkit-playsinline preload="metadata">
+          <source src="${escapeHtml(safeUrl)}" />
+        </video>
+      </body>
+    </html>
+  `;
+}
+
+function getYouTubeEmbedHtml(videoId = "") {
+  if (!videoId) return "";
+
+  const src =
+    `https://www.youtube-nocookie.com/embed/${videoId}` +
+    `?playsinline=1&rel=0&modestbranding=1&controls=1`;
+
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <style>
+          html, body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+          }
+          iframe {
+            width: 100%;
+            height: 100%;
+            border: 0;
+          }
+        </style>
+      </head>
+      <body>
+        <iframe
+          src="${src}"
+          allow="autoplay; encrypted-media; picture-in-picture"
+          allowfullscreen
+        ></iframe>
+      </body>
+    </html>
+  `;
+}
+
+export default function Viewrecording({ route }) {
+  const { t, lang } = useT();
+  const isSi = lang === "si";
+
+  const title =
+    route?.params?.title ??
+    route?.params?.recordingTitle ??
+    route?.params?.name ??
+    "Recording Video";
+
+  const videoUrl =
+    route?.params?.youtubeUrl ??
+    route?.params?.recordingUrl ??
+    route?.params?.videoUrl ??
+    route?.params?.lessonUrl ??
+    route?.params?.url ??
+    "";
+
+  const [fullOpen, setFullOpen] = useState(false);
+
+  const youtubeId = useMemo(() => getYouTubeId(videoUrl), [videoUrl]);
+  const isYoutube = !!youtubeId;
+  const isDirectFile = useMemo(() => isDirectVideoFile(videoUrl), [videoUrl]);
+
+  const cardWidth = width - 32;
+  const normalHeight = Math.round(cardWidth * 0.56);
+  const fullHeight = Math.round(height * 0.34);
+
+  const playerHtml = useMemo(() => {
+    if (isYoutube) return getYouTubeEmbedHtml(youtubeId);
+    if (isDirectFile) return getVideoHtml(videoUrl);
+    return "";
+  }, [isYoutube, youtubeId, isDirectFile, videoUrl]);
+
+  const handleOpenExternal = async () => {
+    try {
+      if (!videoUrl) return;
+
+      const supported = await Linking.canOpenURL(videoUrl);
+      if (supported) {
+        await Linking.openURL(videoUrl);
+      }
+    } catch (error) {
+      console.log("Failed to open recording video url:", error);
+    }
+  };
+
+  const renderPlayer = (playerHeight) => {
+    if (!videoUrl) {
+      return (
+        <View style={styles.playerFallback}>
+          <Ionicons name="alert-circle-outline" size={22} color="#FFFFFF" />
+          <Text style={styles.fallbackText}>Missing recording video link</Text>
         </View>
-      </View>
+      );
+    }
 
-      <FlatList
-        data={RECORDINGS}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
-        renderItem={({ item }) => (
-          <RecordingItem
-            item={item}
-            isActive={item.id === activeId}
-            onPress={() => setActiveId(item.id)}
+    if (isYoutube) {
+      if (Platform.OS === "web") {
+        return (
+          <CrossWebView
+            source={{ html: playerHtml }}
+            style={[styles.webview, { height: playerHeight }]}
           />
-        )}
-      />
-    </SafeAreaView>
+        );
+      }
+
+      return <YoutubePlayerBox videoId={youtubeId} height={playerHeight} />;
+    }
+
+    if (isDirectFile) {
+      return (
+        <CrossWebView
+          source={{ html: playerHtml }}
+          style={[styles.webview, { height: playerHeight }]}
+        />
+      );
+    }
+
+    return (
+      <View style={styles.playerFallback}>
+        <Ionicons name="alert-circle-outline" size={22} color="#FFFFFF" />
+        <Text style={styles.fallbackText}>This link cannot play inside app</Text>
+
+        <Pressable style={styles.openExternalBtn} onPress={handleOpenExternal}>
+          <Text style={styles.openExternalBtnText}>Open Outside</Text>
+        </Pressable>
+      </View>
+    );
+  };
+
+  return (
+    <View style={styles.screen}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.centerWrap}>
+          <Text style={styles.titleText} numberOfLines={2}>
+            {title}
+          </Text>
+
+          <View style={[styles.mainCard, { width: cardWidth }]}>
+            <View style={[styles.playerBox, { height: normalHeight }]}>
+              {renderPlayer(normalHeight)}
+            </View>
+
+            <View style={styles.actionRow}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.fullBtn,
+                  pressed && styles.fullBtnPressed,
+                ]}
+                onPress={() => setFullOpen(true)}
+              >
+                <Ionicons name="expand-outline" size={14} color="#FFFFFF" />
+                <Text style={styles.fullBtnText}>View</Text>
+              </Pressable>
+            </View>
+
+            <Text style={[styles.helperText, isSi && styles.helperTextSi]}>
+              {t("tapViewFullScreen") || "Tap View for full screen"}
+            </Text>
+          </View>
+        </View>
+      </ScrollView>
+
+      <Modal visible={fullOpen} animationType="fade" transparent={false}>
+        <SafeAreaView style={styles.fullScreenWrap}>
+          <View style={styles.fullHeader}>
+            <Text style={styles.fullHeaderText} numberOfLines={1}>
+              {title}
+            </Text>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.closeBtn,
+                pressed && styles.closeBtnPressed,
+              ]}
+              onPress={() => setFullOpen(false)}
+            >
+              <Ionicons name="close" size={22} color="#FFFFFF" />
+            </Pressable>
+          </View>
+
+          <View style={styles.fullPlayerArea}>
+            <View style={[styles.fullPlayerBox, { height: fullHeight }]}>
+              {renderPlayer(fullHeight)}
+            </View>
+          </View>
+        </SafeAreaView>
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  screen: {
     flex: 1,
-    backgroundColor: "#ffffff",
+    backgroundColor: "#F8FAFC",
   },
 
-  headerBar: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 12,
-    backgroundColor: "#fff",
-  },
-
-  pageTitle: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: "#0f0f1a",
-    letterSpacing: -0.4,
-    fontFamily: "System",
-    textAlign: "center",
-  },
-
-  playerWrapper: {
+  content: {
+    flexGrow: 1,
+    justifyContent: "center",
     paddingHorizontal: 16,
-    paddingBottom: 14,
+    paddingVertical: 24,
   },
 
-  playerContainer: {
+  centerWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  titleText: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: "#0F172A",
+    textAlign: "center",
+    marginBottom: 10,
     width: "100%",
-    height: VIDEO_HEIGHT,
+    lineHeight: 26,
+  },
+
+  mainCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 14,
+    elevation: 3,
+  },
+
+  playerBox: {
+    width: "100%",
     borderRadius: 14,
     overflow: "hidden",
-    backgroundColor: "#000",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18,
-    shadowRadius: 16,
-    elevation: 10,
+    backgroundColor: "#0B1220",
   },
 
   webview: {
+    width: "100%",
+    backgroundColor: "#0B1220",
+  },
+
+  playerFallback: {
     flex: 1,
-    backgroundColor: "#000",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#0B1220",
+    paddingHorizontal: 14,
   },
 
-  listContent: {
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 24,
+  fallbackText: {
+    color: "#FFFFFF",
+    fontWeight: "800",
+    fontSize: 13,
+    textAlign: "center",
   },
 
-  separator: {
-    height: 1,
-    backgroundColor: "#f0f0f5",
-    marginLeft: 76,
+  openExternalBtn: {
+    marginTop: 8,
+    backgroundColor: "#214294",
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
   },
 
-  recordingItem: {
+  openExternalBtnText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+
+  actionRow: {
+    marginTop: 10,
+    alignItems: "flex-end",
+  },
+
+  fullBtn: {
+    height: 34,
+    minWidth: 82,
+    borderRadius: 10,
+    backgroundColor: "#214294",
+    paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 4,
-    borderRadius: 14,
-  },
-
-  recordingItemActive: {
-    backgroundColor: "#f3f0ff",
-    paddingHorizontal: 10,
-  },
-
-  iconBox: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
-    backgroundColor: "#eeeeff",
-    alignItems: "center",
     justifyContent: "center",
-    marginRight: 14,
+    gap: 6,
   },
 
-  iconBoxActive: {
-    backgroundColor: "#ddd8ff",
+  fullBtnPressed: {
+    opacity: 0.95,
+    transform: [{ scale: 0.985 }],
   },
 
-  videoIconOuter: {
-    width: 28,
-    height: 28,
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-  },
-
-  camBody: {
-    width: 20,
-    height: 14,
-    borderRadius: 4,
-    backgroundColor: "#6c5ce7",
-    position: "absolute",
-    left: 0,
-  },
-
-  camLens: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#4a3cc7",
-    position: "absolute",
-    left: 5,
-    top: 3,
-  },
-
-  camTri: {
-    width: 0,
-    height: 0,
-    borderTopWidth: 5,
-    borderBottomWidth: 5,
-    borderLeftWidth: 8,
-    borderTopColor: "transparent",
-    borderBottomColor: "transparent",
-    borderLeftColor: "#6c5ce7",
-    position: "absolute",
-    right: 0,
-  },
-
-  recordingTextWrap: {
-    flex: 1,
-  },
-
-  recordingTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#0f0f1a",
-    marginBottom: 2,
-  },
-
-  recordingTitleActive: {
-    color: "#6c5ce7",
-  },
-
-  recordingSubtitle: {
-    fontSize: 13,
-    color: "#555577",
-    fontWeight: "500",
-    marginBottom: 2,
-  },
-
-  recordingMeta: {
+  fullBtnText: {
+    color: "#FFFFFF",
     fontSize: 12,
-    color: "#9999bb",
-    fontWeight: "400",
+    fontWeight: "800",
   },
 
-  activeDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#6c5ce7",
-    marginLeft: 8,
+  helperText: {
+    marginTop: 10,
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#64748B",
+    textAlign: "center",
+    lineHeight: 17,
+  },
+
+  helperTextSi: {
+    fontFamily: "AbhayaLibre_700Bold",
+    fontWeight: "normal",
+  },
+
+  fullScreenWrap: {
+    flex: 1,
+    backgroundColor: "#020617",
+  },
+
+  fullHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.08)",
+  },
+
+  fullHeaderText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "800",
+    flex: 1,
+    textAlign: "center",
+    paddingLeft: 38,
+    paddingRight: 10,
+  },
+
+  closeBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(255,255,255,0.10)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  closeBtnPressed: {
+    opacity: 0.9,
+  },
+
+  fullPlayerArea: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+  },
+
+  fullPlayerBox: {
+    width: "100%",
+    borderRadius: 16,
+    overflow: "hidden",
+    backgroundColor: "#000000",
   },
 });

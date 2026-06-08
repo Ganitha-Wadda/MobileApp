@@ -9,7 +9,10 @@ import {
   Linking,
   StatusBar,
   Dimensions,
+  SafeAreaView,
+  Platform,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 
 const { width, height } = Dimensions.get("window");
 
@@ -17,20 +20,87 @@ const isSmallScreen = width < 380;
 const isShortScreen = height < 760;
 const isVeryShortScreen = height < 700;
 
-// ── decorative star/sparkle component ──────────────────────────────────────
-const Star = ({ style, size = 18, color = "#A78BFA" }) => (
-  <Text style={[{ fontSize: size, position: "absolute", color }, style]}>
-    ★
-  </Text>
-);
+const ZOOM_ICON =
+  "https://cdn-icons-png.flaticon.com/512/4401/4401470.png";
 
-const Sparkle = ({ style, size = 12, color = "#C4B5FD" }) => (
-  <Text style={[{ fontSize: size, position: "absolute", color }, style]}>
-    ✦
-  </Text>
-);
+const Star = ({ style, size = 18, color = "#FDE68A" }) => {
+  const move = useRef(new Animated.Value(0)).current;
 
-// ── pulsing LIVE dot ────────────────────────────────────────────────────────
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(move, {
+          toValue: -10,
+          duration: 1400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(move, {
+          toValue: 0,
+          duration: 1400,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, [move]);
+
+  return (
+    <Animated.Text
+      style={[
+        {
+          fontSize: size,
+          position: "absolute",
+          color,
+          transform: [{ translateY: move }],
+        },
+        style,
+      ]}
+    >
+      ★
+    </Animated.Text>
+  );
+};
+
+const MovingCloud = ({ style, size = 34, delay = 0 }) => {
+  const move = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(move, {
+          toValue: 18,
+          duration: 2300,
+          delay,
+          useNativeDriver: true,
+        }),
+        Animated.timing(move, {
+          toValue: 0,
+          duration: 2300,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    animation.start();
+
+    return () => animation.stop();
+  }, [move, delay]);
+
+  return (
+    <Animated.Text
+      style={[
+        styles.cloud,
+        style,
+        {
+          fontSize: size,
+          transform: [{ translateX: move }],
+        },
+      ]}
+    >
+      ☁️
+    </Animated.Text>
+  );
+};
+
 const LiveDot = () => {
   const pulse = useRef(new Animated.Value(1)).current;
 
@@ -38,7 +108,7 @@ const LiveDot = () => {
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, {
-          toValue: 1.6,
+          toValue: 1.7,
           duration: 700,
           useNativeDriver: true,
         }),
@@ -49,7 +119,7 @@ const LiveDot = () => {
         }),
       ])
     ).start();
-  }, []);
+  }, [pulse]);
 
   return (
     <View style={styles.liveDotWrapper}>
@@ -61,7 +131,14 @@ const LiveDot = () => {
   );
 };
 
-// ── main screen ─────────────────────────────────────────────────────────────
+const ZoomIcon = ({ size = 22 }) => (
+  <Image
+    source={{ uri: ZOOM_ICON }}
+    style={{ width: size, height: size }}
+    resizeMode="contain"
+  />
+);
+
 export default function Live() {
   const cardScale = useRef(new Animated.Value(0.94)).current;
   const cardOpacity = useRef(new Animated.Value(0)).current;
@@ -86,228 +163,221 @@ export default function Live() {
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  }, [cardScale, cardOpacity, btnTranslate]);
 
   const handleLink = (url) => {
     Linking.openURL(url).catch(() => {});
   };
 
   return (
-    <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor="#EDE9FE" />
+    <LinearGradient
+      colors={["#EDE9FE", "#DDD6FE", "#C4B5FD"]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.gradient}
+    >
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
 
-      <View style={styles.container}>
-        {/* header */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <View style={styles.liveIconBg}>
-              <Text style={styles.liveIconPlay}>▶</Text>
+        <View style={styles.container}>
+          <View style={styles.purpleGlowOne} />
+          <View style={styles.purpleGlowTwo} />
 
-              <View style={styles.liveBadge}>
-                <Text style={styles.liveBadgeText}>LIVE</Text>
+          <MovingCloud style={{ top: 58, left: -12 }} size={38} delay={0} />
+          <MovingCloud style={{ top: 110, right: 20 }} size={32} delay={300} />
+          <MovingCloud style={{ top: 185, left: 35 }} size={28} delay={600} />
+          <MovingCloud style={{ bottom: 185, right: -4 }} size={36} delay={900} />
+          <MovingCloud style={{ bottom: 95, left: 12 }} size={30} delay={1200} />
+          <MovingCloud style={{ bottom: 45, right: 35 }} size={26} delay={1500} />
+
+          <Star style={{ top: 42, left: "12%" }} size={23} color="#FDE68A" />
+          <Star style={{ top: 34, right: "14%" }} size={27} color="#A78BFA" />
+          <Star style={{ top: 145, left: "8%" }} size={18} color="#F9A8D4" />
+          <Star style={{ bottom: 130, right: "8%" }} size={22} color="#FDE68A" />
+
+          <View style={styles.header}>
+            <View style={styles.headerLeft}>
+              <View style={styles.liveIconBg}>
+                <ZoomIcon size={24} />
+
+                <View style={styles.liveBadge}>
+                  <Text style={styles.liveBadgeText}>LIVE</Text>
+                </View>
+              </View>
+
+              <View style={styles.headerTextBox}>
+                <Text style={styles.headerTitle}>Today's Live Session</Text>
+                <Text style={styles.headerSub}>Join your class and learn live!</Text>
               </View>
             </View>
 
-            <View style={styles.headerTextBox}>
-              <Text style={styles.headerTitle}>Today's Live Session</Text>
-              <Text style={styles.headerSub}>Join your class and learn live!</Text>
-            </View>
+            <TouchableOpacity style={styles.calendarBtn} activeOpacity={0.8}>
+              <Text style={styles.calendarIcon}>📅</Text>
+            </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.calendarBtn} activeOpacity={0.8}>
-            <Text style={styles.calendarIcon}>📅</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* main card */}
-        <Animated.View
-          style={[
-            styles.card,
-            {
-              transform: [{ scale: cardScale }],
-              opacity: cardOpacity,
-            },
-          ]}
-        >
-          {/* floating decoration */}
-          <Star
-            style={{ top: isVeryShortScreen ? 16 : 20, left: 24 }}
-            size={isVeryShortScreen ? 17 : 19}
-            color="#7C3AED"
-          />
-
-          <Sparkle
-            style={{ top: isVeryShortScreen ? 32 : 40, right: 30 }}
-            size={isVeryShortScreen ? 10 : 12}
-            color="#C084FC"
-          />
-
-          <Sparkle
-            style={{ top: isVeryShortScreen ? 72 : 88, left: 55 }}
-            size={9}
-            color="#818CF8"
-          />
-
-          <Star
-            style={{ top: isVeryShortScreen ? 100 : 118, right: 18 }}
-            size={isVeryShortScreen ? 22 : 24}
-            color="#FBBF24"
-          />
-
-          <Sparkle
-            style={{ bottom: isVeryShortScreen ? 120 : 140, right: 40 }}
-            size={10}
-            color="#A78BFA"
-          />
-
-          <Sparkle
-            style={{ bottom: isVeryShortScreen ? 160 : 185, left: 30 }}
-            size={9}
-            color="#C4B5FD"
-          />
-
-          {/* cloud blobs */}
-          <Text
-            style={[
-              styles.cloud,
-              {
-                top: isVeryShortScreen ? 78 : 92,
-                left: -10,
-                fontSize: isVeryShortScreen ? 32 : 38,
-              },
-            ]}
-          >
-            ☁️
-          </Text>
-
-          <Text
-            style={[
-              styles.cloud,
-              {
-                bottom: isVeryShortScreen ? 88 : 110,
-                right: -6,
-                fontSize: isVeryShortScreen ? 28 : 32,
-              },
-            ]}
-          >
-            ☁️
-          </Text>
-
-          {/* LIVE NOW badge */}
-          <View style={styles.liveNowBadge}>
-            <LiveDot />
-            <Text style={styles.liveNowText}>LIVE NOW</Text>
-          </View>
-
-          {/* class name */}
-          <View style={styles.classNameRow}>
-            <Text style={styles.classDecor}>≻</Text>
-            <Text style={styles.className}>Chakkre</Text>
-            <Text style={styles.classDecor}>≺</Text>
-          </View>
-
-          {/* avatar */}
-          <View style={styles.avatarWrapper}>
-            <View style={styles.avatarRing}>
-              <View style={styles.avatarInner}>
-                <Image
-                  source={require("F:/public_folder/Ganitha Wadda/App/assets/charithsir.png")}
-                  style={styles.avatar}
-                  resizeMode="cover"
-                />
-              </View>
-            </View>
-
-            <View style={styles.cameraBadge}>
-              <Text style={styles.cameraIcon}>🎥</Text>
-            </View>
-          </View>
-
-          {/* teacher info */}
-          <Text style={styles.teacherName}>Charith Gimhan</Text>
-          <Text style={styles.teacherRole}>Psychology consultant</Text>
-
-          {/* divider */}
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerStar}>★</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          {/* action buttons */}
           <Animated.View
             style={[
-              styles.buttonsBlock,
+              styles.card,
               {
-                transform: [{ translateY: btnTranslate }],
+                transform: [{ scale: cardScale }],
+                opacity: cardOpacity,
               },
             ]}
           >
-            <TouchableOpacity
-              style={[styles.linkBtn, styles.linkBtn1]}
-              onPress={() => handleLink("https://zoom.us/j/your-link-1")}
-              activeOpacity={0.82}
-            >
-              <View style={styles.btnIconCircle}>
-                <Text style={styles.btnIcon}>🎥</Text>
+            <View style={styles.liveNowBadge}>
+              <LiveDot />
+              <Text style={styles.liveNowText}>LIVE NOW</Text>
+            </View>
+
+            <View style={styles.classNameRow}>
+              <Text style={styles.classDecor}>≻</Text>
+              <Text style={styles.className}>Chakkre</Text>
+              <Text style={styles.classDecor}>≺</Text>
+            </View>
+
+            <View style={styles.avatarWrapper}>
+              <LinearGradient
+                colors={["#C4B5FD", "#F5D0FE", "#FFFFFF"]}
+                style={styles.avatarRing}
+              >
+                <View style={styles.avatarInner}>
+                  <Image
+                    source={require("F:/public_folder/Ganitha Wadda/App/assets/charithsir.png")}
+                    style={styles.avatar}
+                    resizeMode="cover"
+                  />
+                </View>
+              </LinearGradient>
+
+              <View style={styles.cameraBadge}>
+                <ZoomIcon size={19} />
               </View>
+            </View>
 
-              <Text style={styles.linkBtnText}>Live Link 1</Text>
-              <Text style={styles.linkBtnArrow}>›</Text>
-            </TouchableOpacity>
+            <Text style={styles.teacherName}>Charith Gimhan</Text>
+            <Text style={styles.teacherRole}>Psychology consultant</Text>
 
-            <TouchableOpacity
-              style={[styles.linkBtn, styles.linkBtn2]}
-              onPress={() => handleLink("https://zoom.us/j/your-link-2")}
-              activeOpacity={0.82}
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerStar}>★</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <Animated.View
+              style={[
+                styles.buttonsBlock,
+                {
+                  transform: [{ translateY: btnTranslate }],
+                },
+              ]}
             >
-              <View style={styles.btnIconCircle}>
-                <Text style={styles.btnIcon}>🎥</Text>
-              </View>
+              <TouchableOpacity
+                style={styles.linkBtn}
+                onPress={() => handleLink("https://zoom.us/j/your-link-1")}
+                activeOpacity={0.82}
+              >
+                <LinearGradient
+                  colors={["#8B5CF6", "#6D28D9"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.linkBtnGradient}
+                >
+                  <View style={styles.btnIconCircle}>
+                    <ZoomIcon size={20} />
+                  </View>
 
-              <Text style={styles.linkBtnText}>Live Link 2</Text>
-              <Text style={styles.linkBtnArrow}>›</Text>
-            </TouchableOpacity>
+                  <Text style={styles.linkBtnText}>Zoom Live Link 1</Text>
+                  <Text style={styles.linkBtnArrow}>›</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.linkBtn}
+                onPress={() => handleLink("https://zoom.us/j/your-link-2")}
+                activeOpacity={0.82}
+              >
+                <LinearGradient
+                  colors={["#A855F7", "#4C1D95"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.linkBtnGradient}
+                >
+                  <View style={styles.btnIconCircle}>
+                    <ZoomIcon size={20} />
+                  </View>
+
+                  <Text style={styles.linkBtnText}>Zoom Live Link 2</Text>
+                  <Text style={styles.linkBtnArrow}>›</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </Animated.View>
           </Animated.View>
-        </Animated.View>
 
-        {/* reminder strip */}
-        <View style={styles.reminderStrip}>
-          <View style={styles.reminderIcon}>
-            <Text style={styles.reminderIconText}>🛡️</Text>
+          <View style={styles.reminderStrip}>
+            <View style={styles.reminderIcon}>
+              <ZoomIcon size={22} />
+            </View>
+
+            <View style={styles.reminderTextBox}>
+              <Text style={styles.reminderTitle}>Be ready and stay on time!</Text>
+              <Text style={styles.reminderSub}>
+                Open Zoom early and check your internet connection.
+              </Text>
+            </View>
+
+            <Text style={styles.clockIcon}>⏰</Text>
           </View>
-
-          <View style={styles.reminderTextBox}>
-            <Text style={styles.reminderTitle}>Be ready and stay on time!</Text>
-            <Text style={styles.reminderSub}>
-              Make sure you have a good internet connection and join a few minutes
-              early.
-            </Text>
-          </View>
-
-          <Text style={styles.clockIcon}>⏰</Text>
         </View>
-      </View>
-    </View>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
-// ── styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  root: {
+  gradient: {
     flex: 1,
-    backgroundColor: "#EDE9FE",
+  },
+
+  safeArea: {
+    flex: 1,
   },
 
   container: {
     flex: 1,
     width: "100%",
-    backgroundColor: "#EDE9FE",
     paddingHorizontal: isSmallScreen ? 14 : 18,
-    paddingTop: isVeryShortScreen ? 8 : 12,
-    paddingBottom: isVeryShortScreen ? 8 : 12,
+    paddingTop: Platform.OS === "android" ? 26 : 12,
+    paddingBottom: 14,
     alignItems: "center",
     justifyContent: "center",
+    position: "relative",
+  },
+
+  purpleGlowOne: {
+    position: "absolute",
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: "rgba(168,85,247,0.25)",
+    top: -60,
+    right: -60,
+  },
+
+  purpleGlowTwo: {
+    position: "absolute",
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: "rgba(124,58,237,0.22)",
+    bottom: 40,
+    left: -70,
+  },
+
+  cloud: {
+    position: "absolute",
+    opacity: 0.52,
+    zIndex: 1,
   },
 
   header: {
@@ -316,7 +386,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: isVeryShortScreen ? 7 : 9,
+    marginBottom: 12,
+    zIndex: 5,
   },
 
   headerLeft: {
@@ -326,33 +397,32 @@ const styles = StyleSheet.create({
   },
 
   liveIconBg: {
-    width: isVeryShortScreen ? 38 : 42,
-    height: isVeryShortScreen ? 38 : 42,
-    borderRadius: 14,
-    backgroundColor: "#7C3AED",
+    width: 46,
+    height: 46,
+    borderRadius: 17,
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
-  },
-
-  liveIconPlay: {
-    color: "#FFFFFF",
-    fontSize: isVeryShortScreen ? 14 : 16,
+    shadowColor: "#6D28D9",
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 5,
   },
 
   liveBadge: {
     position: "absolute",
     bottom: -4,
-    right: -4,
+    right: -5,
     backgroundColor: "#EF4444",
-    borderRadius: 6,
-    paddingHorizontal: 4,
-    paddingVertical: 1,
+    borderRadius: 7,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
   },
 
   liveBadgeText: {
     color: "#FFFFFF",
     fontSize: 7,
-    fontWeight: "800",
+    fontWeight: "900",
   },
 
   headerTextBox: {
@@ -361,66 +431,65 @@ const styles = StyleSheet.create({
   },
 
   headerTitle: {
-    fontSize: isVeryShortScreen ? 13 : 15,
-    fontWeight: "800",
-    color: "#1E1B4B",
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#2E1065",
   },
 
   headerSub: {
-    fontSize: isVeryShortScreen ? 9.5 : 10.5,
-    color: "#7C6FCD",
+    fontSize: 11,
+    color: "#6D28D9",
     marginTop: 1,
+    fontWeight: "700",
   },
 
   calendarBtn: {
-    width: isVeryShortScreen ? 34 : 38,
-    height: isVeryShortScreen ? 34 : 38,
-    borderRadius: 13,
+    width: 40,
+    height: 40,
+    borderRadius: 15,
     backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#7C3AED",
-    shadowOpacity: 0.12,
+    shadowColor: "#6D28D9",
+    shadowOpacity: 0.16,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 4,
     marginLeft: 8,
   },
 
   calendarIcon: {
-    fontSize: isVeryShortScreen ? 16 : 18,
+    fontSize: 18,
   },
 
   card: {
     width: "100%",
     maxWidth: 480,
-    backgroundColor: "#F5F3FF",
-    borderRadius: 24,
+    backgroundColor: "rgba(255,255,255,0.9)",
+    borderRadius: 30,
     paddingHorizontal: isSmallScreen ? 16 : 20,
-    paddingTop: isVeryShortScreen ? 10 : 13,
-    paddingBottom: isVeryShortScreen ? 12 : 15,
+    paddingTop: isVeryShortScreen ? 16 : 22,
+    paddingBottom: isVeryShortScreen ? 16 : 22,
     alignItems: "center",
-    shadowColor: "#7C3AED",
-    shadowOpacity: 0.14,
-    shadowRadius: 20,
-    elevation: 8,
-    overflow: "hidden",
-  },
-
-  cloud: {
-    position: "absolute",
-    opacity: 0.48,
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.95)",
+    shadowColor: "#6D28D9",
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.22,
+    shadowRadius: 24,
+    elevation: 10,
+    zIndex: 5,
   },
 
   liveNowBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#EDE9FE",
+    backgroundColor: "#F3E8FF",
     borderRadius: 20,
-    paddingHorizontal: isVeryShortScreen ? 10 : 12,
-    paddingVertical: isVeryShortScreen ? 3 : 4,
+    paddingHorizontal: 14,
+    paddingVertical: 5,
     borderWidth: 1,
-    borderColor: "#DDD6FE",
-    marginBottom: isVeryShortScreen ? 5 : 7,
+    borderColor: "rgba(168,85,247,0.25)",
+    marginBottom: 10,
   },
 
   liveDotWrapper: {
@@ -448,55 +517,54 @@ const styles = StyleSheet.create({
   },
 
   liveNowText: {
-    fontSize: isVeryShortScreen ? 9.5 : 10.5,
-    fontWeight: "700",
-    color: "#374151",
+    fontSize: 10.5,
+    fontWeight: "900",
+    color: "#6D28D9",
     letterSpacing: 0.7,
   },
 
   classNameRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: isVeryShortScreen ? 7 : 9,
+    marginBottom: 12,
   },
 
   classDecor: {
-    fontSize: isVeryShortScreen ? 16 : 18,
+    fontSize: 18,
     color: "#FBBF24",
     marginHorizontal: 7,
     fontWeight: "900",
   },
 
   className: {
-    fontSize: isVeryShortScreen ? 22 : 25,
+    fontSize: isVeryShortScreen ? 22 : 26,
     fontWeight: "900",
-    color: "#1E1B4B",
+    color: "#2E1065",
     letterSpacing: 0.5,
   },
 
   avatarWrapper: {
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: isVeryShortScreen ? 7 : 9,
+    marginBottom: 10,
   },
 
   avatarRing: {
-    width: isVeryShortScreen ? 102 : isShortScreen ? 112 : 125,
-    height: isVeryShortScreen ? 102 : isShortScreen ? 112 : 125,
-    borderRadius: isVeryShortScreen ? 51 : isShortScreen ? 56 : 63,
-    borderWidth: 3,
-    borderColor: "#C4B5FD",
+    width: isVeryShortScreen ? 104 : isShortScreen ? 114 : 126,
+    height: isVeryShortScreen ? 104 : isShortScreen ? 114 : 126,
+    borderRadius: 70,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FAD4D4",
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
   },
 
   avatarInner: {
     width: isVeryShortScreen ? 94 : isShortScreen ? 104 : 116,
     height: isVeryShortScreen ? 94 : isShortScreen ? 104 : 116,
-    borderRadius: isVeryShortScreen ? 47 : isShortScreen ? 52 : 58,
+    borderRadius: 60,
     overflow: "hidden",
-    backgroundColor: "#FDE8E8",
+    backgroundColor: "#F5D0FE",
   },
 
   avatar: {
@@ -506,53 +574,50 @@ const styles = StyleSheet.create({
 
   cameraBadge: {
     position: "absolute",
-    bottom: 3,
-    right: 3,
-    width: isVeryShortScreen ? 30 : 34,
-    height: isVeryShortScreen ? 30 : 34,
+    bottom: 4,
+    right: 4,
+    width: 34,
+    height: 34,
     borderRadius: 18,
-    backgroundColor: "#7C3AED",
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#4C1D95",
+    shadowColor: "#6D28D9",
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 4,
   },
 
-  cameraIcon: {
-    fontSize: isVeryShortScreen ? 14 : 16,
-  },
-
   teacherName: {
-    fontSize: isVeryShortScreen ? 16 : 18,
-    fontWeight: "800",
-    color: "#1E1B4B",
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#2E1065",
     marginBottom: 2,
   },
 
   teacherRole: {
-    fontSize: isVeryShortScreen ? 11 : 12,
-    color: "#7C6FCD",
-    marginBottom: isVeryShortScreen ? 7 : 9,
+    fontSize: 12,
+    color: "#7C3AED",
+    marginBottom: 10,
+    fontWeight: "700",
   },
 
   dividerRow: {
     flexDirection: "row",
     alignItems: "center",
     width: "100%",
-    marginBottom: isVeryShortScreen ? 8 : 10,
+    marginBottom: 12,
   },
 
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: "#DDD6FE",
+    backgroundColor: "rgba(168,85,247,0.25)",
   },
 
   dividerStar: {
     marginHorizontal: 9,
-    fontSize: isVeryShortScreen ? 13 : 15,
+    fontSize: 15,
     color: "#FBBF24",
   },
 
@@ -561,54 +626,42 @@ const styles = StyleSheet.create({
   },
 
   linkBtn: {
+    width: "100%",
+    marginBottom: 10,
+    borderRadius: 50,
+    overflow: "hidden",
+  },
+
+  linkBtnGradient: {
     flexDirection: "row",
     alignItems: "center",
     borderRadius: 50,
-    paddingVertical: isVeryShortScreen ? 8 : 10,
+    paddingVertical: 11,
     paddingHorizontal: 16,
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-
-  linkBtn1: {
-    backgroundColor: "#EF4444",
-    shadowColor: "#EF4444",
-    marginBottom: isVeryShortScreen ? 7 : 9,
-  },
-
-  linkBtn2: {
-    backgroundColor: "#7C3AED",
-    shadowColor: "#7C3AED",
   },
 
   btnIconCircle: {
-    width: isVeryShortScreen ? 28 : 32,
-    height: isVeryShortScreen ? 28 : 32,
+    width: 32,
+    height: 32,
     borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.25)",
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 10,
   },
 
-  btnIcon: {
-    fontSize: isVeryShortScreen ? 13 : 15,
-  },
-
   linkBtnText: {
     flex: 1,
     color: "#FFFFFF",
-    fontSize: isVeryShortScreen ? 13 : 14,
-    fontWeight: "700",
+    fontSize: 14,
+    fontWeight: "900",
     letterSpacing: 0.3,
   },
 
   linkBtnArrow: {
     color: "#FFFFFF",
-    fontSize: isVeryShortScreen ? 20 : 23,
+    fontSize: 24,
     fontWeight: "300",
-    lineHeight: isVeryShortScreen ? 22 : 25,
   },
 
   reminderStrip: {
@@ -616,27 +669,29 @@ const styles = StyleSheet.create({
     maxWidth: 480,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#EDE9FE",
-    borderRadius: 18,
-    paddingVertical: isVeryShortScreen ? 8 : 10,
-    paddingHorizontal: isVeryShortScreen ? 10 : 12,
-    marginTop: isVeryShortScreen ? 8 : 10,
-    borderWidth: 1,
-    borderColor: "#DDD6FE",
+    backgroundColor: "rgba(255,255,255,0.85)",
+    borderRadius: 22,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginTop: 14,
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.95)",
+    shadowColor: "#6D28D9",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.13,
+    shadowRadius: 8,
+    elevation: 4,
+    zIndex: 5,
   },
 
   reminderIcon: {
-    width: isVeryShortScreen ? 32 : 36,
-    height: isVeryShortScreen ? 32 : 36,
-    borderRadius: 11,
-    backgroundColor: "#7C3AED",
+    width: 38,
+    height: 38,
+    borderRadius: 13,
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 10,
-  },
-
-  reminderIconText: {
-    fontSize: isVeryShortScreen ? 16 : 18,
   },
 
   reminderTextBox: {
@@ -644,20 +699,21 @@ const styles = StyleSheet.create({
   },
 
   reminderTitle: {
-    fontSize: isVeryShortScreen ? 11.5 : 12.5,
-    fontWeight: "800",
-    color: "#1E1B4B",
+    fontSize: 12.5,
+    fontWeight: "900",
+    color: "#2E1065",
     marginBottom: 2,
   },
 
   reminderSub: {
-    fontSize: isVeryShortScreen ? 9.5 : 10.5,
-    color: "#6B7280",
-    lineHeight: isVeryShortScreen ? 13 : 14,
+    fontSize: 10.5,
+    color: "#6B21A8",
+    lineHeight: 14,
+    fontWeight: "700",
   },
 
   clockIcon: {
-    fontSize: isVeryShortScreen ? 26 : 32,
+    fontSize: 30,
     marginLeft: 6,
   },
 });
