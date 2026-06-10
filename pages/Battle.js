@@ -13,25 +13,24 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
+import bossImage from "../assets/BigBossBattle.png";
+import chakkraImage from "../assets/Chakkarawdda.png";
+
 const { width } = Dimensions.get("window");
 
-// ✅ Local asset images
-const chakkraImage = require("../assets/chakkra.png"); // change later if you have chakkra image
-const bossImage = require("../assets/Boss.png"); // change later if you have boss battle image
-
-const GAMES = [
+const BATTLES = [
   {
     id: 1,
-    title: "Chakkra\nWadda Racing",
-    desc: "Race, solve and win! Multiply your way to the finish line.",
+    title: "Chakkra\nWadda Battle",
+    desc: "Solve multiplication challenges and win the battle!",
     image: chakkraImage,
     color: "#4FC3F7",
-    route: "ChakkraWaddaRacing",  
+    route: "ChakkraWaddaRacing",
   },
   {
     id: 2,
-    title: "Boss\nBattle",
-    desc: "Face the boss, solve math challenges and be the hero!",
+    title: "Big Boss\nBattle",
+    desc: "Defeat the big boss with your math power!",
     image: bossImage,
     color: "#7E57C2",
     route: "BossBattle",
@@ -43,7 +42,7 @@ function AnimatedCloud({ style, scale = 1, delay = 0, distance = 18 }) {
   const float = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.loop(
+    const moveLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(move, {
           toValue: distance,
@@ -57,9 +56,9 @@ function AnimatedCloud({ style, scale = 1, delay = 0, distance = 18 }) {
           useNativeDriver: true,
         }),
       ])
-    ).start();
+    );
 
-    Animated.loop(
+    const floatLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(float, {
           toValue: -6,
@@ -73,7 +72,15 @@ function AnimatedCloud({ style, scale = 1, delay = 0, distance = 18 }) {
           useNativeDriver: true,
         }),
       ])
-    ).start();
+    );
+
+    moveLoop.start();
+    floatLoop.start();
+
+    return () => {
+      moveLoop.stop();
+      floatLoop.stop();
+    };
   }, [move, float, delay, distance]);
 
   return (
@@ -82,11 +89,7 @@ function AnimatedCloud({ style, scale = 1, delay = 0, distance = 18 }) {
         styles.cloud,
         style,
         {
-          transform: [
-            { translateX: move },
-            { translateY: float },
-            { scale },
-          ],
+          transform: [{ translateX: move }, { translateY: float }, { scale }],
         },
       ]}
     >
@@ -121,10 +124,13 @@ const Sparkle = ({ style, color = "#A78BFA", size = 14 }) => (
   </Text>
 );
 
-const GameCard = ({ game, onPlay }) => (
+const BattleCard = ({ battle, onPlay }) => (
   <View style={styles.card}>
-    <View style={[styles.cardImageWrap, { backgroundColor: game.color }]}>
-      <Image source={game.image} style={styles.cardImage} resizeMode="cover" />
+    <View style={[styles.cardImageWrap, { backgroundColor: battle.color }]}>
+      <Image source={battle.image} style={styles.cardImage} resizeMode="cover" />
+      <View style={styles.imageBadge}>
+        <Text style={styles.imageBadgeText}>BATTLE</Text>
+      </View>
     </View>
 
     <View style={styles.cardContent}>
@@ -132,19 +138,19 @@ const GameCard = ({ game, onPlay }) => (
       <Sparkle style={{ top: 40, right: 40 }} color="#DDD6FE" size={10} />
       <Sparkle style={{ bottom: 50, right: 20 }} color="#A78BFA" size={11} />
 
-      <Text style={styles.cardTitle}>{game.title}</Text>
+      <Text style={styles.cardTitle}>{battle.title}</Text>
 
       <View style={styles.descRow}>
-        <Text style={styles.descStar}>★</Text>
-        <Text style={styles.descText}>{game.desc}</Text>
+        <Text style={styles.descStar}>⚔️</Text>
+        <Text style={styles.descText}>{battle.desc}</Text>
       </View>
 
       <TouchableOpacity
         style={styles.playBtn}
-        onPress={() => onPlay(game.route)}
+        onPress={() => onPlay(battle.route)}
         activeOpacity={0.82}
       >
-        <Text style={styles.playBtnText}>Play </Text>
+        <Text style={styles.playBtnText}>Start Battle</Text>
       </TouchableOpacity>
     </View>
   </View>
@@ -169,37 +175,31 @@ export default function Battle({ navigation }) {
           <Text style={[styles.spark, { top: 34, right: "21%" }]}>✦</Text>
           <Text style={[styles.sparkSmall, { top: 31, right: "16%" }]}>•</Text>
 
-          <AnimatedCloud style={{ top: 92, left: -18 }} scale={0.85} delay={0} />
+          <AnimatedCloud style={{ top: 92, left: -18 }} scale={0.85} />
           <AnimatedCloud style={{ top: 145, right: 20 }} scale={0.65} delay={300} />
           <AnimatedCloud style={{ top: 235, left: 35 }} scale={0.5} delay={600} />
           <AnimatedCloud style={{ top: 315, right: -8 }} scale={0.72} delay={900} />
           <AnimatedCloud style={{ bottom: 130, left: 32 }} scale={0.78} delay={1200} />
           <AnimatedCloud style={{ bottom: 105, right: 32 }} scale={0.68} delay={1500} />
-          <AnimatedCloud style={{ bottom: 65, left: -8 }} scale={0.5} delay={1800} />
-          <AnimatedCloud style={{ bottom: 42, right: -2 }} scale={0.55} delay={2100} />
 
           <ScrollView
             style={styles.scroll}
             contentContainerStyle={styles.container}
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.titleRow}>
-              <Text style={{ fontSize: 18, marginRight: 6 }}>⭐</Text>
-              <Text style={styles.sectionTitle}>Games</Text>
-              <Text style={{ fontSize: 16, marginLeft: 6, color: "#A78BFA" }}>
-                ★
-              </Text>
+            <View style={styles.titleBox}>
+              <Text style={styles.titleIcon}>⚔️</Text>
+              <Text style={styles.sectionTitle}>Battle Mode</Text>
+              <Text style={styles.sectionSubTitle}>Choose your battle and start!</Text>
             </View>
 
-            {GAMES.map((game) => (
-              <GameCard key={game.id} game={game} onPlay={handlePlay} />
+            {BATTLES.map((battle) => (
+              <BattleCard key={battle.id} battle={battle} onPlay={handlePlay} />
             ))}
           </ScrollView>
 
           <View style={[styles.bgCircle, styles.bgCircleLeft]} />
           <View style={[styles.bgCircle, styles.bgCircleRight]} />
-          <Text style={[styles.softDot, { bottom: 38, left: "28%" }]}>✦</Text>
-          <Text style={[styles.softDot, { bottom: 46, right: "17%" }]}>✦</Text>
           <LeafDecor side="left" />
           <LeafDecor side="right" />
         </View>
@@ -225,49 +225,77 @@ const styles = StyleSheet.create({
 
   container: {
     paddingHorizontal: 16,
-    paddingTop: 26,
+    paddingTop: 24,
     paddingBottom: 130,
     flexGrow: 1,
   },
 
-  titleRow: {
-    flexDirection: "row",
+  titleBox: {
     alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 20,
+    marginBottom: 22,
+  },
+
+  titleIcon: {
+    fontSize: 28,
+    marginBottom: 4,
   },
 
   sectionTitle: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: "900",
     color: "#07124A",
     letterSpacing: 0.3,
   },
 
+  sectionSubTitle: {
+    marginTop: 4,
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#6B5FE8",
+  },
+
   card: {
     flexDirection: "row",
-    backgroundColor: "rgba(255,255,255,0.94)",
-    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.96)",
+    borderRadius: 24,
     overflow: "hidden",
-    marginBottom: 18,
-    borderWidth: 1,
-    borderColor: "#ECE8FF",
-    shadowColor: "#A39BF5",
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
-    height: 200,
+    marginBottom: 20,
+    borderWidth: 1.4,
+    borderColor: "#DDD6FE",
+    shadowColor: "#7C6BF2",
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+    height: 205,
   },
 
   cardImageWrap: {
-    width: width * 0.42,
+    width: width * 0.43,
     overflow: "hidden",
+    position: "relative",
   },
 
   cardImage: {
     width: "100%",
     height: "100%",
+  },
+
+  imageBadge: {
+    position: "absolute",
+    top: 10,
+    left: 10,
+    backgroundColor: "rgba(91,79,232,0.92)",
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+
+  imageBadgeText: {
+    color: "#fff",
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 0.8,
   },
 
   cardContent: {
@@ -281,7 +309,6 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: "#1A1A3E",
     lineHeight: 26,
-    marginBottom: 8,
     marginTop: 4,
   },
 
@@ -289,11 +316,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     flex: 1,
+    marginTop: 8,
     marginBottom: 12,
   },
 
   descStar: {
-    color: "#FBBF24",
     fontSize: 14,
     marginRight: 5,
     marginTop: 1,
@@ -304,13 +331,14 @@ const styles = StyleSheet.create({
     color: "#4B5563",
     lineHeight: 18,
     flex: 1,
+    fontWeight: "600",
   },
 
   playBtn: {
     backgroundColor: "#5B4FE8",
     borderRadius: 50,
     paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     alignItems: "center",
     shadowColor: "#5B4FE8",
     shadowOpacity: 0.4,
@@ -320,9 +348,9 @@ const styles = StyleSheet.create({
 
   playBtnText: {
     color: "#fff",
-    fontSize: 16,
-    fontWeight: "800",
-    letterSpacing: 0.5,
+    fontSize: 15,
+    fontWeight: "900",
+    letterSpacing: 0.4,
   },
 
   spark: {
@@ -337,13 +365,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     fontSize: 18,
     color: "#B9AFF7",
-    zIndex: 2,
-  },
-
-  softDot: {
-    position: "absolute",
-    color: "#D6CDFC",
-    fontSize: 14,
     zIndex: 2,
   },
 

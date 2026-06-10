@@ -14,27 +14,22 @@ const ActivityTemplate1 = ({
   ],
   correctAnswer = "6",
 }) => {
-  // Allow title/activityLabel to come from route.params if navigated from ShortVideoScreen
   const resolvedTitle = route?.params?.title ?? title;
   const resolvedLabel = route?.params?.activityLabel ?? activityLabel;
 
   const [selected, setSelected] = useState(null);
-  const [answered, setAnswered] = useState(false);
 
   const handleSelect = (value) => {
     setSelected(value);
-    setAnswered(true);
   };
 
-  // ✅ Next Video → go back to ShortVideoScreen
   const handleNextVideo = () => {
-    if (navigation) navigation.navigate('ShortVideo');
+    if (navigation) navigation.navigate("ShortVideo");
   };
 
-  // ✅ Next Activity → navigate to ActivityTemplate2
   const handleNextActivity = () => {
     if (navigation) {
-      navigation.navigate('activitytemplate2', {
+      navigation.navigate("activitytemplate2", {
         title: resolvedTitle,
         activityLabel: resolvedLabel,
       });
@@ -42,11 +37,11 @@ const ActivityTemplate1 = ({
   };
 
   return (
-    <div style={styles.wrapper}>
+    <div style={styles.page}>
       <div style={styles.card}>
-        {/* Header */}
         <div style={styles.header}>
           <p style={styles.title}>{resolvedTitle}</p>
+
           <div style={styles.activityRow}>
             <span style={styles.star}>✦</span>
             <p style={styles.activityLabel}>{resolvedLabel}</p>
@@ -54,7 +49,6 @@ const ActivityTemplate1 = ({
           </div>
         </div>
 
-        {/* Question Area */}
         <div style={styles.questionArea}>
           <div style={styles.starIcon}>☆</div>
           <div style={styles.dotYellow} />
@@ -62,17 +56,19 @@ const ActivityTemplate1 = ({
           <p style={styles.question}>{question}</p>
         </div>
 
-        {/* Options */}
         <div style={styles.optionsList}>
           {options.map((opt) => {
             const isSelected = selected === opt.value;
             const isCorrect = opt.value === correctAnswer;
+
             return (
               <button
                 key={opt.id}
                 style={{
                   ...styles.optionBtn,
-                  ...(isSelected ? styles.optionSelected : styles.optionDefault),
+                  ...(isSelected
+                    ? styles.optionSelected
+                    : styles.optionDefault),
                 }}
                 onClick={() => handleSelect(opt.value)}
               >
@@ -86,7 +82,9 @@ const ActivityTemplate1 = ({
                 >
                   {opt.id}
                 </span>
+
                 <span style={styles.optionText}>{opt.value}</span>
+
                 {isSelected && isCorrect && (
                   <span style={styles.checkmark}>✓</span>
                 )}
@@ -95,12 +93,12 @@ const ActivityTemplate1 = ({
           })}
         </div>
 
-        {/* Bottom Buttons */}
         <div style={styles.bottomRow}>
           <button style={styles.btnVideo} onClick={handleNextVideo}>
             <span style={styles.btnIcon}>🎬</span>
             <span style={styles.btnLabel}>Next Video</span>
           </button>
+
           <button style={styles.btnActivity} onClick={handleNextActivity}>
             <span style={styles.btnIcon}>📖</span>
             <span style={styles.btnLabel}>Next activity</span>
@@ -112,15 +110,20 @@ const ActivityTemplate1 = ({
 };
 
 const styles = {
-  wrapper: {
+  page: {
+    width: "100%",
+    minHeight: "100vh",
+    height: "100vh",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    minHeight: "100vh",
     backgroundColor: "#f0f0f8",
     fontFamily: "'Nunito', 'Poppins', sans-serif",
     padding: "16px",
+    boxSizing: "border-box",
+    overflow: "hidden",
   },
+
   card: {
     backgroundColor: "#fff",
     borderRadius: "24px",
@@ -132,13 +135,13 @@ const styles = {
     flexDirection: "column",
   },
 
-  /* Header */
   header: {
     backgroundColor: "#fff",
     paddingTop: "20px",
     paddingBottom: "4px",
     textAlign: "center",
   },
+
   title: {
     margin: "0 0 4px 0",
     fontSize: "18px",
@@ -146,6 +149,7 @@ const styles = {
     color: "#1a1a3e",
     letterSpacing: "0.2px",
   },
+
   activityRow: {
     display: "flex",
     alignItems: "center",
@@ -153,28 +157,28 @@ const styles = {
     gap: "8px",
     marginBottom: "6px",
   },
+
   activityLabel: {
     margin: 0,
     fontSize: "14px",
     fontWeight: "700",
     color: "#6c5ce7",
   },
+
   star: {
     color: "#a29bfe",
     fontSize: "11px",
   },
 
-  /* Question Area */
   questionArea: {
     backgroundColor: "#ede9fc",
-    margin: "0 16px 0 16px",
+    margin: "8px 16px 16px 16px",
     borderRadius: "16px",
     padding: "32px 24px 28px",
     textAlign: "center",
     position: "relative",
-    marginTop: "8px",
-    marginBottom: "16px",
   },
+
   starIcon: {
     position: "absolute",
     top: "14px",
@@ -183,6 +187,7 @@ const styles = {
     fontSize: "20px",
     color: "#b2a4f5",
   },
+
   dotYellow: {
     position: "absolute",
     bottom: "18px",
@@ -192,6 +197,7 @@ const styles = {
     borderRadius: "50%",
     backgroundColor: "#fdcb6e",
   },
+
   dotPink: {
     position: "absolute",
     bottom: "18px",
@@ -201,6 +207,7 @@ const styles = {
     borderRadius: "50%",
     backgroundColor: "#fd79a8",
   },
+
   question: {
     margin: "18px 0 0 0",
     fontSize: "52px",
@@ -210,13 +217,13 @@ const styles = {
     lineHeight: 1.1,
   },
 
-  /* Options */
   optionsList: {
     display: "flex",
     flexDirection: "column",
     gap: "10px",
     padding: "0 16px 16px 16px",
   },
+
   optionBtn: {
     display: "flex",
     alignItems: "center",
@@ -230,14 +237,17 @@ const styles = {
     fontSize: "16px",
     fontWeight: "700",
   },
+
   optionDefault: {
     backgroundColor: "#f5f4ff",
     color: "#1a1a3e",
   },
+
   optionSelected: {
     backgroundColor: "#6c5ce7",
     color: "#fff",
   },
+
   optionNumber: {
     width: "28px",
     height: "28px",
@@ -249,30 +259,34 @@ const styles = {
     fontWeight: "800",
     flexShrink: 0,
   },
+
   optionNumberDefault: {
     backgroundColor: "#e0dcff",
     color: "#6c5ce7",
   },
+
   optionNumberSelected: {
     backgroundColor: "rgba(255,255,255,0.25)",
     color: "#fff",
   },
+
   optionText: {
     flex: 1,
   },
+
   checkmark: {
     fontSize: "18px",
     color: "#fff",
     fontWeight: "900",
   },
 
-  /* Bottom Buttons */
   bottomRow: {
     display: "flex",
     gap: "12px",
     padding: "16px",
     backgroundColor: "#fff",
   },
+
   btnVideo: {
     flex: 1,
     display: "flex",
@@ -288,6 +302,7 @@ const styles = {
     fontSize: "15px",
     fontWeight: "800",
   },
+
   btnActivity: {
     flex: 1,
     display: "flex",
@@ -303,9 +318,11 @@ const styles = {
     fontSize: "15px",
     fontWeight: "800",
   },
+
   btnIcon: {
     fontSize: "20px",
   },
+
   btnLabel: {
     fontWeight: "800",
     letterSpacing: "0.2px",

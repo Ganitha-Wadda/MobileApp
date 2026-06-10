@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import Svg, { Rect, Path, Polygon } from "react-native-svg";
 import { LinearGradient } from "expo-linear-gradient";
+import { Audio } from "expo-av";
 
 /* ── Trophy icon ── */
 function TrophyIcon({ size = 32 }) {
@@ -58,19 +59,45 @@ function FloatStar({ color, size, style }) {
   const anim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.loop(
+    const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(anim, { toValue: 1, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(anim, { toValue: 0, duration: 2200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(anim, {
+          toValue: 1,
+          duration: 2200,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(anim, {
+          toValue: 0,
+          duration: 2200,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
       ])
-    ).start();
+    );
+
+    loop.start();
+
+    return () => loop.stop();
   }, [anim]);
 
-  const translateY = anim.interpolate({ inputRange: [0, 1], outputRange: [0, -4] });
-  const opacity = anim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.3, 1, 0.3] });
+  const translateY = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -4],
+  });
+
+  const opacity = anim.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [0.3, 1, 0.3],
+  });
 
   return (
-    <Animated.View style={[{ position: "absolute", opacity, transform: [{ translateY }] }, style]}>
+    <Animated.View
+      style={[
+        { position: "absolute", opacity, transform: [{ translateY }] },
+        style,
+      ]}
+    >
       <StarSparkle size={size} color={color} />
     </Animated.View>
   );
@@ -83,8 +110,19 @@ function AnimatedCard({ children, delay = 0, style }) {
 
   useEffect(() => {
     Animated.parallel([
-      Animated.spring(scale, { toValue: 1, delay, friction: 7, tension: 120, useNativeDriver: true }),
-      Animated.timing(opacity, { toValue: 1, delay, duration: 350, useNativeDriver: true }),
+      Animated.spring(scale, {
+        toValue: 1,
+        delay,
+        friction: 7,
+        tension: 120,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacity, {
+        toValue: 1,
+        delay,
+        duration: 350,
+        useNativeDriver: true,
+      }),
     ]).start();
   }, [scale, opacity, delay]);
 
@@ -98,11 +136,46 @@ function AnimatedCard({ children, delay = 0, style }) {
 /* ══ Main component ══ */
 export default function LeaderboardBattleSection() {
   const navigation = useNavigation();
+  const soundRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (soundRef.current) {
+        soundRef.current.unloadAsync();
+      }
+    };
+  }, []);
+
+  const playClickSound = useCallback(async () => {
+    try {
+      if (soundRef.current) {
+        await soundRef.current.replayAsync();
+        return;
+      }
+
+      const { sound } = await Audio.Sound.createAsync(
+        require("../assets/click3.mp3")
+      );
+
+      soundRef.current = sound;
+      await sound.playAsync();
+    } catch (error) {
+      console.log("Click sound error:", error);
+    }
+  }, []);
+
+  const goToLeaderboard = async () => {
+    await playClickSound();
+    navigation.navigate("Leaderboard");
+  };
+
+  const goToBattle = async () => {
+    await playClickSound();
+    navigation.navigate("battle");
+  };
 
   return (
     <View style={styles.outer}>
-
-      {/* ── Leaderboard card ── */}
       <AnimatedCard delay={80} style={styles.cardWrapper}>
         <LinearGradient
           colors={["#7B6FE8", "#5B4FD8", "#4535C8"]}
@@ -112,8 +185,8 @@ export default function LeaderboardBattleSection() {
         >
           <View style={styles.glow} />
           <FloatStar color="rgba(255,255,255,0.7)" size={12} style={{ top: 6, right: 12 }} />
-          <FloatStar color="rgba(255,220,100,0.8)" size={8}  style={{ top: 20, right: 24 }} />
-          <FloatStar color="rgba(255,255,255,0.4)" size={6}  style={{ top: 8,  left: 14 }} />
+          <FloatStar color="rgba(255,220,100,0.8)" size={8} style={{ top: 20, right: 24 }} />
+          <FloatStar color="rgba(255,255,255,0.4)" size={6} style={{ top: 8, left: 14 }} />
 
           <View style={styles.iconWrap}>
             <TrophyIcon size={32} />
@@ -124,7 +197,7 @@ export default function LeaderboardBattleSection() {
 
           <TouchableOpacity
             style={styles.btn}
-            onPress={() => navigation.navigate("Leaderboard")}
+            onPress={goToLeaderboard}
             activeOpacity={0.82}
           >
             <Text style={[styles.btnText, { color: "#4535C8" }]}>View</Text>
@@ -132,7 +205,6 @@ export default function LeaderboardBattleSection() {
         </LinearGradient>
       </AnimatedCard>
 
-      {/* ── Battle card ── */}
       <AnimatedCard delay={180} style={styles.cardWrapper}>
         <LinearGradient
           colors={["#E0469A", "#C4228A", "#A8127A"]}
@@ -142,8 +214,8 @@ export default function LeaderboardBattleSection() {
         >
           <View style={styles.glow} />
           <FloatStar color="rgba(255,255,255,0.7)" size={12} style={{ top: 6, right: 12 }} />
-          <FloatStar color="rgba(255,220,100,0.8)" size={8}  style={{ top: 20, right: 24 }} />
-          <FloatStar color="rgba(255,255,255,0.4)" size={6}  style={{ top: 8,  left: 14 }} />
+          <FloatStar color="rgba(255,220,100,0.8)" size={8} style={{ top: 20, right: 24 }} />
+          <FloatStar color="rgba(255,255,255,0.4)" size={6} style={{ top: 8, left: 14 }} />
 
           <View style={styles.iconWrap}>
             <SwordsIcon size={32} />
@@ -154,14 +226,15 @@ export default function LeaderboardBattleSection() {
 
           <TouchableOpacity
             style={styles.btn}
-            onPress={() => navigation.navigate("game")}
+            onPress={goToBattle}
             activeOpacity={0.82}
           >
-            <Text style={[styles.btnText, { color: "#C4228A" }]}>Battle Now</Text>
+            <Text style={[styles.btnText, { color: "#C4228A" }]}>
+              Battle Now
+            </Text>
           </TouchableOpacity>
         </LinearGradient>
       </AnimatedCard>
-
     </View>
   );
 }

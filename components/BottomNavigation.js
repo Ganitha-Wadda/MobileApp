@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -8,12 +8,14 @@ import {
   Dimensions,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { Audio } from "expo-av";
 import { useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("screen");
 
 const BOTTOM_NAV_HEIGHT = 78;
+const clickSound = require("../assets/click1.mp3");
 
 const tabs = [
   {
@@ -53,6 +55,42 @@ export default function BottomNavigation({ navigation }) {
   const route = useRoute();
   const insets = useSafeAreaInsets();
   const [selectedTab, setSelectedTab] = useState("home");
+  const soundRef = useRef(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSound = async () => {
+      try {
+        const { sound } = await Audio.Sound.createAsync(clickSound);
+        if (isMounted) {
+          soundRef.current = sound;
+        }
+      } catch (error) {
+        console.log("Sound load error:", error);
+      }
+    };
+
+    loadSound();
+
+    return () => {
+      isMounted = false;
+
+      if (soundRef.current) {
+        soundRef.current.unloadAsync();
+      }
+    };
+  }, []);
+
+  const playClickSound = async () => {
+    try {
+      if (soundRef.current) {
+        await soundRef.current.replayAsync();
+      }
+    } catch (error) {
+      console.log("Sound play error:", error);
+    }
+  };
 
   const activeTab = useMemo(() => {
     const currentRouteName = String(route?.name || "").toLowerCase();
@@ -72,7 +110,9 @@ export default function BottomNavigation({ navigation }) {
     return matchedTab ? matchedTab.id : selectedTab;
   }, [route?.name, selectedTab]);
 
-  const handleTabPress = (tab) => {
+  const handleTabPress = async (tab) => {
+    await playClickSound();
+
     setSelectedTab(tab.id);
 
     if (tab.route && navigation) {

@@ -46,6 +46,7 @@ import PastPaperMenu from "./pages/PastPaperMenu";
 import Paperpage from "./pages/paperpage";
 import ReviewPage from "./pages/Reviewpage";
 import ChooseAvatarPage from "./pages/ChooseAvatarPage";
+import Battle from "./pages/Battle";
 
 const Stack = createNativeStackNavigator();
 
@@ -355,6 +356,13 @@ export default function App() {
               {(props) => (
                 <SecondLayout navigation={props.navigation}>
                   <ChooseAvatarPage {...props} />
+                </SecondLayout>
+              )}
+            </Stack.Screen>
+            <Stack.Screen name="battle">
+              {(props) => (
+                <SecondLayout navigation={props.navigation}>
+                  <Battle {...props} />
                 </SecondLayout>
               )}
             </Stack.Screen>

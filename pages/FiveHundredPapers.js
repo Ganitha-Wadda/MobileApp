@@ -9,8 +9,27 @@ import {
   StatusBar,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { Audio } from "expo-av";
 
 const { width, height } = Dimensions.get("window");
+
+const playClickSound = async () => {
+  try {
+    const { sound } = await Audio.Sound.createAsync(
+      require("../assets/click4.mp3")
+    );
+
+    await sound.playAsync();
+
+    sound.setOnPlaybackStatusUpdate((status) => {
+      if (status.didJustFinish) {
+        sound.unloadAsync();
+      }
+    });
+  } catch (error) {
+    console.log("Click sound error:", error);
+  }
+};
 
 const SparkDot = ({ style, delay = 0, color = "#D6CDFC" }) => {
   const scaleAnim = useRef(new Animated.Value(0.5)).current;
@@ -247,7 +266,9 @@ export default function FiveHundredPapers({ navigation }) {
       useNativeDriver: true,
     }).start();
 
-  const handleStart = () => {
+  const handleStart = async () => {
+    await playClickSound();
+
     if (navigation) navigation.navigate("FiveHundredPaperMenu");
   };
 

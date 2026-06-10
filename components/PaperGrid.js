@@ -10,11 +10,14 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Audio } from "expo-av";
 
 import dailyPapersImg from "../assets/dailypapers.png";
 import fiveHundredPapersImg from "../assets/500papers.png";
 import lessonByLessonImg from "../assets/lessonbylesson.png";
 import pastPapersImg from "../assets/pastpapers.png";
+
+import clickSound from "../assets/click4.mp3";
 
 const CARD_COLORS = ["#FF4757", "#C748E8", "#1E90FF", "#7B68EE"];
 
@@ -60,6 +63,26 @@ export default function PaperGrid() {
   const cardHeight = Math.min(cardWidth * 0.85, 140);
   const imgSize = Math.min(cardHeight * 0.45, 50);
 
+  const playClickSound = async () => {
+    try {
+      const { sound } = await Audio.Sound.createAsync(clickSound);
+      await sound.playAsync();
+
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.didJustFinish) {
+          sound.unloadAsync();
+        }
+      });
+    } catch (error) {
+      console.log("Sound play error:", error);
+    }
+  };
+
+  const handleCardPress = async (route) => {
+    await playClickSound();
+    navigation.navigate(route);
+  };
+
   return (
     <View style={styles.wrapper}>
       <View
@@ -84,10 +107,9 @@ export default function PaperGrid() {
                   backgroundColor: CARD_COLORS[index],
                 },
               ]}
-              onPress={() => navigation.navigate(item.route)}
+              onPress={() => handleCardPress(item.route)}
               activeOpacity={0.75}
             >
-              {/* Decorative Circle Background */}
               <View
                 style={[
                   styles.circle,
@@ -99,7 +121,6 @@ export default function PaperGrid() {
                 ]}
               />
 
-              {/* Star Icon */}
               <View style={styles.starContainer}>
                 <MaterialCommunityIcons
                   name="star"
@@ -108,14 +129,12 @@ export default function PaperGrid() {
                 />
               </View>
 
-              {/* Card Image */}
               <Image
                 source={item.image}
                 style={{ width: imgSize, height: imgSize }}
                 resizeMode="contain"
               />
 
-              {/* Card Label */}
               <Text
                 style={[styles.cardLabel, { maxWidth: cardWidth - 20 }]}
                 numberOfLines={2}

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -9,10 +9,48 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
+import { Audio } from "expo-av";
 
 export default function TopBar() {
   const navigation = useNavigation();
   const { width } = useWindowDimensions();
+  const soundRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (soundRef.current) {
+        soundRef.current.unloadAsync();
+      }
+    };
+  }, []);
+
+  const playClickSound = useCallback(async () => {
+    try {
+      if (soundRef.current) {
+        await soundRef.current.replayAsync();
+        return;
+      }
+
+      const { sound } = await Audio.Sound.createAsync(
+        require("../assets/click2.mp3")
+      );
+
+      soundRef.current = sound;
+      await sound.playAsync();
+    } catch (error) {
+      console.log("Click sound error:", error);
+    }
+  }, []);
+
+  const goToProfile = async () => {
+    await playClickSound();
+    navigation.navigate("profile");
+  };
+
+  const goToParent = async () => {
+    await playClickSound();
+    navigation.navigate("parent");
+  };
 
   return (
     <LinearGradient
@@ -21,20 +59,15 @@ export default function TopBar() {
       end={{ x: 1, y: 0 }}
       style={[styles.container, { width }]}
     >
-      {/* Child Avatar - click this to go Profile page */}
-      <TouchableOpacity
-        onPress={() => navigation.navigate("profile")}
-        activeOpacity={0.8}
-      >
+      <TouchableOpacity onPress={goToProfile} activeOpacity={0.8}>
         <View style={styles.avatarCircle}>
           <Text style={styles.avatarEmoji}>🧒</Text>
         </View>
       </TouchableOpacity>
 
-      {/* User Info */}
       <TouchableOpacity
         style={styles.userInfo}
-        onPress={() => navigation.navigate("profile")}
+        onPress={goToProfile}
         activeOpacity={0.8}
       >
         <Text style={styles.userName} numberOfLines={1} adjustsFontSizeToFit>
@@ -43,11 +76,7 @@ export default function TopBar() {
         <Text style={styles.userGrade}>Grade 3</Text>
       </TouchableOpacity>
 
-      {/* Parent / Group Icon */}
-      <TouchableOpacity
-        onPress={() => navigation.navigate("parent")}
-        activeOpacity={0.8}
-      >
+      <TouchableOpacity onPress={goToParent} activeOpacity={0.8}>
         <View style={styles.avatarCircle}>
           <Text style={styles.avatarEmoji}>👨‍👩‍👧‍👦</Text>
         </View>
