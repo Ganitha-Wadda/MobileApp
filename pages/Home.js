@@ -12,7 +12,6 @@ export default function Home({ navigation }) {
       <Hero />
       <LeaderboardBattleSection navigation={navigation} />
       <AvatarSection navigation={navigation} />
-       <Resultsection/>
       <PaperGrid />
     </ScreenWrapper>
   );

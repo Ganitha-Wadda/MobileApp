@@ -1,51 +1,87 @@
 import { useState } from "react";
 
-const allData = {
-  Weekly: [
-    { rank: 1, name: "Saman Ekanayake", points: 2450, avatar: "👦", isUser: true },
-    { rank: 2, name: "Nethmi Perera", points: 2200, avatar: "👧", isUser: false },
-    { rank: 3, name: "Ayaan Silva", points: 2100, avatar: "👦", isUser: false },
-    { rank: 4, name: "Dinuka Fernando", points: 1950, avatar: "👦", isUser: false },
-    { rank: 5, name: "Vihanga Rathnayake", points: 1800, avatar: "👦", isUser: false },
-    { rank: 6, name: "Hasitha Jayawardena", points: 1650, avatar: "👧", isUser: false },
-    { rank: 7, name: "Imeshi De Silva", points: 1500, avatar: "👧", isUser: false },
-    { rank: 8, name: "Tharusha Madushan", points: 1350, avatar: "👦", isUser: false },
-    { rank: 9, name: "Pasindu Fernando", points: 1200, avatar: "👦", isUser: false },
-    { rank: 10, name: "Sewmini Karunaratne", points: 1100, avatar: "👧", isUser: false },
-  ],
-  Monthly: [
-    { rank: 1, name: "Saman Ekanayake", points: 9800, avatar: "👦", isUser: true },
-    { rank: 2, name: "Hasitha Jayawardena", points: 9200, avatar: "👧", isUser: false },
-    { rank: 3, name: "Dinuka Fernando", points: 8750, avatar: "👦", isUser: false },
-    { rank: 4, name: "Nethmi Perera", points: 8100, avatar: "👧", isUser: false },
-    { rank: 5, name: "Vihanga Rathnayake", points: 7900, avatar: "👦", isUser: false },
-    { rank: 6, name: "Ayaan Silva", points: 7400, avatar: "👦", isUser: false },
-    { rank: 7, name: "Imeshi De Silva", points: 6800, avatar: "👧", isUser: false },
-    { rank: 8, name: "Tharusha Madushan", points: 6200, avatar: "👦", isUser: false },
-    { rank: 9, name: "Pasindu Fernando", points: 5900, avatar: "👦", isUser: false },
-    { rank: 10, name: "Sewmini Karunaratne", points: 5400, avatar: "👧", isUser: false },
-  ],
-  "All Time": [
-    { rank: 1, name: "Saman Ekanayake", points: 45200, avatar: "👦", isUser: true },
-    { rank: 2, name: "Nethmi Perera", points: 42100, avatar: "👧", isUser: false },
-    { rank: 3, name: "Dinuka Fernando", points: 39800, avatar: "👦", isUser: false },
-    { rank: 4, name: "Hasitha Jayawardena", points: 37500, avatar: "👧", isUser: false },
-    { rank: 5, name: "Vihanga Rathnayake", points: 35200, avatar: "👦", isUser: false },
-    { rank: 6, name: "Ayaan Silva", points: 32900, avatar: "👦", isUser: false },
-    { rank: 7, name: "Imeshi De Silva", points: 30100, avatar: "👧", isUser: false },
-    { rank: 8, name: "Tharusha Madushan", points: 27800, avatar: "👦", isUser: false },
-    { rank: 9, name: "Pasindu Fernando", points: 25400, avatar: "👦", isUser: false },
-    { rank: 10, name: "Sewmini Karunaratne", points: 22100, avatar: "👧", isUser: false },
-  ],
-};
+const allData = [
+  { rank: 1, name: "Saman Ekanayake", points: 45200, avatar: "👦", isUser: true },
+  { rank: 2, name: "Nethmi Perera", points: 42100, avatar: "👧", isUser: false },
+  { rank: 3, name: "Dinuka Fernando", points: 39800, avatar: "👦", isUser: false },
+  { rank: 4, name: "Hasitha Jayawardena", points: 37500, avatar: "👧", isUser: false },
+  { rank: 5, name: "Vihanga Rathnayake", points: 35200, avatar: "👦", isUser: false },
+  { rank: 6, name: "Ayaan Silva", points: 32900, avatar: "👦", isUser: false },
+  { rank: 7, name: "Imeshi De Silva", points: 30100, avatar: "👧", isUser: false },
+  { rank: 8, name: "Tharusha Madushan", points: 27800, avatar: "👦", isUser: false },
+  { rank: 9, name: "Pasindu Fernando", points: 25400, avatar: "👦", isUser: false },
+  { rank: 10, name: "Sewmini Karunaratne", points: 22100, avatar: "👧", isUser: false },
+];
 
 const avatarColors = [
   "#FF6B9D", "#A78BFA", "#60A5FA", "#34D399", "#FBBF24",
   "#F87171", "#38BDF8", "#C084FC", "#FB923C", "#4ADE80",
 ];
 
+const Cloud = ({ style, scale = 1, delay = 0 }) => (
+  <div
+    style={{
+      position: "absolute",
+      width: 58,
+      height: 30,
+      opacity: 0.8,
+      zIndex: 1,
+      transform: `scale(${scale})`,
+      animation: "cloudMove 5.2s ease-in-out infinite",
+      animationDelay: `${delay}s`,
+      ...style,
+    }}
+  >
+    <span style={cloudCircle1} />
+    <span style={cloudCircle2} />
+    <span style={cloudCircle3} />
+    <span style={cloudBase} />
+  </div>
+);
+
+const cloudCircle1 = {
+  position: "absolute",
+  left: 4,
+  bottom: 4,
+  width: 20,
+  height: 20,
+  borderRadius: "50%",
+  background: "#FFFFFF",
+};
+
+const cloudCircle2 = {
+  position: "absolute",
+  left: 18,
+  bottom: 8,
+  width: 27,
+  height: 27,
+  borderRadius: "50%",
+  background: "#FFFFFF",
+};
+
+const cloudCircle3 = {
+  position: "absolute",
+  right: 4,
+  bottom: 4,
+  width: 21,
+  height: 21,
+  borderRadius: "50%",
+  background: "#FFFFFF",
+};
+
+const cloudBase = {
+  position: "absolute",
+  left: 5,
+  right: 4,
+  bottom: 3,
+  height: 13,
+  borderRadius: 8,
+  background: "#FFFFFF",
+};
+
 const AvatarCircle = ({ emoji, size = 44, colorIndex = 0 }) => {
   const bg = avatarColors[colorIndex % avatarColors.length];
+
   return (
     <div
       style={{
@@ -101,6 +137,7 @@ const PodiumCard = ({ player, position }) => {
       marginTop: 26,
     },
   };
+
   const c = configs[position];
   const colorIdx = position === 1 ? 0 : position === 2 ? 1 : 2;
 
@@ -115,9 +152,8 @@ const PodiumCard = ({ player, position }) => {
         flex: 1,
       }}
     >
-      {c.crown && (
-        <div style={{ fontSize: 26, marginBottom: -6, zIndex: 10 }}>👑</div>
-      )}
+      {c.crown && <div style={{ fontSize: 26, marginBottom: -6, zIndex: 10 }}>👑</div>}
+
       <div
         style={{
           width: c.avatarSize,
@@ -135,6 +171,7 @@ const PodiumCard = ({ player, position }) => {
       >
         {player.avatar}
       </div>
+
       <div
         style={{
           fontSize: 11,
@@ -148,6 +185,7 @@ const PodiumCard = ({ player, position }) => {
       >
         {player.name}
       </div>
+
       <div
         style={{
           display: "flex",
@@ -162,8 +200,9 @@ const PodiumCard = ({ player, position }) => {
         }}
       >
         <CoinIcon size={14} />
-        {player.points}
+        {player.points.toLocaleString()}
       </div>
+
       <div
         style={{
           width: 74,
@@ -203,14 +242,14 @@ const LeaderboardRow = ({ player, animDelay }) => {
         alignItems: "center",
         background: isUser
           ? "linear-gradient(90deg, #ede9fe 0%, #ddd6fe 100%)"
-          : "#fff",
+          : "rgba(255,255,255,0.92)",
         borderRadius: 16,
         padding: "10px 14px",
         marginBottom: 8,
         boxShadow: isUser
           ? "0 2px 12px rgba(139,92,246,0.18)"
           : "0 1px 6px rgba(0,0,0,0.06)",
-        border: isUser ? "1.5px solid #a78bfa" : "1.5px solid transparent",
+        border: isUser ? "1.5px solid #a78bfa" : "1.5px solid #ECE8FF",
         animation: "fadeSlideIn 0.4s ease both",
         animationDelay: `${animDelay}s`,
       }}
@@ -235,7 +274,9 @@ const LeaderboardRow = ({ player, animDelay }) => {
       >
         {player.rank}
       </div>
+
       <AvatarCircle emoji={player.avatar} size={42} colorIndex={colorIdx} />
+
       <div style={{ flex: 1, marginLeft: 10 }}>
         <div
           style={{
@@ -247,6 +288,7 @@ const LeaderboardRow = ({ player, animDelay }) => {
           {isUser ? `You – ${player.name}` : player.name}
         </div>
       </div>
+
       <div
         style={{
           display: "flex",
@@ -264,56 +306,67 @@ const LeaderboardRow = ({ player, animDelay }) => {
 };
 
 export default function Leaderboard() {
-  const [tab, setTab] = useState("Weekly");
-  const tabs = ["Weekly", "Monthly", "All Time"];
-  const data = allData[tab];
+  const data = allData;
 
   const top3 = [
     data.find((p) => p.rank === 2),
     data.find((p) => p.rank === 1),
     data.find((p) => p.rank === 3),
   ];
+
   const rest = data.filter((p) => p.rank > 3);
   const userEntry = data.find((p) => p.isUser);
 
   return (
     <div
       style={{
-        minHeight: "100vh",
-        background: "#d8c4fb",
+        height: "100vh",
+        background:
+          "linear-gradient(180deg, #FAF9FF 0%, #F3F0FF 48%, #ECE8FF 100%)",
         display: "flex",
         justifyContent: "center",
         alignItems: "flex-start",
         padding: "0 0 32px",
         fontFamily: "'Nunito', 'Poppins', sans-serif",
+        position: "relative",
+        overflowY: "auto",
+        overflowX: "hidden",
       }}
     >
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+
         @keyframes fadeSlideIn {
           from { opacity: 0; transform: translateY(16px); }
           to   { opacity: 1; transform: translateY(0); }
         }
+
         @keyframes podiumPop {
           0%   { opacity: 0; transform: scaleY(0.6) translateY(30px); }
           80%  { transform: scaleY(1.04) translateY(-2px); }
           100% { opacity: 1; transform: scaleY(1) translateY(0); }
         }
+
         @keyframes starFloat {
           0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.7; }
-          50%       { transform: translateY(-12px) rotate(15deg); opacity: 1; }
+          50% { transform: translateY(-12px) rotate(15deg); opacity: 1; }
+        }
+
+        @keyframes cloudMove {
+          0%, 100% { transform: translateX(0); }
+          50% { transform: translateX(18px) translateY(-6px); }
         }
       `}</style>
 
-      <div style={{ width: "100%", maxWidth: 420 }}>
-        {/* Header */}
-        <div
-          style={{
-            textAlign: "center",
-            padding: "32px 20px 0",
-            position: "relative",
-          }}
-        >
+      <Cloud style={{ top: 92, left: -18 }} scale={0.85} delay={0} />
+      <Cloud style={{ top: 145, right: 20 }} scale={0.65} delay={0.3} />
+      <Cloud style={{ top: 235, left: 35 }} scale={0.5} delay={0.6} />
+      <Cloud style={{ top: 315, right: -8 }} scale={0.72} delay={0.9} />
+      <Cloud style={{ bottom: 130, left: 32 }} scale={0.78} delay={1.2} />
+      <Cloud style={{ bottom: 105, right: 32 }} scale={0.68} delay={1.5} />
+
+      <div style={{ width: "100%", maxWidth: 420, position: "relative", zIndex: 5 }}>
+        <div style={{ textAlign: "center", padding: "32px 20px 0", position: "relative" }}>
           {["⭐", "✨", "🌟"].map((s, i) => (
             <span
               key={i}
@@ -322,20 +375,21 @@ export default function Leaderboard() {
                 fontSize: 18 + i * 4,
                 animation: `starFloat ${2.2 + i * 0.4}s ease-in-out infinite`,
                 animationDelay: `${i * 0.6}s`,
-                left:  [14, "auto", 20][i],
+                left: [14, "auto", 20][i],
                 right: ["auto", 16, "auto"][i],
-                top:   [28, 18, 55][i],
+                top: [28, 18, 55][i],
                 opacity: 0.85,
               }}
             >
               {s}
             </span>
           ))}
+
           <div
             style={{
               fontSize: 26,
               fontWeight: 900,
-              color: "#2d1b69",
+              color: "#07124A",
               letterSpacing: 0.5,
               textShadow: "0 2px 8px rgba(255,255,255,0.4)",
             }}
@@ -344,7 +398,6 @@ export default function Leaderboard() {
           </div>
         </div>
 
-        {/* Podium */}
         <div
           style={{
             display: "flex",
@@ -360,48 +413,23 @@ export default function Leaderboard() {
           <PodiumCard player={top3[2]} position={3} />
         </div>
 
-        {/* Tab bar */}
-        <div style={{ padding: "18px 16px 0" }}>
-          <div
-            style={{
-              display: "flex",
-              background: "rgba(255,255,255,0.75)",
-              borderRadius: 30,
-              padding: 4,
-              boxShadow: "0 2px 12px rgba(109,40,217,0.12)",
-              backdropFilter: "blur(6px)",
-            }}
-          >
-            {tabs.map((t) => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                style={{
-                  flex: 1,
-                  padding: "8px 0",
-                  borderRadius: 26,
-                  border: "none",
-                  background:
-                    tab === t
-                      ? "linear-gradient(90deg, #7c3aed, #6d28d9)"
-                      : "transparent",
-                  color: tab === t ? "#fff" : "#6b7280",
-                  fontWeight: 700,
-                  fontSize: 13,
-                  cursor: "pointer",
-                  transition: "all 0.2s",
-                  fontFamily: "inherit",
-                  boxShadow:
-                    tab === t ? "0 2px 8px rgba(124,58,237,0.35)" : "none",
-                }}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
+        <div
+          style={{
+            textAlign: "center",
+            margin: "18px 16px 0",
+            background: "rgba(255,255,255,0.75)",
+            borderRadius: 30,
+            padding: "10px 0",
+            boxShadow: "0 2px 12px rgba(109,40,217,0.12)",
+            border: "1px solid #ECE8FF",
+            color: "#6D28D9",
+            fontWeight: 900,
+            fontSize: 14,
+          }}
+        >
+          All Time
         </div>
 
-        {/* List panel */}
         <div
           style={{
             background: "rgba(255,255,255,0.55)",
@@ -411,6 +439,7 @@ export default function Leaderboard() {
             padding: "16px 14px 8px",
             minHeight: 320,
             boxShadow: "0 -4px 24px rgba(109,40,217,0.10)",
+            border: "1px solid rgba(255,255,255,0.55)",
           }}
         >
           {rest.map((player, i) => (
@@ -421,7 +450,6 @@ export default function Leaderboard() {
             />
           ))}
 
-          {/* User pinned row */}
           {userEntry && (
             <div
               style={{
@@ -434,7 +462,6 @@ export default function Leaderboard() {
             </div>
           )}
 
-          {/* Your Rank footer */}
           <div
             style={{
               background: "linear-gradient(90deg, #7c3aed 0%, #4f46e5 100%)",
@@ -447,10 +474,12 @@ export default function Leaderboard() {
             }}
           >
             <div style={{ fontSize: 36, marginRight: 14 }}>🏆</div>
+
             <div style={{ flex: 1 }}>
               <div style={{ color: "#ddd6fe", fontSize: 12, fontWeight: 600 }}>
                 Your Rank:
               </div>
+
               <div
                 style={{
                   color: "#fff",
@@ -461,13 +490,16 @@ export default function Leaderboard() {
               >
                 #{userEntry ? userEntry.rank : "—"}
               </div>
+
               <div style={{ color: "#c4b5fd", fontSize: 12, marginTop: 1 }}>
                 Amazing work! You're at the top!
               </div>
+
               <div style={{ color: "#a78bfa", fontSize: 11 }}>
                 Keep learning and stay on top!
               </div>
             </div>
+
             <div style={{ fontSize: 34 }}>🚀</div>
           </div>
         </div>

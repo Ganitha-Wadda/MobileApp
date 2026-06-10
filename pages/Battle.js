@@ -150,7 +150,7 @@ const GameCard = ({ game, onPlay }) => (
   </View>
 );
 
-export default function Game({ navigation }) {
+export default function Battle({ navigation }) {
   const handlePlay = (route) => {
     navigation?.navigate?.(route);
   };

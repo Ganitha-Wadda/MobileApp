@@ -291,9 +291,7 @@ export default function DailyQuizz({ navigation }) {
           { opacity: fadeInAnim, transform: [{ translateY: slideUpAnim }] },
         ]}
       >
-        <Text style={styles.headerStarLeft}>⭐</Text>
-        <Text style={styles.headerTitle}>Daily Quiz</Text>
-        <Text style={styles.headerStarRight}>⭐</Text>
+        
       </Animated.View>
 
       <Animated.View
@@ -352,9 +350,7 @@ export default function DailyQuizz({ navigation }) {
             end={{ x: 1, y: 1 }}
           >
             <Text style={styles.startButtonText}>Start</Text>
-            <View style={styles.arrowCircle}>
-              <Text style={styles.arrowText}>›</Text>
-            </View>
+            
           </LinearGradient>
         </TouchableOpacity>
       </Animated.View>

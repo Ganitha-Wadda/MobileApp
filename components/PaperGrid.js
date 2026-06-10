@@ -9,13 +9,14 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import dailyPapersImg from "../assets/dailypapers.png";
 import fiveHundredPapersImg from "../assets/500papers.png";
 import lessonByLessonImg from "../assets/lessonbylesson.png";
 import pastPapersImg from "../assets/pastpapers.png";
 
-const CARD_COLORS = ["#FF4757", "#FF6348", "#1E90FF", "#6C5CE7"];
+const CARD_COLORS = ["#FF4757", "#C748E8", "#1E90FF", "#7B68EE"];
 
 const PAPERS = [
   {
@@ -44,9 +45,9 @@ const PAPERS = [
   },
 ];
 
-const H_PAD = 14;
-const GAP = 10;
-const MAX_LAYOUT_W = 480;
+const H_PAD = 16;
+const GAP = 12;
+const MAX_LAYOUT_W = 500;
 
 export default function PaperGrid() {
   const navigation = useNavigation();
@@ -56,8 +57,8 @@ export default function PaperGrid() {
     Platform.OS === "web" ? Math.min(winWidth, MAX_LAYOUT_W) : winWidth;
 
   const cardWidth = (layoutWidth - H_PAD * 2 - GAP) / 2;
-  const cardHeight = Math.min(cardWidth * 0.78, 120);
-  const imgSize = Math.min(cardHeight * 0.42, 46);
+  const cardHeight = Math.min(cardWidth * 0.85, 140);
+  const imgSize = Math.min(cardHeight * 0.45, 50);
 
   return (
     <View style={styles.wrapper}>
@@ -84,27 +85,39 @@ export default function PaperGrid() {
                 },
               ]}
               onPress={() => navigation.navigate(item.route)}
-              activeOpacity={0.82}
+              activeOpacity={0.75}
             >
+              {/* Decorative Circle Background */}
               <View
                 style={[
                   styles.circle,
                   {
-                    width: cardWidth * 0.6,
-                    height: cardWidth * 0.6,
-                    borderRadius: cardWidth * 0.3,
+                    width: cardWidth * 0.65,
+                    height: cardWidth * 0.65,
+                    borderRadius: cardWidth * 0.325,
                   },
                 ]}
               />
 
+              {/* Star Icon */}
+              <View style={styles.starContainer}>
+                <MaterialCommunityIcons
+                  name="star"
+                  size={24}
+                  color="rgba(255, 255, 255, 0.4)"
+                />
+              </View>
+
+              {/* Card Image */}
               <Image
                 source={item.image}
                 style={{ width: imgSize, height: imgSize }}
                 resizeMode="contain"
               />
 
+              {/* Card Label */}
               <Text
-                style={[styles.cardLabel, { maxWidth: cardWidth - 16 }]}
+                style={[styles.cardLabel, { maxWidth: cardWidth - 20 }]}
                 numberOfLines={2}
               >
                 {item.label}
@@ -120,10 +133,10 @@ export default function PaperGrid() {
 const styles = StyleSheet.create({
   wrapper: {
     width: "100%",
-    backgroundColor: "#6764FF",
+    backgroundColor: "#5024ce",
     alignItems: "center",
-    paddingTop: 10,
-    paddingBottom: 0,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
 
   inner: {
@@ -133,10 +146,11 @@ const styles = StyleSheet.create({
   },
 
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "900",
     color: "#FFFFFF",
-    marginBottom: 10,
+    marginBottom: 16,
+    letterSpacing: 0.5,
   },
 
   grid: {
@@ -146,32 +160,40 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    borderRadius: 18,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: GAP,
     overflow: "hidden",
-    gap: 6,
+    gap: 8,
     shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 5,
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+    position: "relative",
   },
 
   circle: {
     position: "absolute",
-    bottom: -12,
-    right: -12,
-    backgroundColor: "rgba(0,0,0,0.12)",
+    bottom: -18,
+    right: -18,
+    backgroundColor: "rgba(0, 0, 0, 0.15)",
+  },
+
+  starContainer: {
+    position: "absolute",
+    top: 12,
+    left: 12,
+    zIndex: 10,
   },
 
   cardLabel: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "800",
     color: "#FFFFFF",
     textAlign: "center",
-    lineHeight: 17,
+    lineHeight: 18,
     zIndex: 2,
     ...Platform.select({
       web: {

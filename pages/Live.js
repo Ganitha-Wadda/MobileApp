@@ -16,8 +16,10 @@ import {
   RefreshControl,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { useSelector } from "react-redux";
-import { useGetActiveLiveClassesQuery } from "../app/features/Liveapi"; // RTK Query hook for fetching live classes
+import { useSelector }    from "react-redux";
+
+import { useGetActiveLiveClassesQuery } from "../app/features/Liveapi";
+import EnrollmentGate                  from "../components/EnrollmentGate";
 
 const { width, height } = Dimensions.get("window");
 
@@ -96,7 +98,7 @@ const ZoomIcon = ({ size = 22 }) => (
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// LiveClassCard — animated card, one per active live class
+// LiveClassCard (unchanged)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const LiveClassCard = ({ liveClass, index }) => {
@@ -109,10 +111,7 @@ const LiveClassCard = ({ liveClass, index }) => {
       Animated.spring(cardScale,    { toValue: 1, friction: 7, useNativeDriver: true }),
       Animated.timing(cardOpacity,  { toValue: 1, duration: 500, useNativeDriver: true }),
       Animated.spring(btnTranslate, {
-        toValue: 0,
-        friction: 7,
-        delay: 200 + index * 120,
-        useNativeDriver: true,
+        toValue: 0, friction: 7, delay: 200 + index * 120, useNativeDriver: true,
       }),
     ]).start();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -121,11 +120,8 @@ const LiveClassCard = ({ liveClass, index }) => {
 
   const formatSchedule = (dateStr) =>
     new Date(dateStr).toLocaleString([], {
-      weekday: "short",
-      month:   "short",
-      day:     "numeric",
-      hour:    "2-digit",
-      minute:  "2-digit",
+      weekday: "short", month: "short", day: "numeric",
+      hour: "2-digit", minute: "2-digit",
     });
 
   const teacherName = liveClass?.classId?.teacherName ?? "Teacher";
@@ -137,13 +133,11 @@ const LiveClassCard = ({ liveClass, index }) => {
     <Animated.View
       style={[styles.card, { transform: [{ scale: cardScale }], opacity: cardOpacity }]}
     >
-      {/* LIVE NOW badge */}
       <View style={styles.liveNowBadge}>
         <LiveDot />
         <Text style={styles.liveNowText}>LIVE NOW</Text>
       </View>
 
-      {/* Title */}
       <View style={styles.classNameRow}>
         <Text style={styles.classDecor}>≻</Text>
         <Text style={styles.className} numberOfLines={1} adjustsFontSizeToFit>
@@ -152,12 +146,10 @@ const LiveClassCard = ({ liveClass, index }) => {
         <Text style={styles.classDecor}>≺</Text>
       </View>
 
-      {/* Grade badge */}
       <View style={styles.gradeBadge}>
         <Text style={styles.gradeBadgeText}>Grade {grade}</Text>
       </View>
 
-      {/* Avatar */}
       <View style={styles.avatarWrapper}>
         <LinearGradient colors={["#C4B5FD", "#F5D0FE", "#FFFFFF"]} style={styles.avatarRing}>
           <View style={styles.avatarInner}>
@@ -176,7 +168,6 @@ const LiveClassCard = ({ liveClass, index }) => {
       <Text style={styles.teacherName}>{teacherName}</Text>
       <Text style={styles.teacherRole}>Psychology consultant</Text>
 
-      {/* Schedule */}
       <View style={styles.scheduleRow}>
         <Text style={styles.scheduleIcon}>🕐</Text>
         <Text style={styles.scheduleText}>{formatSchedule(liveClass.date)}</Text>
@@ -188,7 +179,6 @@ const LiveClassCard = ({ liveClass, index }) => {
         <View style={styles.dividerLine} />
       </View>
 
-      {/* Zoom link buttons */}
       <Animated.View style={[styles.buttonsBlock, { transform: [{ translateY: btnTranslate }] }]}>
         {links.map((link, i) => (
           <TouchableOpacity
@@ -217,37 +207,24 @@ const LiveClassCard = ({ liveClass, index }) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Main screen
+// Actual live content (shown only when enrolled & approved)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function Live() {
-  // ── Grade from Redux user slice ──────────────────────────────────────────
-  // Handles the most common userSlice shapes — adjust the one that matches yours
+function LiveContent() {
   const userGrade = useSelector(
     (state) =>
-      state.user?.user?.grade    ??   // { user: { grade } }
-      state.user?.profile?.grade ??   // { profile: { grade } }
-      state.user?.data?.grade    ??   // { data: { grade } }
-      state.user?.grade          ??   // flat { grade }
+      state.user?.user?.grade    ??
+      state.user?.profile?.grade ??
+      state.user?.data?.grade    ??
+      state.user?.grade          ??
       null
   );
 
-  // ── RTK Query — replaces manual fetch + useState ─────────────────────────
-  const {
-    data,
-    isLoading,
-    isFetching,
-    isError,
-    error,
-    refetch,
-  } = useGetActiveLiveClassesQuery(userGrade, {
-    // skip the request entirely until we know the grade
-    skip: !userGrade,
-    // re-fetch whenever the screen is focused (via refetch) — no constant polling
-  });
+  const { data, isLoading, isFetching, isError, error, refetch } =
+    useGetActiveLiveClassesQuery(userGrade, { skip: !userGrade });
 
-  const liveClasses = data?.liveClasses ?? [];
-  const isRefreshing = isFetching && !isLoading; // pull-to-refresh indicator
+  const liveClasses  = data?.liveClasses ?? [];
+  const isRefreshing = isFetching && !isLoading;
 
   const errorMessage =
     isError
@@ -256,7 +233,6 @@ export default function Live() {
       ? "Grade not found in your profile. Please contact support."
       : null;
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <LinearGradient
       colors={["#EDE9FE", "#DDD6FE", "#C4B5FD"]}
@@ -267,7 +243,7 @@ export default function Live() {
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
 
-        {/* ── Decorative layer ─────────────────────────────────────────── */}
+        {/* Decorative layer */}
         <View pointerEvents="none" style={StyleSheet.absoluteFill}>
           <View style={styles.purpleGlowOne} />
           <View style={styles.purpleGlowTwo} />
@@ -283,7 +259,6 @@ export default function Live() {
           <Star style={{ bottom: 130, right: "8%" }} size={22} color="#FDE68A" />
         </View>
 
-        {/* ── Scrollable content ───────────────────────────────────────── */}
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -312,13 +287,11 @@ export default function Live() {
                 </Text>
               </View>
             </View>
-
             <TouchableOpacity style={styles.calendarBtn} activeOpacity={0.8} onPress={refetch}>
               <Text style={styles.calendarIcon}>📅</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Loading */}
           {isLoading && (
             <View style={styles.centerBox}>
               <ActivityIndicator size="large" color="#7C3AED" />
@@ -326,7 +299,6 @@ export default function Live() {
             </View>
           )}
 
-          {/* Error */}
           {!isLoading && errorMessage && (
             <View style={styles.centerBox}>
               <Text style={styles.stateEmoji}>😕</Text>
@@ -338,7 +310,6 @@ export default function Live() {
             </View>
           )}
 
-          {/* Empty */}
           {!isLoading && !errorMessage && liveClasses.length === 0 && (
             <View style={styles.centerBox}>
               <Text style={styles.stateEmoji}>📡</Text>
@@ -350,14 +321,12 @@ export default function Live() {
             </View>
           )}
 
-          {/* Cards */}
           {!isLoading &&
             !errorMessage &&
             liveClasses.map((lc, i) => (
               <LiveClassCard key={String(lc._id ?? i)} liveClass={lc} index={i} />
             ))}
 
-          {/* Reminder strip */}
           {!isLoading && !errorMessage && liveClasses.length > 0 && (
             <View style={styles.reminderStrip}>
               <View style={styles.reminderIcon}>
@@ -379,7 +348,19 @@ export default function Live() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Styles — all originals kept; new rules at the bottom
+// Main export — gated
+// ─────────────────────────────────────────────────────────────────────────────
+
+export default function Live() {
+  return (
+    <EnrollmentGate>
+      <LiveContent />
+    </EnrollmentGate>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Styles (identical to original)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
@@ -409,7 +390,6 @@ const styles = StyleSheet.create({
 
   cloud: { position: "absolute", opacity: 0.52, zIndex: 1 },
 
-  // Header
   header: {
     width: "100%", maxWidth: 480,
     flexDirection: "row", alignItems: "center",
@@ -439,7 +419,6 @@ const styles = StyleSheet.create({
   },
   calendarIcon: { fontSize: 18 },
 
-  // Card
   card: {
     width: "100%", maxWidth: 480,
     backgroundColor: "rgba(255,255,255,0.9)",
@@ -508,7 +487,6 @@ const styles = StyleSheet.create({
   linkBtnText:  { flex: 1, color: "#FFFFFF", fontSize: 14, fontWeight: "900", letterSpacing: 0.3 },
   linkBtnArrow: { color: "#FFFFFF", fontSize: 24, fontWeight: "300" },
 
-  // Reminder strip
   reminderStrip: {
     width: "100%", maxWidth: 480,
     flexDirection: "row", alignItems: "center",
@@ -528,7 +506,6 @@ const styles = StyleSheet.create({
   reminderSub:     { fontSize: 10.5, color: "#6B21A8", lineHeight: 14, fontWeight: "700" },
   clockIcon:       { fontSize: 30, marginLeft: 6 },
 
-  // ── NEW styles ────────────────────────────────────────────────────────────
   gradeBadge: {
     backgroundColor: "#EDE9FE", borderRadius: 12,
     paddingHorizontal: 12, paddingVertical: 4,

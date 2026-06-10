@@ -338,9 +338,7 @@ const PaperCard = ({ item, index, navigation }) => {
               >
                 <Text style={styles.startBtnText}>Start</Text>
 
-                <View style={styles.arrowBubble}>
-                  <Text style={styles.startBtnArrow}>›</Text>
-                </View>
+                
               </LinearGradient>
             </TouchableOpacity>
           </Animated.View>
@@ -528,7 +526,7 @@ export default function FiveHundredPaperMenu({ navigation }) {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <ProgressHeader />
+       
 
         {PAPERS.map((item, index) => (
           <PaperCard
@@ -539,9 +537,6 @@ export default function FiveHundredPaperMenu({ navigation }) {
           />
         ))}
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>📄  492 more papers coming soon…</Text>
-        </View>
       </ScrollView>
     </View>
   );

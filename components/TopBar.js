@@ -16,7 +16,7 @@ export default function TopBar() {
 
   return (
     <LinearGradient
-      colors={["#635BFF", "#4C3DD9"]}
+      colors={["#5e1cce", "#5e1cce"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 0 }}
       style={[styles.container, { width }]}
