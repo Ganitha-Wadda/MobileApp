@@ -10,10 +10,12 @@ import {
   StatusBar,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { Audio } from "expo-av";
 
 const { width, height } = Dimensions.get("window");
 
-// ─── Lesson data ─────────────────────────────────────────────────────────────
+const clickSound = require("../assets/clip5.mp3");
+
 const LESSONS = [
   {
     id: "1",
@@ -22,7 +24,6 @@ const LESSONS = [
     emoji: "🎡",
     iconBg: ["#E8E4FF", "#D9D0FF"],
     starColor: "#A78BFA",
-    route: "paperpage",
   },
   {
     id: "2",
@@ -31,7 +32,6 @@ const LESSONS = [
     emoji: "👦",
     iconBg: ["#FFF3E0", "#FFE0B2"],
     starColor: "#FBBF24",
-    route: "paperpage",
   },
   {
     id: "3",
@@ -40,7 +40,6 @@ const LESSONS = [
     emoji: "💡",
     iconBg: ["#FFF8D0", "#FFF3A3"],
     starColor: "#60A5FA",
-    route: "paperpage",
   },
   {
     id: "4",
@@ -49,11 +48,9 @@ const LESSONS = [
     emoji: "🏆",
     iconBg: ["#E3F2FD", "#CFEAFF"],
     starColor: "#F472B6",
-    route: "paperpage",
   },
 ];
 
-// ─── Floating dot ────────────────────────────────────────────────────────────
 const FloatingDot = ({ style, color = "#A78BFA", delay = 0, size = 8 }) => {
   const scaleAnim = useRef(new Animated.Value(0.5)).current;
   const opacityAnim = useRef(new Animated.Value(0.45)).current;
@@ -90,9 +87,8 @@ const FloatingDot = ({ style, color = "#A78BFA", delay = 0, size = 8 }) => {
     );
 
     loop.start();
-
     return () => loop.stop();
-  }, [delay, opacityAnim, scaleAnim]);
+  }, []);
 
   return (
     <Animated.View
@@ -112,7 +108,6 @@ const FloatingDot = ({ style, color = "#A78BFA", delay = 0, size = 8 }) => {
   );
 };
 
-// ─── Floating star ───────────────────────────────────────────────────────────
 const FloatingStar = ({ style, color = "#C8BFFF", size = 18, delay = 0 }) => {
   const floatAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0.35)).current;
@@ -149,9 +144,8 @@ const FloatingStar = ({ style, color = "#C8BFFF", size = 18, delay = 0 }) => {
     );
 
     loop.start();
-
     return () => loop.stop();
-  }, [delay, floatAnim, opacityAnim]);
+  }, []);
 
   return (
     <Animated.Text
@@ -171,8 +165,7 @@ const FloatingStar = ({ style, color = "#C8BFFF", size = 18, delay = 0 }) => {
   );
 };
 
-// ─── Lesson card ─────────────────────────────────────────────────────────────
-const LessonCard = ({ lesson, index, navigation }) => {
+const LessonCard = ({ lesson, index, navigation, playClickSound }) => {
   const slideAnim = useRef(new Animated.Value(45)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const cardScale = useRef(new Animated.Value(1)).current;
@@ -193,39 +186,11 @@ const LessonCard = ({ lesson, index, navigation }) => {
         useNativeDriver: true,
       }),
     ]).start();
-  }, [fadeAnim, index, slideAnim]);
+  }, []);
 
-  const handleCardPressIn = () => {
-    Animated.spring(cardScale, {
-      toValue: 0.98,
-      useNativeDriver: true,
-    }).start();
-  };
+  const handleStart = async () => {
+    await playClickSound();
 
-  const handleCardPressOut = () => {
-    Animated.spring(cardScale, {
-      toValue: 1,
-      friction: 5,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const handleBtnPressIn = () => {
-    Animated.spring(btnScale, {
-      toValue: 0.94,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const handleBtnPressOut = () => {
-    Animated.spring(btnScale, {
-      toValue: 1,
-      friction: 4,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const handleStart = () => {
     navigation.navigate("paperpage", {
       lessonId: lesson.id,
       lessonTitle: lesson.title,
@@ -245,8 +210,19 @@ const LessonCard = ({ lesson, index, navigation }) => {
       <TouchableOpacity
         activeOpacity={1}
         onPress={handleStart}
-        onPressIn={handleCardPressIn}
-        onPressOut={handleCardPressOut}
+        onPressIn={() =>
+          Animated.spring(cardScale, {
+            toValue: 0.98,
+            useNativeDriver: true,
+          }).start()
+        }
+        onPressOut={() =>
+          Animated.spring(cardScale, {
+            toValue: 1,
+            friction: 5,
+            useNativeDriver: true,
+          }).start()
+        }
         style={styles.cardInner}
       >
         <LinearGradient
@@ -271,8 +247,19 @@ const LessonCard = ({ lesson, index, navigation }) => {
             <TouchableOpacity
               activeOpacity={1}
               onPress={handleStart}
-              onPressIn={handleBtnPressIn}
-              onPressOut={handleBtnPressOut}
+              onPressIn={() =>
+                Animated.spring(btnScale, {
+                  toValue: 0.94,
+                  useNativeDriver: true,
+                }).start()
+              }
+              onPressOut={() =>
+                Animated.spring(btnScale, {
+                  toValue: 1,
+                  friction: 4,
+                  useNativeDriver: true,
+                }).start()
+              }
             >
               <LinearGradient
                 colors={["#7C5CFC", "#9B7DFF"]}
@@ -281,7 +268,6 @@ const LessonCard = ({ lesson, index, navigation }) => {
                 end={{ x: 1, y: 0 }}
               >
                 <Text style={styles.startText}>Start</Text>
-                <Text style={styles.startArrow}>→</Text>
               </LinearGradient>
             </TouchableOpacity>
           </Animated.View>
@@ -293,8 +279,34 @@ const LessonCard = ({ lesson, index, navigation }) => {
   );
 };
 
-// ─── Main component ──────────────────────────────────────────────────────────
 export default function LessonByLessonMenu({ navigation }) {
+  const soundRef = useRef(null);
+
+  useEffect(() => {
+    const loadSound = async () => {
+      const { sound } = await Audio.Sound.createAsync(clickSound);
+      soundRef.current = sound;
+    };
+
+    loadSound();
+
+    return () => {
+      if (soundRef.current) {
+        soundRef.current.unloadAsync();
+      }
+    };
+  }, []);
+
+  const playClickSound = async () => {
+    try {
+      if (soundRef.current) {
+        await soundRef.current.replayAsync();
+      }
+    } catch (error) {
+      console.log("Sound play error:", error);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F5F0FF" />
@@ -306,93 +318,21 @@ export default function LessonByLessonMenu({ navigation }) {
         end={{ x: 1, y: 1 }}
       />
 
-      {/* Background dots */}
-      <FloatingDot
-        style={{ top: height * 0.06, left: width * 0.08 }}
-        color="#F472B6"
-        delay={0}
-        size={9}
-      />
-      <FloatingDot
-        style={{ top: height * 0.04, right: width * 0.1 }}
-        color="#60A5FA"
-        delay={300}
-        size={8}
-      />
-      <FloatingDot
-        style={{ top: height * 0.28, left: width * 0.04 }}
-        color="#A78BFA"
-        delay={150}
-        size={7}
-      />
-      <FloatingDot
-        style={{ top: height * 0.22, right: width * 0.06 }}
-        color="#FBBF24"
-        delay={500}
-        size={10}
-      />
-      <FloatingDot
-        style={{ top: height * 0.55, left: width * 0.06 }}
-        color="#34D399"
-        delay={200}
-        size={8}
-      />
-      <FloatingDot
-        style={{ top: height * 0.5, right: width * 0.08 }}
-        color="#F472B6"
-        delay={700}
-        size={7}
-      />
-      <FloatingDot
-        style={{ top: height * 0.78, left: width * 0.05 }}
-        color="#60A5FA"
-        delay={400}
-        size={9}
-      />
-      <FloatingDot
-        style={{ top: height * 0.76, right: width * 0.08 }}
-        color="#A78BFA"
-        delay={100}
-        size={8}
-      />
-      <FloatingDot
-        style={{ top: height * 0.92, left: width * 0.1 }}
-        color="#FBBF24"
-        delay={600}
-        size={7}
-      />
-      <FloatingDot
-        style={{ top: height * 0.9, right: width * 0.15 }}
-        color="#F472B6"
-        delay={350}
-        size={9}
-      />
+      <FloatingDot style={{ top: height * 0.06, left: width * 0.08 }} color="#F472B6" size={9} />
+      <FloatingDot style={{ top: height * 0.04, right: width * 0.1 }} color="#60A5FA" delay={300} />
+      <FloatingDot style={{ top: height * 0.28, left: width * 0.04 }} color="#A78BFA" delay={150} />
+      <FloatingDot style={{ top: height * 0.22, right: width * 0.06 }} color="#FBBF24" delay={500} size={10} />
+      <FloatingDot style={{ top: height * 0.55, left: width * 0.06 }} color="#34D399" delay={200} />
+      <FloatingDot style={{ top: height * 0.5, right: width * 0.08 }} color="#F472B6" delay={700} size={7} />
+      <FloatingDot style={{ top: height * 0.78, left: width * 0.05 }} color="#60A5FA" delay={400} size={9} />
+      <FloatingDot style={{ top: height * 0.76, right: width * 0.08 }} color="#A78BFA" delay={100} />
+      <FloatingDot style={{ top: height * 0.92, left: width * 0.1 }} color="#FBBF24" delay={600} size={7} />
+      <FloatingDot style={{ top: height * 0.9, right: width * 0.15 }} color="#F472B6" delay={350} size={9} />
 
-      {/* Background stars */}
-      <FloatingStar
-        style={{ top: height * 0.12, left: width * 0.03 }}
-        color="#C8BFFF"
-        size={17}
-        delay={0}
-      />
-      <FloatingStar
-        style={{ top: height * 0.37, right: width * 0.03 }}
-        color="#BBD7FF"
-        size={20}
-        delay={300}
-      />
-      <FloatingStar
-        style={{ top: height * 0.66, left: width * 0.03 }}
-        color="#FFD6F0"
-        size={18}
-        delay={500}
-      />
-      <FloatingStar
-        style={{ top: height * 0.84, right: width * 0.04 }}
-        color="#C8BFFF"
-        size={22}
-        delay={700}
-      />
+      <FloatingStar style={{ top: height * 0.12, left: width * 0.03 }} />
+      <FloatingStar style={{ top: height * 0.37, right: width * 0.03 }} color="#BBD7FF" size={20} delay={300} />
+      <FloatingStar style={{ top: height * 0.66, left: width * 0.03 }} color="#FFD6F0" delay={500} />
+      <FloatingStar style={{ top: height * 0.84, right: width * 0.04 }} size={22} delay={700} />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -404,6 +344,7 @@ export default function LessonByLessonMenu({ navigation }) {
             lesson={lesson}
             index={index}
             navigation={navigation}
+            playClickSound={playClickSound}
           />
         ))}
       </ScrollView>
@@ -411,19 +352,16 @@ export default function LessonByLessonMenu({ navigation }) {
   );
 }
 
-// ─── Styles ─────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F5F0FF",
   },
-
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 32,
     paddingBottom: 40,
   },
-
   card: {
     backgroundColor: "#FFFFFF",
     borderRadius: 20,
@@ -437,7 +375,6 @@ const styles = StyleSheet.create({
     borderColor: "#F0EEFF",
     overflow: "hidden",
   },
-
   cardInner: {
     flexDirection: "row",
     alignItems: "center",
@@ -445,7 +382,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     position: "relative",
   },
-
   iconBox: {
     width: 72,
     height: 72,
@@ -459,34 +395,26 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 3,
   },
-
   iconEmoji: {
     fontSize: 38,
   },
-
   textBlock: {
     flex: 1,
     paddingRight: 18,
   },
-
   lessonTitle: {
     fontSize: 16,
     fontWeight: "800",
     color: "#1A1040",
     marginBottom: 4,
-    letterSpacing: -0.2,
   },
-
   lessonSubtitle: {
     fontSize: 12.5,
     color: "#9B8EC4",
     marginBottom: 12,
-    fontWeight: "400",
     lineHeight: 18,
   },
-
   startButton: {
-    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     alignSelf: "flex-start",
@@ -499,22 +427,11 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 5,
   },
-
   startText: {
     color: "#FFFFFF",
     fontSize: 13,
     fontWeight: "700",
-    letterSpacing: 0.2,
-    marginRight: 6,
   },
-
-  startArrow: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "800",
-    lineHeight: 18,
-  },
-
   cardStar: {
     position: "absolute",
     top: 14,
@@ -522,12 +439,10 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "900",
   },
-
   floatingDot: {
     position: "absolute",
     zIndex: 0,
   },
-
   floatingStar: {
     position: "absolute",
     zIndex: 0,

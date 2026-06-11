@@ -1,6 +1,13 @@
-import { useState } from "react";
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Platform,
+} from "react-native";
 
-const ActivityTemplate1 = ({
+export default function ActivityTemplate1({
   navigation,
   route,
   title = "Chakkre (part - 1)",
@@ -13,320 +20,292 @@ const ActivityTemplate1 = ({
     { id: 4, value: "10" },
   ],
   correctAnswer = "6",
-}) => {
+}) {
   const resolvedTitle = route?.params?.title ?? title;
   const resolvedLabel = route?.params?.activityLabel ?? activityLabel;
 
   const [selected, setSelected] = useState(null);
 
-  const handleSelect = (value) => {
-    setSelected(value);
-  };
-
   const handleNextVideo = () => {
-    if (navigation) navigation.navigate("ShortVideo");
+    navigation?.navigate("ShortVideo");
   };
 
   const handleNextActivity = () => {
-    if (navigation) {
-      navigation.navigate("activitytemplate2", {
-        title: resolvedTitle,
-        activityLabel: resolvedLabel,
-      });
-    }
+    navigation?.navigate("activitytemplate2", {
+      title: resolvedTitle,
+      activityLabel: resolvedLabel,
+    });
   };
 
   return (
-    <div style={styles.page}>
-      <div style={styles.card}>
-        <div style={styles.header}>
-          <p style={styles.title}>{resolvedTitle}</p>
+    <View style={styles.page}>
+      <View style={styles.card}>
+        <View style={styles.header}>
+          <Text style={styles.title}>{resolvedTitle}</Text>
 
-          <div style={styles.activityRow}>
-            <span style={styles.star}>✦</span>
-            <p style={styles.activityLabel}>{resolvedLabel}</p>
-            <span style={styles.star}>✦</span>
-          </div>
-        </div>
+          <View style={styles.activityRow}>
+            <Text style={styles.star}>✦</Text>
+            <Text style={styles.activityLabel}>{resolvedLabel}</Text>
+            <Text style={styles.star}>✦</Text>
+          </View>
+        </View>
 
-        <div style={styles.questionArea}>
-          <div style={styles.starIcon}>☆</div>
-          <div style={styles.dotYellow} />
-          <div style={styles.dotPink} />
-          <p style={styles.question}>{question}</p>
-        </div>
+        <View style={styles.questionArea}>
+          <Text style={styles.starIcon}>☆</Text>
+          <View style={styles.dotYellow} />
+          <View style={styles.dotPink} />
+          <Text style={styles.question}>{question}</Text>
+        </View>
 
-        <div style={styles.optionsList}>
+        <View style={styles.optionsList}>
           {options.map((opt) => {
             const isSelected = selected === opt.value;
             const isCorrect = opt.value === correctAnswer;
 
             return (
-              <button
+              <TouchableOpacity
                 key={opt.id}
-                style={{
-                  ...styles.optionBtn,
-                  ...(isSelected
-                    ? styles.optionSelected
-                    : styles.optionDefault),
-                }}
-                onClick={() => handleSelect(opt.value)}
+                activeOpacity={0.85}
+                style={[
+                  styles.optionBtn,
+                  isSelected ? styles.optionSelected : styles.optionDefault,
+                ]}
+                onPress={() => setSelected(opt.value)}
               >
-                <span
-                  style={{
-                    ...styles.optionNumber,
-                    ...(isSelected
+                <Text
+                  style={[
+                    styles.optionNumber,
+                    isSelected
                       ? styles.optionNumberSelected
-                      : styles.optionNumberDefault),
-                  }}
+                      : styles.optionNumberDefault,
+                  ]}
                 >
                   {opt.id}
-                </span>
+                </Text>
 
-                <span style={styles.optionText}>{opt.value}</span>
+                <Text
+                  style={[
+                    styles.optionText,
+                    isSelected && styles.optionTextSelected,
+                  ]}
+                >
+                  {opt.value}
+                </Text>
 
                 {isSelected && isCorrect && (
-                  <span style={styles.checkmark}>✓</span>
+                  <Text style={styles.checkmark}>✓</Text>
                 )}
-              </button>
+              </TouchableOpacity>
             );
           })}
-        </div>
+        </View>
 
-        <div style={styles.bottomRow}>
-          <button style={styles.btnVideo} onClick={handleNextVideo}>
-            <span style={styles.btnIcon}>🎬</span>
-            <span style={styles.btnLabel}>Next Video</span>
-          </button>
+        <View style={styles.bottomRow}>
+          <TouchableOpacity style={styles.btn} onPress={handleNextVideo}>
+            <Text style={styles.btnIcon}>🎬</Text>
+            <Text style={styles.btnLabel}>Next Video</Text>
+          </TouchableOpacity>
 
-          <button style={styles.btnActivity} onClick={handleNextActivity}>
-            <span style={styles.btnIcon}>📖</span>
-            <span style={styles.btnLabel}>Next activity</span>
-          </button>
-        </div>
-      </div>
-    </div>
+          <TouchableOpacity style={styles.btn} onPress={handleNextActivity}>
+            <Text style={styles.btnIcon}>📖</Text>
+            <Text style={styles.btnLabel}>Next activity</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
   );
-};
+}
 
-const styles = {
+const styles = StyleSheet.create({
   page: {
-    width: "100%",
-    minHeight: "100vh",
-    height: "100vh",
-    display: "flex",
-    justifyContent: "center",
+    flex: 1,
+    backgroundColor: "#EDE9FE",
     alignItems: "center",
-    backgroundColor: "#f0f0f8",
-    fontFamily: "'Nunito', 'Poppins', sans-serif",
-    padding: "16px",
-    boxSizing: "border-box",
-    overflow: "hidden",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
 
   card: {
-    backgroundColor: "#fff",
-    borderRadius: "24px",
     width: "100%",
-    maxWidth: "380px",
+    maxWidth: 380,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
     overflow: "hidden",
-    boxShadow: "0 8px 32px rgba(100, 80, 200, 0.12)",
-    display: "flex",
-    flexDirection: "column",
+    shadowColor: "#6450C8",
+    shadowOpacity: 0.14,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
   },
 
   header: {
-    backgroundColor: "#fff",
-    paddingTop: "20px",
-    paddingBottom: "4px",
-    textAlign: "center",
+    backgroundColor: "#FFFFFF",
+    paddingTop: 20,
+    paddingBottom: 4,
+    alignItems: "center",
   },
 
   title: {
-    margin: "0 0 4px 0",
-    fontSize: "18px",
+    fontSize: 18,
     fontWeight: "800",
-    color: "#1a1a3e",
-    letterSpacing: "0.2px",
+    color: "#1A1A3E",
   },
 
   activityRow: {
-    display: "flex",
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: "8px",
-    marginBottom: "6px",
+    gap: 8,
+    marginTop: 4,
+    marginBottom: 6,
   },
 
   activityLabel: {
-    margin: 0,
-    fontSize: "14px",
+    fontSize: 14,
     fontWeight: "700",
-    color: "#6c5ce7",
+    color: "#6C5CE7",
   },
 
   star: {
-    color: "#a29bfe",
-    fontSize: "11px",
+    color: "#A29BFE",
+    fontSize: 11,
   },
 
   questionArea: {
-    backgroundColor: "#ede9fc",
-    margin: "8px 16px 16px 16px",
-    borderRadius: "16px",
-    padding: "32px 24px 28px",
-    textAlign: "center",
+    backgroundColor: "#EDE9FC",
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 16,
+    borderRadius: 16,
+    paddingTop: 32,
+    paddingBottom: 28,
+    paddingHorizontal: 24,
+    alignItems: "center",
     position: "relative",
   },
 
   starIcon: {
     position: "absolute",
-    top: "14px",
-    left: "50%",
-    transform: "translateX(-50%)",
-    fontSize: "20px",
-    color: "#b2a4f5",
+    top: 12,
+    fontSize: 20,
+    color: "#B2A4F5",
   },
 
   dotYellow: {
     position: "absolute",
-    bottom: "18px",
-    left: "20px",
-    width: "10px",
-    height: "10px",
-    borderRadius: "50%",
-    backgroundColor: "#fdcb6e",
+    bottom: 18,
+    left: 20,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#FDCB6E",
   },
 
   dotPink: {
     position: "absolute",
-    bottom: "18px",
-    right: "20px",
-    width: "10px",
-    height: "10px",
-    borderRadius: "50%",
-    backgroundColor: "#fd79a8",
+    bottom: 18,
+    right: 20,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#FD79A8",
   },
 
   question: {
-    margin: "18px 0 0 0",
-    fontSize: "52px",
+    marginTop: 18,
+    fontSize: 52,
     fontWeight: "900",
-    color: "#1a1a3e",
-    letterSpacing: "-1px",
-    lineHeight: 1.1,
+    color: "#1A1A3E",
+    lineHeight: 58,
   },
 
   optionsList: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px",
-    padding: "0 16px 16px 16px",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
 
   optionBtn: {
-    display: "flex",
+    flexDirection: "row",
     alignItems: "center",
-    gap: "14px",
-    border: "none",
-    borderRadius: "14px",
-    padding: "14px 16px",
-    cursor: "pointer",
-    textAlign: "left",
-    transition: "all 0.18s ease",
-    fontSize: "16px",
-    fontWeight: "700",
+    gap: 14,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
 
   optionDefault: {
-    backgroundColor: "#f5f4ff",
-    color: "#1a1a3e",
+    backgroundColor: "#F5F4FF",
   },
 
   optionSelected: {
-    backgroundColor: "#6c5ce7",
-    color: "#fff",
+    backgroundColor: "#6C5CE7",
   },
 
   optionNumber: {
-    width: "28px",
-    height: "28px",
-    borderRadius: "50%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "13px",
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    textAlign: "center",
+    lineHeight: 28,
+    fontSize: 13,
     fontWeight: "800",
-    flexShrink: 0,
+    overflow: "hidden",
   },
 
   optionNumberDefault: {
-    backgroundColor: "#e0dcff",
-    color: "#6c5ce7",
+    backgroundColor: "#E0DCFF",
+    color: "#6C5CE7",
   },
 
   optionNumberSelected: {
     backgroundColor: "rgba(255,255,255,0.25)",
-    color: "#fff",
+    color: "#FFFFFF",
   },
 
   optionText: {
     flex: 1,
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1A1A3E",
+  },
+
+  optionTextSelected: {
+    color: "#FFFFFF",
   },
 
   checkmark: {
-    fontSize: "18px",
-    color: "#fff",
+    fontSize: 18,
+    color: "#FFFFFF",
     fontWeight: "900",
   },
 
   bottomRow: {
-    display: "flex",
-    gap: "12px",
-    padding: "16px",
-    backgroundColor: "#fff",
+    flexDirection: "row",
+    gap: 12,
+    padding: 16,
+    backgroundColor: "#FFFFFF",
   },
 
-  btnVideo: {
+  btn: {
     flex: 1,
-    display: "flex",
+    backgroundColor: "#6C5CE7",
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 10,
     alignItems: "center",
     justifyContent: "center",
-    gap: "8px",
-    backgroundColor: "#6c5ce7",
-    color: "#fff",
-    border: "none",
-    borderRadius: "16px",
-    padding: "14px 12px",
-    cursor: "pointer",
-    fontSize: "15px",
-    fontWeight: "800",
-  },
-
-  btnActivity: {
-    flex: 1,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "8px",
-    backgroundColor: "#6c5ce7",
-    color: "#fff",
-    border: "none",
-    borderRadius: "16px",
-    padding: "14px 12px",
-    cursor: "pointer",
-    fontSize: "15px",
-    fontWeight: "800",
+    flexDirection: "row",
+    gap: 8,
   },
 
   btnIcon: {
-    fontSize: "20px",
+    fontSize: 18,
   },
 
   btnLabel: {
+    color: "#FFFFFF",
+    fontSize: 14,
     fontWeight: "800",
-    letterSpacing: "0.2px",
   },
-};
-
-export default ActivityTemplate1;
+});

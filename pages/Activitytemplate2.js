@@ -8,9 +8,9 @@ const ActivityTemplate2 = ({
   question = "2 × 3",
   options = [
     { id: 1, value: "10", color: "#a8e6a3", textColor: "#3a8c3f" },
-    { id: 2, value: "6",  color: "#fde68a", textColor: "#b45309" },
-    { id: 3, value: "8",  color: "#a5d8f3", textColor: "#1a6fa0" },
-    { id: 4, value: "9",  color: "#fbb6ce", textColor: "#9b2247" },
+    { id: 2, value: "6", color: "#fde68a", textColor: "#b45309" },
+    { id: 3, value: "8", color: "#a5d8f3", textColor: "#1a6fa0" },
+    { id: 4, value: "9", color: "#fbb6ce", textColor: "#9b2247" },
   ],
   correctAnswer = "6",
 }) => {
@@ -28,29 +28,39 @@ const ActivityTemplate2 = ({
   const ghostRef = useRef(null);
   const dropZoneRef = useRef(null);
 
-  /* ── Desktop Drag ── */
   const handleDragStart = (e, opt) => {
     setDraggingId(opt.id);
     e.dataTransfer.setData("optionId", String(opt.id));
   };
+
   const handleDragEnd = () => setDraggingId(null);
-  const handleDragOver = (e) => { e.preventDefault(); setIsOver(true); };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsOver(true);
+  };
+
   const handleDragLeave = () => setIsOver(false);
+
   const handleDrop = (e) => {
     e.preventDefault();
     setIsOver(false);
+
     const id = parseInt(e.dataTransfer.getData("optionId"));
     const opt = options.find((o) => o.id === id);
+
     if (opt) dropAnswer(opt);
   };
 
-  /* ── Touch Drag ── */
   const handleTouchStart = (e, opt) => {
     touchItem.current = opt;
     setDraggingId(opt.id);
+
     const touch = e.touches[0];
     const ghost = document.createElement("div");
+
     ghost.innerText = opt.value;
+
     Object.assign(ghost.style, {
       position: "fixed",
       top: touch.clientY - 35 + "px",
@@ -70,23 +80,28 @@ const ActivityTemplate2 = ({
       pointerEvents: "none",
       fontFamily: "Nunito, Poppins, sans-serif",
     });
+
     document.body.appendChild(ghost);
     ghostRef.current = ghost;
   };
 
   const handleTouchMove = (e) => {
     const touch = e.touches[0];
+
     if (ghostRef.current) {
       ghostRef.current.style.top = touch.clientY - 35 + "px";
       ghostRef.current.style.left = touch.clientX - 35 + "px";
     }
+
     if (dropZoneRef.current) {
       const rect = dropZoneRef.current.getBoundingClientRect();
+
       const over =
         touch.clientX >= rect.left &&
         touch.clientX <= rect.right &&
         touch.clientY >= rect.top &&
         touch.clientY <= rect.bottom;
+
       setIsOver(over);
     }
   };
@@ -96,10 +111,13 @@ const ActivityTemplate2 = ({
       document.body.removeChild(ghostRef.current);
       ghostRef.current = null;
     }
+
     setDraggingId(null);
+
     if (isOver && touchItem.current) {
       dropAnswer(touchItem.current);
     }
+
     setIsOver(false);
     touchItem.current = null;
   };
@@ -118,27 +136,23 @@ const ActivityTemplate2 = ({
     setIsCorrect(null);
   };
 
-  // ✅ Next Video → go back to ShortVideoScreen
   const handleNextVideo = () => {
-    if (navigation) navigation.navigate('ShortVideo');
+    navigation?.navigate("ShortVideo");
   };
 
-  // ✅ Next Activity → navigate to ActivityTemplate3
   const handleNextActivity = () => {
-    if (navigation) {
-      navigation.navigate('activitytemplate3', {
-        title: resolvedTitle,
-        activityLabel: resolvedLabel,
-      });
-    }
+    navigation?.navigate("activitytemplate3", {
+      title: resolvedTitle,
+      activityLabel: resolvedLabel,
+    });
   };
 
   return (
     <div style={styles.wrapper}>
       <div style={styles.card}>
-        {/* Header */}
         <div style={styles.header}>
           <p style={styles.title}>{resolvedTitle}</p>
+
           <div style={styles.activityRow}>
             <span style={styles.starGold}>★</span>
             <span style={styles.activityDash}>· · ·</span>
@@ -146,15 +160,14 @@ const ActivityTemplate2 = ({
             <span style={styles.activityDash}>· · ·</span>
             <span style={styles.starGold}>★</span>
           </div>
+
           <p style={styles.question}>{question}</p>
         </div>
 
-        {/* Instruction */}
         <div style={styles.instructionBox}>
           <p style={styles.instructionText}>Drag the correct answer to the box</p>
         </div>
 
-        {/* Drop Zone */}
         <div
           ref={dropZoneRef}
           onDragOver={handleDragOver}
@@ -185,9 +198,11 @@ const ActivityTemplate2 = ({
               >
                 {droppedValue}
               </span>
+
               {isCorrect === true && (
                 <p style={styles.feedbackCorrect}>✓ Correct!</p>
               )}
+
               {isCorrect === false && (
                 <p style={styles.feedbackWrong}>✗ Try again — tap to reset</p>
               )}
@@ -197,10 +212,10 @@ const ActivityTemplate2 = ({
           )}
         </div>
 
-        {/* Draggable Options */}
         <div style={styles.optionsRow}>
           {options.map((opt) => {
             const isDropped = droppedValue === opt.value;
+
             return (
               <div
                 key={opt.id}
@@ -209,7 +224,7 @@ const ActivityTemplate2 = ({
                 onDragEnd={handleDragEnd}
                 onTouchStart={(e) => !isDropped && handleTouchStart(e, opt)}
                 onTouchMove={(e) => !isDropped && handleTouchMove(e)}
-                onTouchEnd={(e) => !isDropped && handleTouchEnd(e)}
+                onTouchEnd={() => !isDropped && handleTouchEnd()}
                 style={{
                   ...styles.optionTile,
                   backgroundColor: isDropped ? "#e8e8e8" : opt.color,
@@ -217,7 +232,9 @@ const ActivityTemplate2 = ({
                   opacity: draggingId === opt.id ? 0.4 : isDropped ? 0.5 : 1,
                   cursor: isDropped ? "default" : "grab",
                   transform: draggingId === opt.id ? "scale(0.95)" : "scale(1)",
-                  boxShadow: isDropped ? "none" : "0 4px 12px rgba(0,0,0,0.12)",
+                  boxShadow: isDropped
+                    ? "none"
+                    : "0 4px 12px rgba(0,0,0,0.12)",
                 }}
               >
                 {opt.value}
@@ -226,12 +243,12 @@ const ActivityTemplate2 = ({
           })}
         </div>
 
-        {/* Bottom Buttons */}
         <div style={styles.bottomRow}>
           <button style={styles.btnVideo} onClick={handleNextVideo}>
             <span style={styles.btnIcon}>🎬</span>
             <span style={styles.btnLabel}>Next Video</span>
           </button>
+
           <button style={styles.btnActivity} onClick={handleNextActivity}>
             <span style={styles.btnIcon}>📖</span>
             <span style={styles.btnLabel}>Next activity</span>
@@ -244,14 +261,19 @@ const ActivityTemplate2 = ({
 
 const styles = {
   wrapper: {
+    width: "100%",
+    height: "100%",
+    minHeight: "100%",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    minHeight: "100vh",
-    backgroundColor: "#f0f0f8",
+    backgroundColor: "#EDE9FE",
     fontFamily: "'Nunito', 'Poppins', sans-serif",
     padding: "16px",
+    boxSizing: "border-box",
+    overflow: "hidden",
   },
+
   card: {
     backgroundColor: "#fff",
     borderRadius: "24px",
@@ -263,7 +285,6 @@ const styles = {
     flexDirection: "column",
   },
 
-  /* Header */
   header: {
     backgroundColor: "#fff",
     paddingTop: "20px",
@@ -272,12 +293,14 @@ const styles = {
     paddingLeft: "16px",
     paddingRight: "16px",
   },
+
   title: {
     margin: "0 0 4px 0",
     fontSize: "18px",
     fontWeight: "800",
     color: "#1a1a3e",
   },
+
   activityRow: {
     display: "flex",
     alignItems: "center",
@@ -285,21 +308,25 @@ const styles = {
     gap: "6px",
     marginBottom: "6px",
   },
+
   activityLabel: {
     margin: 0,
     fontSize: "14px",
     fontWeight: "700",
     color: "#6c5ce7",
   },
+
   activityDash: {
     color: "#c4b8f8",
     fontSize: "10px",
     letterSpacing: "2px",
   },
+
   starGold: {
     color: "#f6c90e",
     fontSize: "16px",
   },
+
   question: {
     margin: "4px 0 8px 0",
     fontSize: "40px",
@@ -308,7 +335,6 @@ const styles = {
     letterSpacing: "-0.5px",
   },
 
-  /* Instruction */
   instructionBox: {
     margin: "0 16px 12px 16px",
     backgroundColor: "#f5f3ff",
@@ -316,6 +342,7 @@ const styles = {
     padding: "12px 16px",
     textAlign: "center",
   },
+
   instructionText: {
     margin: 0,
     fontSize: "14px",
@@ -323,7 +350,6 @@ const styles = {
     color: "#555",
   },
 
-  /* Drop Zone */
   dropZone: {
     margin: "0 16px 20px 16px",
     borderRadius: "18px",
@@ -334,6 +360,7 @@ const styles = {
     justifyContent: "center",
     transition: "all 0.2s ease",
   },
+
   questionMark: {
     fontSize: "64px",
     fontWeight: "900",
@@ -341,6 +368,7 @@ const styles = {
     lineHeight: 1,
     userSelect: "none",
   },
+
   droppedAnswer: {
     display: "inline-block",
     fontSize: "52px",
@@ -349,12 +377,14 @@ const styles = {
     padding: "10px 30px",
     lineHeight: 1.2,
   },
+
   feedbackCorrect: {
     margin: "8px 0 0 0",
     fontSize: "14px",
     fontWeight: "700",
     color: "#3a8c3f",
   },
+
   feedbackWrong: {
     margin: "8px 0 0 0",
     fontSize: "13px",
@@ -362,13 +392,13 @@ const styles = {
     color: "#e74c3c",
   },
 
-  /* Options Row */
   optionsRow: {
     display: "flex",
     justifyContent: "center",
     gap: "12px",
     padding: "0 16px 20px 16px",
   },
+
   optionTile: {
     width: "72px",
     height: "72px",
@@ -383,12 +413,12 @@ const styles = {
     touchAction: "none",
   },
 
-  /* Bottom Buttons */
   bottomRow: {
     display: "flex",
     gap: "12px",
     padding: "0 16px 20px 16px",
   },
+
   btnVideo: {
     flex: 1,
     display: "flex",
@@ -404,6 +434,7 @@ const styles = {
     fontSize: "15px",
     fontWeight: "800",
   },
+
   btnActivity: {
     flex: 1,
     display: "flex",
@@ -419,8 +450,15 @@ const styles = {
     fontSize: "15px",
     fontWeight: "800",
   },
-  btnIcon: { fontSize: "20px" },
-  btnLabel: { fontWeight: "800", letterSpacing: "0.2px" },
+
+  btnIcon: {
+    fontSize: "20px",
+  },
+
+  btnLabel: {
+    fontWeight: "800",
+    letterSpacing: "0.2px",
+  },
 };
 
 export default ActivityTemplate2;

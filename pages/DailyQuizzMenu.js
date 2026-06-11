@@ -10,10 +10,12 @@ import {
   StatusBar,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { Audio } from "expo-av";
 
 const { width, height } = Dimensions.get("window");
 
-// ─── Paper data ───────────────────────────────────────────────────────────────
+const clickSound = require("../assets/clip5.mp3");
+
 const PAPERS = [
   {
     id: "1",
@@ -49,7 +51,6 @@ const PAPERS = [
   },
 ];
 
-// ─── Floating sparkle dot ─────────────────────────────────────────────────────
 const SparkDot = ({ style, delay = 0, color = "#E0D8FF" }) => {
   const scaleAnim = useRef(new Animated.Value(0.4)).current;
 
@@ -71,22 +72,16 @@ const SparkDot = ({ style, delay = 0, color = "#E0D8FF" }) => {
     );
 
     loop.start();
-
     return () => loop.stop();
-  }, [delay, scaleAnim]);
+  }, []);
 
   return (
     <Animated.View
       style={[
-        {
-          position: "absolute",
-          width: 8,
-          height: 8,
-          borderRadius: 4,
-          backgroundColor: color,
-        },
+        styles.sparkDot,
         style,
         {
+          backgroundColor: color,
           transform: [{ scale: scaleAnim }],
         },
       ]}
@@ -94,7 +89,6 @@ const SparkDot = ({ style, delay = 0, color = "#E0D8FF" }) => {
   );
 };
 
-// ─── Floating decorative star ────────────────────────────────────────────────
 const DecoStar = ({
   style,
   size = 22,
@@ -137,23 +131,20 @@ const DecoStar = ({
     );
 
     loop.start();
-
     return () => loop.stop();
-  }, [delay, filled, floatAnim, opacityAnim]);
+  }, []);
 
   return (
     <Animated.Text
       style={[
+        styles.decoStar,
         {
-          position: "absolute",
           fontSize: size,
           color,
-        },
-        style,
-        {
           opacity: opacityAnim,
           transform: [{ translateY: floatAnim }],
         },
+        style,
       ]}
     >
       {filled ? "★" : "☆"}
@@ -161,8 +152,7 @@ const DecoStar = ({
   );
 };
 
-// ─── Paper card ───────────────────────────────────────────────────────────────
-const PaperCard = ({ item, index, navigation }) => {
+const PaperCard = ({ item, index, navigation, playClickSound }) => {
   const slideAnim = useRef(new Animated.Value(40)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const btnScale = useRef(new Animated.Value(1)).current;
@@ -182,24 +172,11 @@ const PaperCard = ({ item, index, navigation }) => {
         useNativeDriver: true,
       }),
     ]).start();
-  }, [fadeAnim, index, slideAnim]);
+  }, []);
 
-  const handlePressIn = () => {
-    Animated.spring(btnScale, {
-      toValue: 0.93,
-      useNativeDriver: true,
-    }).start();
-  };
+  const handlePress = async () => {
+    await playClickSound();
 
-  const handlePressOut = () => {
-    Animated.spring(btnScale, {
-      toValue: 1,
-      friction: 4,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const handlePress = () => {
     navigation.navigate("paperpage", {
       paperId: item.id,
       paperTitle: item.title,
@@ -216,7 +193,6 @@ const PaperCard = ({ item, index, navigation }) => {
         },
       ]}
     >
-      {/* Icon circle */}
       <LinearGradient
         colors={item.iconBg}
         style={styles.iconCircle}
@@ -226,18 +202,27 @@ const PaperCard = ({ item, index, navigation }) => {
         <Text style={styles.iconEmoji}>{item.icon}</Text>
       </LinearGradient>
 
-      {/* Text block */}
       <View style={styles.cardTextBlock}>
         <Text style={styles.cardTitle}>{item.title}</Text>
         <Text style={styles.cardSubtitle}>{item.subtitle}</Text>
 
-        {/* Start button */}
         <Animated.View style={{ transform: [{ scale: btnScale }] }}>
           <TouchableOpacity
             activeOpacity={1}
-            onPressIn={handlePressIn}
-            onPressOut={handlePressOut}
             onPress={handlePress}
+            onPressIn={() =>
+              Animated.spring(btnScale, {
+                toValue: 0.93,
+                useNativeDriver: true,
+              }).start()
+            }
+            onPressOut={() =>
+              Animated.spring(btnScale, {
+                toValue: 1,
+                friction: 4,
+                useNativeDriver: true,
+              }).start()
+            }
           >
             <LinearGradient
               colors={["#6B5BF5", "#4F3FE8"]}
@@ -246,25 +231,49 @@ const PaperCard = ({ item, index, navigation }) => {
               end={{ x: 1, y: 0 }}
             >
               <Text style={styles.startBtnText}>Start</Text>
-              <Text style={styles.startBtnArrow}>→</Text>
+              
             </LinearGradient>
           </TouchableOpacity>
         </Animated.View>
       </View>
 
-      {/* Top-right colored star */}
       <Text style={[styles.cardStar, { color: item.starColor }]}>★</Text>
     </Animated.View>
   );
 };
 
-// ─── Main component ───────────────────────────────────────────────────────────
 export default function DailyQuizzmenu({ navigation }) {
+  const soundRef = useRef(null);
+
+  useEffect(() => {
+    const loadSound = async () => {
+      const { sound } = await Audio.Sound.createAsync(clickSound);
+      soundRef.current = sound;
+    };
+
+    loadSound();
+
+    return () => {
+      if (soundRef.current) {
+        soundRef.current.unloadAsync();
+      }
+    };
+  }, []);
+
+  const playClickSound = async () => {
+    try {
+      if (soundRef.current) {
+        await soundRef.current.replayAsync();
+      }
+    } catch (error) {
+      console.log("Sound play error:", error);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ECEEFF" />
 
-      {/* Soft lavender background gradient */}
       <LinearGradient
         colors={["#ECEEFF", "#F0EEFF", "#E8ECFF"]}
         style={StyleSheet.absoluteFill}
@@ -272,127 +281,28 @@ export default function DailyQuizzmenu({ navigation }) {
         end={{ x: 1, y: 1 }}
       />
 
-      {/* Background scattered sparkle dots */}
-      <SparkDot
-        style={{ top: height * 0.05, left: width * 0.06 }}
-        delay={0}
-        color="#D0CAFF"
-      />
-      <SparkDot
-        style={{ top: height * 0.09, right: width * 0.07 }}
-        delay={300}
-        color="#FFD6F0"
-      />
-      <SparkDot
-        style={{ top: height * 0.18, left: width * 0.1 }}
-        delay={150}
-        color="#D0CAFF"
-      />
-      <SparkDot
-        style={{ top: height * 0.3, right: width * 0.05 }}
-        delay={500}
-        color="#FFE0A0"
-      />
-      <SparkDot
-        style={{ top: height * 0.45, left: width * 0.04 }}
-        delay={200}
-        color="#D0CAFF"
-      />
-      <SparkDot
-        style={{ top: height * 0.55, right: width * 0.06 }}
-        delay={700}
-        color="#FFD6F0"
-      />
-      <SparkDot
-        style={{ top: height * 0.68, left: width * 0.07 }}
-        delay={400}
-        color="#D0CAFF"
-      />
-      <SparkDot
-        style={{ top: height * 0.78, right: width * 0.08 }}
-        delay={100}
-        color="#FFE0A0"
-      />
-      <SparkDot
-        style={{ top: height * 0.88, left: width * 0.12 }}
-        delay={600}
-        color="#D0CAFF"
-      />
+      <SparkDot style={{ top: height * 0.05, left: width * 0.06 }} delay={0} color="#D0CAFF" />
+      <SparkDot style={{ top: height * 0.09, right: width * 0.07 }} delay={300} color="#FFD6F0" />
+      <SparkDot style={{ top: height * 0.18, left: width * 0.1 }} delay={150} color="#D0CAFF" />
+      <SparkDot style={{ top: height * 0.3, right: width * 0.05 }} delay={500} color="#FFE0A0" />
+      <SparkDot style={{ top: height * 0.45, left: width * 0.04 }} delay={200} color="#D0CAFF" />
+      <SparkDot style={{ top: height * 0.55, right: width * 0.06 }} delay={700} color="#FFD6F0" />
+      <SparkDot style={{ top: height * 0.68, left: width * 0.07 }} delay={400} color="#D0CAFF" />
+      <SparkDot style={{ top: height * 0.78, right: width * 0.08 }} delay={100} color="#FFE0A0" />
+      <SparkDot style={{ top: height * 0.88, left: width * 0.12 }} delay={600} color="#D0CAFF" />
 
-      {/* Background floating decorative stars */}
-      <DecoStar
-        style={{ top: height * 0.07, left: width * 0.03 }}
-        size={14}
-        color="#C8BFFF"
-        delay={0}
-        filled={false}
-      />
-      <DecoStar
-        style={{ top: height * 0.22, left: width * 0.02 }}
-        size={20}
-        color="#C8BFFF"
-        delay={400}
-        filled={false}
-      />
-      <DecoStar
-        style={{ top: height * 0.4, left: width * 0.03 }}
-        size={16}
-        color="#C8BFFF"
-        delay={200}
-        filled={false}
-      />
-      <DecoStar
-        style={{ top: height * 0.58, left: width * 0.02 }}
-        size={22}
-        color="#C8BFFF"
-        delay={600}
-        filled={false}
-      />
-      <DecoStar
-        style={{ top: height * 0.74, left: width * 0.04 }}
-        size={14}
-        color="#C8BFFF"
-        delay={300}
-        filled={false}
-      />
+      <DecoStar style={{ top: height * 0.07, left: width * 0.03 }} size={14} color="#C8BFFF" delay={0} filled={false} />
+      <DecoStar style={{ top: height * 0.22, left: width * 0.02 }} size={20} color="#C8BFFF" delay={400} filled={false} />
+      <DecoStar style={{ top: height * 0.4, left: width * 0.03 }} size={16} color="#C8BFFF" delay={200} filled={false} />
+      <DecoStar style={{ top: height * 0.58, left: width * 0.02 }} size={22} color="#C8BFFF" delay={600} filled={false} />
+      <DecoStar style={{ top: height * 0.74, left: width * 0.04 }} size={14} color="#C8BFFF" delay={300} filled={false} />
 
-      <DecoStar
-        style={{ top: height * 0.12, right: width * 0.03 }}
-        size={18}
-        color="#C8BFFF"
-        delay={100}
-        filled={false}
-      />
-      <DecoStar
-        style={{ top: height * 0.28, right: width * 0.02 }}
-        size={14}
-        color="#C8BFFF"
-        delay={500}
-        filled={false}
-      />
-      <DecoStar
-        style={{ top: height * 0.48, right: width * 0.03 }}
-        size={20}
-        color="#C8BFFF"
-        delay={250}
-        filled={false}
-      />
-      <DecoStar
-        style={{ top: height * 0.65, right: width * 0.02 }}
-        size={16}
-        color="#C8BFFF"
-        delay={700}
-        filled={false}
-      />
-      <DecoStar
-        style={{ top: height * 0.82, right: width * 0.04 }}
-        size={22}
-        color="#C8BFFF"
-        delay={350}
-        filled={false}
-      />
+      <DecoStar style={{ top: height * 0.12, right: width * 0.03 }} size={18} color="#C8BFFF" delay={100} filled={false} />
+      <DecoStar style={{ top: height * 0.28, right: width * 0.02 }} size={14} color="#C8BFFF" delay={500} filled={false} />
+      <DecoStar style={{ top: height * 0.48, right: width * 0.03 }} size={20} color="#C8BFFF" delay={250} filled={false} />
+      <DecoStar style={{ top: height * 0.65, right: width * 0.02 }} size={16} color="#C8BFFF" delay={700} filled={false} />
+      <DecoStar style={{ top: height * 0.82, right: width * 0.04 }} size={22} color="#C8BFFF" delay={350} filled={false} />
 
-      {/* Scrollable paper list */}
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -403,6 +313,7 @@ export default function DailyQuizzmenu({ navigation }) {
             item={item}
             index={index}
             navigation={navigation}
+            playClickSound={playClickSound}
           />
         ))}
       </ScrollView>
@@ -410,20 +321,26 @@ export default function DailyQuizzmenu({ navigation }) {
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#ECEEFF",
   },
-
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 28,
     paddingBottom: 36,
     gap: 16,
   },
-
+  sparkDot: {
+    position: "absolute",
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  decoStar: {
+    position: "absolute",
+  },
   card: {
     flexDirection: "row",
     alignItems: "center",
@@ -439,7 +356,6 @@ const styles = StyleSheet.create({
     position: "relative",
     overflow: "hidden",
   },
-
   iconCircle: {
     width: 78,
     height: 78,
@@ -449,32 +365,25 @@ const styles = StyleSheet.create({
     marginRight: 16,
     flexShrink: 0,
   },
-
   iconEmoji: {
     fontSize: 38,
   },
-
   cardTextBlock: {
     flex: 1,
     gap: 4,
   },
-
   cardTitle: {
     fontSize: 19,
     fontWeight: "800",
     color: "#1A1A2E",
-    letterSpacing: 0.2,
     marginBottom: 2,
   },
-
   cardSubtitle: {
     fontSize: 13,
     color: "#7E7EA0",
-    fontWeight: "400",
     lineHeight: 18,
     marginBottom: 10,
   },
-
   startBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -490,20 +399,16 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 5,
   },
-
   startBtnText: {
     color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "700",
-    letterSpacing: 0.3,
   },
-
   startBtnArrow: {
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",
   },
-
   cardStar: {
     position: "absolute",
     top: 14,

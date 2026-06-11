@@ -12,6 +12,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 
 const { width } = Dimensions.get("window");
+const CARD_WIDTH = width * 0.9;
 
 export default function Paperpage({ navigation }) {
   const options = [
@@ -30,7 +31,6 @@ export default function Paperpage({ navigation }) {
       <StatusBar barStyle="dark-content" backgroundColor="#F8F8FF" />
 
       <View style={styles.container}>
-        {/* Background small decorations */}
         <Text style={[styles.star, styles.starOne]}>★</Text>
         <Text style={[styles.star, styles.starTwo]}>★</Text>
         <Text style={[styles.star, styles.starThree]}>★</Text>
@@ -44,47 +44,46 @@ export default function Paperpage({ navigation }) {
         <View style={[styles.dot, styles.dotSix]} />
         <View style={[styles.dot, styles.dotSeven]} />
 
-        {/* Title */}
-        <Text style={styles.title}>Daily Quiz</Text>
+        <View style={styles.centerContent}>
+          <Text style={styles.title}>Daily Quiz</Text>
 
-        {/* Main Card */}
-        <View style={styles.card}>
-          <View style={styles.questionBadge}>
-            <Text style={styles.questionBadgeText}>Question 1</Text>
-          </View>
+          <View style={styles.card}>
+            <View style={styles.questionBadge}>
+              <Text style={styles.questionBadgeText}>Question 1</Text>
+            </View>
 
-          <Text style={styles.questionText}>3 × 2 = ??</Text>
+            <Text style={styles.questionText}>3 × 2 = ??</Text>
 
-          <View style={styles.optionsWrapper}>
-            {options.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                activeOpacity={0.85}
-                style={styles.optionBox}
-              >
-                <Text style={styles.optionNumber}>{item.id}</Text>
-                <Text style={styles.optionText}>{item.answer}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+            <View style={styles.optionsWrapper}>
+              {options.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  activeOpacity={0.85}
+                  style={styles.optionBox}
+                >
+                  <Text style={styles.optionNumber}>{item.id}</Text>
+                  <Text style={styles.optionText}>{item.answer}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={styles.submitWrapper}
-            onPress={handleSubmit}
-          >
-            <LinearGradient
-              colors={["#8D4DFF", "#233BFF"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.submitButton}
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={styles.submitWrapper}
+              onPress={handleSubmit}
             >
-              <Text style={styles.submitText}>Submit</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+              <LinearGradient
+                colors={["#8D4DFF", "#233BFF"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.submitButton}
+              >
+                <Text style={styles.submitText}>Submit</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Bottom cloud style decoration */}
         <View style={styles.cloudArea}>
           <View style={[styles.cloudCircle, styles.cloudOne]} />
           <View style={[styles.cloudCircle, styles.cloudTwo]} />
@@ -99,8 +98,6 @@ export default function Paperpage({ navigation }) {
   );
 }
 
-const CARD_WIDTH = width * 0.9;
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -111,29 +108,37 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F8F8FF",
     alignItems: "center",
+    justifyContent: "center",
     position: "relative",
     overflow: "hidden",
-    paddingTop: Platform.OS === "android" ? 15 : 5,
+    paddingTop: Platform.OS === "android" ? 10 : 0,
+    paddingBottom: 25,
+  },
+
+  centerContent: {
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 2,
   },
 
   title: {
     fontSize: 25,
     fontWeight: "900",
     color: "#101943",
-    marginTop: 8,
-    marginBottom: 10,
+    marginBottom: 14,
     letterSpacing: 0.2,
   },
 
   card: {
     width: CARD_WIDTH,
-    minHeight: 560,
+    minHeight: 500,
     backgroundColor: "#FFFFFF",
     borderRadius: 24,
     alignItems: "center",
-    paddingTop: 25,
+    justifyContent: "center",
     paddingHorizontal: 14,
-    paddingBottom: 22,
+    paddingVertical: 24,
 
     shadowColor: "#C9CAD8",
     shadowOffset: {
@@ -150,7 +155,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 33,
     paddingVertical: 8,
     borderRadius: 18,
-    marginBottom: 19,
+    marginBottom: 18,
   },
 
   questionBadgeText: {
@@ -163,14 +168,13 @@ const styles = StyleSheet.create({
     fontSize: 31,
     color: "#060B36",
     fontWeight: "900",
-    marginBottom: 15,
+    marginBottom: 18,
     letterSpacing: 1,
   },
 
   optionsWrapper: {
     width: "100%",
     gap: 11,
-    marginTop: 2,
   },
 
   optionBox: {
@@ -181,7 +185,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 22,
-
     borderWidth: 1,
     borderColor: "#EEF0F8",
 
@@ -209,7 +212,7 @@ const styles = StyleSheet.create({
   },
 
   submitWrapper: {
-    marginTop: 16,
+    marginTop: 18,
   },
 
   submitButton: {
@@ -338,6 +341,7 @@ const styles = StyleSheet.create({
     bottom: -20,
     left: 0,
     right: 0,
+    zIndex: 0,
   },
 
   cloudCircle: {

@@ -10,10 +10,12 @@ import {
   StatusBar,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { Audio } from "expo-av";
 
 const { width, height } = Dimensions.get("window");
 
-// ─── Paper data ───────────────────────────────────────────────────────────────
+const clickSound = require("../assets/clip5.mp3");
+
 const PAPERS = [
   {
     id: "1",
@@ -97,7 +99,6 @@ const PAPERS = [
   },
 ];
 
-// ─── Floating sparkle dot ─────────────────────────────────────────────────────
 const SparkDot = ({ style, delay = 0, color = "#B8D4FF" }) => {
   const scaleAnim = useRef(new Animated.Value(0.4)).current;
 
@@ -119,22 +120,16 @@ const SparkDot = ({ style, delay = 0, color = "#B8D4FF" }) => {
     );
 
     loop.start();
-
     return () => loop.stop();
-  }, [delay, scaleAnim]);
+  }, []);
 
   return (
     <Animated.View
       style={[
-        {
-          position: "absolute",
-          width: 8,
-          height: 8,
-          borderRadius: 4,
-          backgroundColor: color,
-        },
+        styles.sparkDot,
         style,
         {
+          backgroundColor: color,
           transform: [{ scale: scaleAnim }],
         },
       ]}
@@ -142,7 +137,6 @@ const SparkDot = ({ style, delay = 0, color = "#B8D4FF" }) => {
   );
 };
 
-// ─── Floating decorative star ────────────────────────────────────────────────
 const DecoStar = ({
   style,
   size = 22,
@@ -185,23 +179,20 @@ const DecoStar = ({
     );
 
     loop.start();
-
     return () => loop.stop();
-  }, [delay, filled, floatAnim, opacityAnim]);
+  }, []);
 
   return (
     <Animated.Text
       style={[
+        styles.decoStar,
         {
-          position: "absolute",
           fontSize: size,
           color,
-        },
-        style,
-        {
           opacity: opacityAnim,
           transform: [{ translateY: floatAnim }],
         },
+        style,
       ]}
     >
       {filled ? "★" : "☆"}
@@ -209,25 +200,21 @@ const DecoStar = ({
   );
 };
 
-// ─── Number badge ─────────────────────────────────────────────────────────────
-const NumberBadge = ({ number, color }) => {
-  return (
-    <View
-      style={[
-        styles.numberBadge,
-        {
-          backgroundColor: `${color}22`,
-          borderColor: `${color}55`,
-        },
-      ]}
-    >
-      <Text style={[styles.numberBadgeText, { color }]}>{number}</Text>
-    </View>
-  );
-};
+const NumberBadge = ({ number, color }) => (
+  <View
+    style={[
+      styles.numberBadge,
+      {
+        backgroundColor: `${color}22`,
+        borderColor: `${color}55`,
+      },
+    ]}
+  >
+    <Text style={[styles.numberBadgeText, { color }]}>{number}</Text>
+  </View>
+);
 
-// ─── Paper card ───────────────────────────────────────────────────────────────
-const PaperCard = ({ item, index, navigation }) => {
+const PaperCard = ({ item, index, navigation, playClickSound }) => {
   const slideAnim = useRef(new Animated.Value(50)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const btnScale = useRef(new Animated.Value(1)).current;
@@ -248,39 +235,11 @@ const PaperCard = ({ item, index, navigation }) => {
         useNativeDriver: true,
       }),
     ]).start();
-  }, [fadeAnim, index, slideAnim]);
+  }, []);
 
-  const handleBtnPressIn = () => {
-    Animated.spring(btnScale, {
-      toValue: 0.93,
-      useNativeDriver: true,
-    }).start();
-  };
+  const handlePress = async () => {
+    await playClickSound();
 
-  const handleBtnPressOut = () => {
-    Animated.spring(btnScale, {
-      toValue: 1,
-      friction: 4,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const handleCardPressIn = () => {
-    Animated.spring(cardScale, {
-      toValue: 0.98,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const handleCardPressOut = () => {
-    Animated.spring(cardScale, {
-      toValue: 1,
-      friction: 5,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const handlePress = () => {
     navigation.navigate(item.route, {
       paperId: item.id,
       paperTitle: item.title,
@@ -299,12 +258,22 @@ const PaperCard = ({ item, index, navigation }) => {
     >
       <TouchableOpacity
         activeOpacity={1}
-        onPressIn={handleCardPressIn}
-        onPressOut={handleCardPressOut}
         onPress={handlePress}
+        onPressIn={() =>
+          Animated.spring(cardScale, {
+            toValue: 0.98,
+            useNativeDriver: true,
+          }).start()
+        }
+        onPressOut={() =>
+          Animated.spring(cardScale, {
+            toValue: 1,
+            friction: 5,
+            useNativeDriver: true,
+          }).start()
+        }
         style={styles.cardInner}
       >
-        {/* Left icon */}
         <LinearGradient
           colors={item.iconBg}
           style={styles.iconCircle}
@@ -314,7 +283,6 @@ const PaperCard = ({ item, index, navigation }) => {
           <Text style={styles.iconEmoji}>{item.icon}</Text>
         </LinearGradient>
 
-        {/* Text and button */}
         <View style={styles.cardTextBlock}>
           <View style={styles.titleRow}>
             <Text style={styles.cardTitle}>{item.title}</Text>
@@ -326,9 +294,20 @@ const PaperCard = ({ item, index, navigation }) => {
           <Animated.View style={{ transform: [{ scale: btnScale }] }}>
             <TouchableOpacity
               activeOpacity={1}
-              onPressIn={handleBtnPressIn}
-              onPressOut={handleBtnPressOut}
               onPress={handlePress}
+              onPressIn={() =>
+                Animated.spring(btnScale, {
+                  toValue: 0.93,
+                  useNativeDriver: true,
+                }).start()
+              }
+              onPressOut={() =>
+                Animated.spring(btnScale, {
+                  toValue: 1,
+                  friction: 4,
+                  useNativeDriver: true,
+                }).start()
+              }
             >
               <LinearGradient
                 colors={["#2563EB", "#1D4ED8"]}
@@ -337,8 +316,6 @@ const PaperCard = ({ item, index, navigation }) => {
                 end={{ x: 1, y: 0 }}
               >
                 <Text style={styles.startBtnText}>Start</Text>
-
-                
               </LinearGradient>
             </TouchableOpacity>
           </Animated.View>
@@ -350,49 +327,34 @@ const PaperCard = ({ item, index, navigation }) => {
   );
 };
 
-// ─── Header progress bar ──────────────────────────────────────────────────────
-const ProgressHeader = () => {
-  const progressAnim = useRef(new Animated.Value(0)).current;
+export default function FiveHundredPaperMenu({ navigation }) {
+  const soundRef = useRef(null);
 
   useEffect(() => {
-    Animated.timing(progressAnim, {
-      toValue: 0.016,
-      duration: 1000,
-      delay: 400,
-      useNativeDriver: false,
-    }).start();
-  }, [progressAnim]);
+    const loadSound = async () => {
+      const { sound } = await Audio.Sound.createAsync(clickSound);
+      soundRef.current = sound;
+    };
 
-  const barWidth = progressAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["0%", "100%"],
-  });
+    loadSound();
 
-  return (
-    <View style={styles.headerBox}>
-      <View style={styles.headerTopRow}>
-        <Text style={styles.headerTitle}>500 Papers</Text>
+    return () => {
+      if (soundRef.current) {
+        soundRef.current.unloadAsync();
+      }
+    };
+  }, []);
 
-        <View style={styles.headerCountBadge}>
-          <Text style={styles.headerCountText}>8 / 500</Text>
-        </View>
-      </View>
+  const playClickSound = async () => {
+    try {
+      if (soundRef.current) {
+        await soundRef.current.replayAsync();
+      }
+    } catch (error) {
+      console.log("Sound play error:", error);
+    }
+  };
 
-      <Text style={styles.headerSubtitle}>
-        Complete all papers to master every topic
-      </Text>
-
-      <View style={styles.progressTrack}>
-        <Animated.View style={[styles.progressFill, { width: barWidth }]} />
-      </View>
-
-      <Text style={styles.progressLabel}>1.6% complete</Text>
-    </View>
-  );
-};
-
-// ─── Main component ───────────────────────────────────────────────────────────
-export default function FiveHundredPaperMenu({ navigation }) {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#E6EEFF" />
@@ -404,228 +366,66 @@ export default function FiveHundredPaperMenu({ navigation }) {
         end={{ x: 1, y: 1 }}
       />
 
-      <SparkDot
-        style={{ top: height * 0.05, left: width * 0.06 }}
-        delay={0}
-        color="#B8D4FF"
-      />
-      <SparkDot
-        style={{ top: height * 0.1, right: width * 0.07 }}
-        delay={300}
-        color="#FFD9A8"
-      />
-      <SparkDot
-        style={{ top: height * 0.19, left: width * 0.1 }}
-        delay={150}
-        color="#B8D4FF"
-      />
-      <SparkDot
-        style={{ top: height * 0.32, right: width * 0.05 }}
-        delay={500}
-        color="#A8F0D8"
-      />
-      <SparkDot
-        style={{ top: height * 0.46, left: width * 0.04 }}
-        delay={200}
-        color="#B8D4FF"
-      />
-      <SparkDot
-        style={{ top: height * 0.57, right: width * 0.06 }}
-        delay={700}
-        color="#FFD9A8"
-      />
-      <SparkDot
-        style={{ top: height * 0.69, left: width * 0.07 }}
-        delay={400}
-        color="#B8D4FF"
-      />
-      <SparkDot
-        style={{ top: height * 0.79, right: width * 0.08 }}
-        delay={100}
-        color="#A8F0D8"
-      />
-      <SparkDot
-        style={{ top: height * 0.89, left: width * 0.12 }}
-        delay={600}
-        color="#B8D4FF"
-      />
+      <SparkDot style={{ top: height * 0.05, left: width * 0.06 }} />
+      <SparkDot style={{ top: height * 0.1, right: width * 0.07 }} delay={300} color="#FFD9A8" />
+      <SparkDot style={{ top: height * 0.19, left: width * 0.1 }} delay={150} />
+      <SparkDot style={{ top: height * 0.32, right: width * 0.05 }} delay={500} color="#A8F0D8" />
+      <SparkDot style={{ top: height * 0.46, left: width * 0.04 }} delay={200} />
+      <SparkDot style={{ top: height * 0.57, right: width * 0.06 }} delay={700} color="#FFD9A8" />
+      <SparkDot style={{ top: height * 0.69, left: width * 0.07 }} delay={400} />
+      <SparkDot style={{ top: height * 0.79, right: width * 0.08 }} delay={100} color="#A8F0D8" />
+      <SparkDot style={{ top: height * 0.89, left: width * 0.12 }} delay={600} />
 
-      <DecoStar
-        style={{ top: height * 0.08, left: width * 0.02 }}
-        size={14}
-        color="#93C5FD"
-        delay={0}
-        filled={false}
-      />
-      <DecoStar
-        style={{ top: height * 0.23, left: width * 0.02 }}
-        size={20}
-        color="#93C5FD"
-        delay={400}
-        filled={false}
-      />
-      <DecoStar
-        style={{ top: height * 0.41, left: width * 0.02 }}
-        size={16}
-        color="#93C5FD"
-        delay={200}
-        filled={false}
-      />
-      <DecoStar
-        style={{ top: height * 0.59, left: width * 0.02 }}
-        size={22}
-        color="#93C5FD"
-        delay={600}
-        filled={false}
-      />
-      <DecoStar
-        style={{ top: height * 0.75, left: width * 0.03 }}
-        size={14}
-        color="#93C5FD"
-        delay={300}
-        filled={false}
-      />
+      <DecoStar style={{ top: height * 0.08, left: width * 0.02 }} size={14} />
+      <DecoStar style={{ top: height * 0.23, left: width * 0.02 }} size={20} delay={400} />
+      <DecoStar style={{ top: height * 0.41, left: width * 0.02 }} size={16} delay={200} />
+      <DecoStar style={{ top: height * 0.59, left: width * 0.02 }} size={22} delay={600} />
+      <DecoStar style={{ top: height * 0.75, left: width * 0.03 }} size={14} delay={300} />
 
-      <DecoStar
-        style={{ top: height * 0.13, right: width * 0.02 }}
-        size={18}
-        color="#93C5FD"
-        delay={100}
-        filled={false}
-      />
-      <DecoStar
-        style={{ top: height * 0.29, right: width * 0.02 }}
-        size={14}
-        color="#93C5FD"
-        delay={500}
-        filled={false}
-      />
-      <DecoStar
-        style={{ top: height * 0.49, right: width * 0.02 }}
-        size={20}
-        color="#93C5FD"
-        delay={250}
-        filled={false}
-      />
-      <DecoStar
-        style={{ top: height * 0.66, right: width * 0.02 }}
-        size={16}
-        color="#93C5FD"
-        delay={700}
-        filled={false}
-      />
-      <DecoStar
-        style={{ top: height * 0.83, right: width * 0.03 }}
-        size={22}
-        color="#93C5FD"
-        delay={350}
-        filled={false}
-      />
+      <DecoStar style={{ top: height * 0.13, right: width * 0.02 }} size={18} delay={100} />
+      <DecoStar style={{ top: height * 0.29, right: width * 0.02 }} size={14} delay={500} />
+      <DecoStar style={{ top: height * 0.49, right: width * 0.02 }} size={20} delay={250} />
+      <DecoStar style={{ top: height * 0.66, right: width * 0.02 }} size={16} delay={700} />
+      <DecoStar style={{ top: height * 0.83, right: width * 0.03 }} size={22} delay={350} />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-       
-
         {PAPERS.map((item, index) => (
           <PaperCard
             key={item.id}
             item={item}
             index={index}
             navigation={navigation}
+            playClickSound={playClickSound}
           />
         ))}
-
       </ScrollView>
     </View>
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#E6EEFF",
   },
-
   scrollContent: {
     paddingHorizontal: 18,
     paddingTop: 22,
     paddingBottom: 40,
     gap: 14,
   },
-
-  headerBox: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 22,
-    paddingVertical: 18,
-    paddingHorizontal: 20,
-    marginBottom: 4,
-    shadowColor: "#2563EB",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.09,
-    shadowRadius: 18,
-    elevation: 4,
-  },
-
-  headerTopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 4,
-  },
-
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#1E3A6E",
-    letterSpacing: 0.2,
-  },
-
-  headerCountBadge: {
-    backgroundColor: "#EFF6FF",
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: "#BFDBFE",
-  },
-
-  headerCountText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#2563EB",
-  },
-
-  headerSubtitle: {
-    fontSize: 12.5,
-    color: "#6B87A8",
-    marginBottom: 12,
-    lineHeight: 18,
-  },
-
-  progressTrack: {
-    width: "100%",
-    height: 8,
-    backgroundColor: "#E8F0FF",
-    borderRadius: 4,
-    overflow: "hidden",
-  },
-
-  progressFill: {
+  sparkDot: {
+    position: "absolute",
+    width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#2563EB",
   },
-
-  progressLabel: {
-    fontSize: 11,
-    color: "#93A8C4",
-    marginTop: 6,
-    textAlign: "right",
+  decoStar: {
+    position: "absolute",
   },
-
   card: {
     backgroundColor: "#FFFFFF",
     borderRadius: 22,
@@ -636,7 +436,6 @@ const styles = StyleSheet.create({
     elevation: 4,
     overflow: "hidden",
   },
-
   cardInner: {
     flexDirection: "row",
     alignItems: "center",
@@ -644,7 +443,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     position: "relative",
   },
-
   iconCircle: {
     width: 76,
     height: 76,
@@ -654,58 +452,46 @@ const styles = StyleSheet.create({
     marginRight: 16,
     flexShrink: 0,
   },
-
   iconEmoji: {
     fontSize: 36,
   },
-
   cardTextBlock: {
     flex: 1,
     gap: 3,
   },
-
   titleRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     marginBottom: 3,
   },
-
   cardTitle: {
     fontSize: 18,
     fontWeight: "800",
     color: "#1A2850",
-    letterSpacing: 0.2,
   },
-
   cardSubtitle: {
     fontSize: 12.5,
     color: "#7E94B8",
-    fontWeight: "400",
     lineHeight: 18,
     marginBottom: 10,
   },
-
   numberBadge: {
     borderRadius: 10,
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderWidth: 1,
   },
-
   numberBadgeText: {
     fontSize: 10,
     fontWeight: "700",
   },
-
   startBtn: {
-    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 9,
     paddingHorizontal: 18,
     borderRadius: 50,
-    gap: 6,
     alignSelf: "flex-start",
     shadowColor: "#1D4ED8",
     shadowOffset: { width: 0, height: 4 },
@@ -713,46 +499,15 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 5,
   },
-
   startBtnText: {
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "700",
-    letterSpacing: 0.4,
   },
-
-  arrowBubble: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "rgba(255,255,255,0.25)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  startBtnArrow: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "800",
-    marginTop: -1,
-  },
-
   cardStar: {
     position: "absolute",
     top: 14,
     right: 16,
     fontSize: 20,
-  },
-
-  footer: {
-    alignItems: "center",
-    paddingTop: 8,
-    paddingBottom: 4,
-  },
-
-  footerText: {
-    fontSize: 13,
-    color: "#93A8C4",
-    fontWeight: "500",
   },
 });
