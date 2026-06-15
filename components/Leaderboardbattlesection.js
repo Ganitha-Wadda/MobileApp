@@ -11,6 +11,7 @@ import { useNavigation } from "@react-navigation/native";
 import Svg, { Rect, Path, Polygon } from "react-native-svg";
 import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
+import useT from "../app/i18n/useT";
 
 /* ── Trophy icon ── */
 function TrophyIcon({ size = 32 }) {
@@ -136,6 +137,7 @@ function AnimatedCard({ children, delay = 0, style }) {
 /* ══ Main component ══ */
 export default function LeaderboardBattleSection() {
   const navigation = useNavigation();
+  const { t } = useT();
   const soundRef = useRef(null);
 
   useEffect(() => {
@@ -192,15 +194,15 @@ export default function LeaderboardBattleSection() {
             <TrophyIcon size={32} />
           </View>
 
-          <Text style={styles.cardTitle}>Leaderboard</Text>
-          <Text style={styles.cardSub}>See how you rank.</Text>
+          <Text style={styles.cardTitle}>{t("leaderboard")}</Text>
+          <Text style={styles.cardSub}>{t("seeHowYouRank")}</Text>
 
           <TouchableOpacity
             style={styles.btn}
             onPress={goToLeaderboard}
             activeOpacity={0.82}
           >
-            <Text style={[styles.btnText, { color: "#4535C8" }]}>View</Text>
+            <Text style={[styles.btnText, { color: "#4535C8" }]}>{t("view")}</Text>
           </TouchableOpacity>
         </LinearGradient>
       </AnimatedCard>
@@ -221,8 +223,8 @@ export default function LeaderboardBattleSection() {
             <SwordsIcon size={32} />
           </View>
 
-          <Text style={styles.cardTitle}>Battle</Text>
-          <Text style={styles.cardSub}>Challenge friends.</Text>
+          <Text style={styles.cardTitle}>{t("battle")}</Text>
+          <Text style={styles.cardSub}>{t("challengeFriends")}</Text>
 
           <TouchableOpacity
             style={styles.btn}
@@ -230,7 +232,7 @@ export default function LeaderboardBattleSection() {
             activeOpacity={0.82}
           >
             <Text style={[styles.btnText, { color: "#C4228A" }]}>
-              Battle Now
+              {t("battleNow")}
             </Text>
           </TouchableOpacity>
         </LinearGradient>

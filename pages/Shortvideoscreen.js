@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import CrossWebView from "../components/CrossWebView";
 import { useEnrollmentStatus } from "../app/features/enrollmentApi";
 import { EnrollmentModal } from "../components/EnrollmentGate";
+import useT from "../app/i18n/useT";
 
 const { height: WINDOW_HEIGHT } = Dimensions.get("window");
 const BOTTOM_BAR_HEIGHT = 82;
@@ -51,16 +52,16 @@ function buildYoutubeHtml(videoId = "") {
   `;
 }
 
-function LockOverlay({ onEnroll }) {
+function LockOverlay({ onEnroll, t }) {
   return (
     <View style={ls.container}>
       <Text style={ls.lockEmoji}>🔒</Text>
-      <Text style={ls.title}>Enrollment Required</Text>
+      <Text style={ls.title}>{t("enrollmentRequired")}</Text>
       <Text style={ls.sub}>
-        Enroll and get admin approval to unlock all video lessons.
+        {t("enrollUnlockVideos")}
       </Text>
       <TouchableOpacity style={ls.btn} onPress={onEnroll} activeOpacity={0.85}>
-        <Text style={ls.btnText}>Enroll Now ✦</Text>
+        <Text style={ls.btnText}>{t("enrollNow")}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -91,6 +92,7 @@ const VideoCard = React.memo(
     activityDone,
     pageHeight,
     screenWidth,
+    t,
   }) => {
     const videoAreaHeight = pageHeight - BOTTOM_BAR_HEIGHT;
     const isLocked = !item.isDemo && !isApproved;
@@ -100,7 +102,7 @@ const VideoCard = React.memo(
       <View style={[vcs.cardContainer, { width: screenWidth, height: pageHeight }]}>
         <View style={[vcs.videoArea, { width: screenWidth, height: videoAreaHeight }]}>
           {isLocked ? (
-            <LockOverlay onEnroll={onEnroll} />
+            <LockOverlay onEnroll={onEnroll} t={t} />
           ) : isPlaying ? (
             <CrossWebView
               key={`video-${item.id}`}
@@ -137,7 +139,7 @@ const VideoCard = React.memo(
               <View style={vcs.btnIconCircle}>
                 <View style={vcs.playTriangleSmall} />
               </View>
-              <Text style={vcs.btnText}>Next Video</Text>
+              <Text style={vcs.btnText}>{t("nextVideo")}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -147,7 +149,7 @@ const VideoCard = React.memo(
             >
               <Text style={vcs.activityIcon}>📖</Text>
               <Text style={vcs.btnText}>
-                {activityDone ? "Done ✓" : "Activity"}
+                {activityDone ? t("done") : t("activity")}
               </Text>
             </TouchableOpacity>
           </View>
@@ -155,7 +157,7 @@ const VideoCard = React.memo(
 
         {isLocked && (
           <View style={vcs.lockedBottom}>
-            <Text style={vcs.lockedBottomText}>🔒 Locked — enroll to access</Text>
+            <Text style={vcs.lockedBottomText}>{t("locked")}</Text>
           </View>
         )}
       </View>
@@ -164,6 +166,7 @@ const VideoCard = React.memo(
 );
 
 export default function ShortVideoScreen({ navigation }) {
+  const { t } = useT();
   const flatListRef = useRef(null);
   const { width: screenWidth } = useWindowDimensions();
 
@@ -248,6 +251,7 @@ export default function ShortVideoScreen({ navigation }) {
           stopVideo();
           setEnrollModalVisible(true);
         }}
+        t={t}
       />
     ),
     [
@@ -260,6 +264,7 @@ export default function ShortVideoScreen({ navigation }) {
       handleNextVideo,
       handleActivity,
       stopVideo,
+      t,
     ]
   );
 

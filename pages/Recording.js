@@ -14,15 +14,16 @@ import { LinearGradient } from "expo-linear-gradient";
 
 import { useEnrollmentStatus }    from "../app/features/enrollmentApi.js";
 import { EnrollmentModal }        from "../components/EnrollmentGate";
+import useT                       from "../app/i18n/useT";
 
 const ZOOM_ICON = "https://cdn-icons-png.flaticon.com/512/4401/4401470.png";
 
 // First recording is always the demo — clearly labelled
 const recordings = [
-  { id: "1", title: "Recordings - 1", desc: "Free demo lesson — watch now!", isDemo: true  },
-  { id: "2", title: "Recordings - 2", desc: "This is recording",              isDemo: false },
-  { id: "3", title: "Recordings - 3", desc: "This is recording",              isDemo: false },
-  { id: "4", title: "Recordings - 4", desc: "This is recording",              isDemo: false },
+  { id: "1", title: "Recordings - 1", desc: "freeDemoLesson", isDemo: true  },
+  { id: "2", title: "Recordings - 2", desc: "thisIsRecording", isDemo: false },
+  { id: "3", title: "Recordings - 3", desc: "thisIsRecording", isDemo: false },
+  { id: "4", title: "Recordings - 4", desc: "thisIsRecording", isDemo: false },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -92,7 +93,7 @@ const ZoomIcon = ({ size = 26 }) => (
 // Recording card
 // ─────────────────────────────────────────────────────────────────────────────
 
-const RecordingCard = ({ item, isApproved, onPress }) => {
+const RecordingCard = ({ item, isApproved, onPress, t }) => {
   const locked = !item.isDemo && !isApproved;
 
   return (
@@ -117,7 +118,7 @@ const RecordingCard = ({ item, isApproved, onPress }) => {
             style={[styles.cardTitle, locked && styles.cardTitleLocked]}
             numberOfLines={1}
           >
-            {locked ? "Enroll to Access" : item.title}
+            {locked ? t("enrollToAccess") : item.title}
           </Text>
           {item.isDemo && (
             <View style={styles.demoBadge}>
@@ -126,7 +127,7 @@ const RecordingCard = ({ item, isApproved, onPress }) => {
           )}
         </View>
         <Text style={[styles.cardDesc, locked && styles.cardDescLocked]} numberOfLines={1}>
-          {locked ? "Approve enrollment to unlock this recording" : item.desc}
+          {locked ? t("approveEnrollmentToUnlock") : t(item.desc)}
         </Text>
       </View>
 
@@ -136,7 +137,7 @@ const RecordingCard = ({ item, isApproved, onPress }) => {
         onPress={() => onPress(item)}
         activeOpacity={0.85}
       >
-        <Text style={styles.viewBtnText}>{locked ? "Unlock" : "View"}</Text>
+        <Text style={styles.viewBtnText}>{locked ? t("unlock") : t("view")}</Text>
       </TouchableOpacity>
     </TouchableOpacity>
   );
@@ -147,6 +148,7 @@ const RecordingCard = ({ item, isApproved, onPress }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function Recording({ navigation }) {
+  const { t } = useT();
   const { isApproved } = useEnrollmentStatus();
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -187,16 +189,16 @@ export default function Recording({ navigation }) {
 
           {/* Title */}
           <View style={styles.titleContainer}>
-            <Text style={styles.pageTitle}>Recordings</Text>
+            <Text style={styles.pageTitle}>{t("navRecordings")}</Text>
             {/* Enrollment status pill */}
             {isApproved ? (
               <View style={styles.statusPill}>
-                <Text style={styles.statusPillText}>✅ Full Access</Text>
+                <Text style={styles.statusPillText}>✅ {t("fullAccess")}</Text>
               </View>
             ) : (
               <View style={[styles.statusPill, styles.statusPillPending]}>
                 <Text style={[styles.statusPillText, styles.statusPillTextPending]}>
-                  🔒 Demo Mode
+                  🔒 {t("demoMode")}
                 </Text>
               </View>
             )}
@@ -214,6 +216,7 @@ export default function Recording({ navigation }) {
                 item={item}
                 isApproved={isApproved}
                 onPress={handlePress}
+                t={t}
               />
             ))}
 
@@ -232,9 +235,9 @@ export default function Recording({ navigation }) {
                 >
                   <Text style={styles.enrollBannerEmoji}>🎓</Text>
                   <View style={styles.enrollBannerText}>
-                    <Text style={styles.enrollBannerTitle}>Unlock All Recordings</Text>
+                    <Text style={styles.enrollBannerTitle}>{t("unlockAllRecordings")}</Text>
                     <Text style={styles.enrollBannerSub}>
-                      Enroll now and get full access once approved.
+                      {t("enrollNowAndGetFullAccess")}
                     </Text>
                   </View>
                   <Text style={styles.enrollBannerArrow}>›</Text>

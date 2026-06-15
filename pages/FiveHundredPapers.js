@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
+import useT from "../app/i18n/useT";
 
 const { width, height } = Dimensions.get("window");
 
@@ -234,6 +235,7 @@ const FloatChar = ({ char, color, style, delay = 0, fontSize = 58 }) => {
 };
 
 export default function FiveHundredPapers({ navigation }) {
+  const { t } = useT();
   const buttonScaleAnim = useRef(new Animated.Value(1)).current;
   const fadeInAnim = useRef(new Animated.Value(0)).current;
   const slideUpAnim = useRef(new Animated.Value(32)).current;
@@ -370,10 +372,8 @@ export default function FiveHundredPapers({ navigation }) {
           },
         ]}
       >
-        <Text style={styles.titleText}>500 Papers Quiz</Text>
-        <Text style={styles.subtitleText}>
-          Challenge yourself with a new{"\n"}paper every day!
-        </Text>
+        <Text style={styles.titleText}>{t("fiveHundredPapersTitle")}</Text>
+        <Text style={styles.subtitleText}>{t("fiveHundredPapersSubtitle")}</Text>
       </Animated.View>
 
       <Animated.View
@@ -397,7 +397,7 @@ export default function FiveHundredPapers({ navigation }) {
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           >
-            <Text style={styles.startButtonText}>Start</Text>
+            <Text style={styles.startButtonText}>{t("start")}</Text>
           </LinearGradient>
         </TouchableOpacity>
       </Animated.View>

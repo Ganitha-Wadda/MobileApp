@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
+import useT from "../app/i18n/useT";
 
 const { width, height } = Dimensions.get("window");
 
@@ -223,6 +224,7 @@ const LargeChar = ({ char, color, style, delay = 0 }) => {
 };
 
 export default function DailyQuizz({ navigation }) {
+  const { t } = useT();
   const buttonScaleAnim = useRef(new Animated.Value(1)).current;
   const fadeInAnim = useRef(new Animated.Value(0)).current;
   const slideUpAnim = useRef(new Animated.Value(30)).current;
@@ -370,10 +372,8 @@ export default function DailyQuizz({ navigation }) {
           },
         ]}
       >
-        <Text style={styles.titleText}>Daily maths Quiz</Text>
-        <Text style={styles.subtitleText}>
-          Sharpen your skills with a new{"\n"}maths challenge every day!
-        </Text>
+        <Text style={styles.titleText}>{t("dailyMathsQuiz")}</Text>
+        <Text style={styles.subtitleText}>{t("sharpenYourSkills")}</Text>
       </Animated.View>
 
       <Animated.View
@@ -397,7 +397,7 @@ export default function DailyQuizz({ navigation }) {
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           >
-            <Text style={styles.startButtonText}>Start</Text>
+            <Text style={styles.startButtonText}>{t("start")}</Text>
           </LinearGradient>
         </TouchableOpacity>
       </Animated.View>

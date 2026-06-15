@@ -1,449 +1,522 @@
-// app/i18n/translations.js ✅ FULL FILE
-// ✅ Legacy text NOT changed
-// ✅ ONLY ADDED: subject-select pages labels + FIX completedBadge to real Sinhala
 export const translations = {
   si: {
-    // Common / useful legacy keys
-    name: "ku",
-    email: "Bfï,a",
-    phone: "ÿrl:k wxlh",
-    phoneNumber: "jÜiema wxlh",
-    district: "Èia;%slalh",
-    town: "k.rh",
-    address: ",smskh",
-    birthday: "Wmk Èkh",
-    password: "uqrmoh",
-    forgotPassword: "wu;l jQ uqrmo@",
-    welcome: "idorfhka ms<s.ksuq",
+    // ── Signup field labels ────────────────────────────────────────────────
+    name:            "නම",
+    mobile:          "දුරකථන අංකය",
+    mobileNumber:    "ජංගම දුරකතන අංකය",
+    birthday:        "උපන්දිනය",
+    grade:           "ශ්‍රේණිය",
+    batchYear:       "කණ්ඩායම් වර්ෂය",
+    district:        "දිස්ත්‍රික්කය",
+    address:         "ලිපිනය",
+    password:        "මුරපදය",
+    confirmPassword: "මුරපදය තහවුරු කරන්න",
+    signUp:          "ලියාපදිංචි වෙන්න",
+    signUpLower:     "ලියාපදිංචිවන්න",
+    female:          "ස්ත්‍රී",
+    male:            "පුරුෂ",
+    alreadyAccount:  "දැනටමත් ගිණුමක් තිබේද?",
+    submit:          "තහවුරු කරන්න",
+    submitButton:    "තහවුරු කරන්න",
+    signIn:          "පිවිසෙන්න",
+    pleaseWait:      "රැදී සිටින්න",
+    forgotPassword:  "මුරපදය අමතක වුනාද?",
+    noAccount:       "තවමත් ගිණුමක් නැද්ද?",
 
-    selectLanguage: "NdIdj f;darkak",
-    sinhala: "isxy,",
-    english: "English",
-    continue: "bÈßhg",
+    // ── NEW: previously hardcoded strings ─────────────────────────────────
+    close:           "වසන්න",
+    day:             "දිනය",
+    month:           "මාසය",
+    year:            "වසර",
 
-    // Useful labels kept
-    Date: "දිනය",
-    Time: "වේලාව",
-    Description: "විස්තරය",
-    WatchNow: "msúfikak",
-    Lesson: "mdvu",
-    ViewLesson: "mdvï n,kak",
+    // ── Picker labels ──────────────────────────────────────────────────────
+    selectBirthday:  "උපන් දිනය තෝරන්න",
+    confirmBirthday: "උපන්දිනය තහවුරු කරන්න",
+    selectGrade:     "ශ්‍රේණිය තෝරන්න",
+    selectBatchYear: "කණ්ඩායම් වර්ෂය තෝරන්න",
+    selectDistrict:  "දිස්ත්‍රික්කය තෝරන්න",
 
-    // Nav / useful legacy
-    navHome: "uq,a msgqj",
-    navLive: "iÔj",
-    navResult: "m%;sM,",
-    navEnroll: ",shdmÈxÑ",
-    navLms: "mdvï",
+    // ── Reset Password Screen ──────────────────────────────────────────────
+    enterMobileNumber:     "ජංගම දුරකතන අංකය ඇතුලත් කරන්න",
+    resetPasswordSubtitle:  "සක්‍රීය ජංගම දුරකතන අංකයක් ඇතුලත් කරන්න",
+    sendOtp:               "OTP යවන්න",
+    backToSignIn:          "පසුපසට",
+    mobileNumberRequired:  "ජංගම දුරකතන අංකය අවශ්‍ය",
+    failedToSendOtp:       "OTP යැවීම අසාර්ථක විය. කරුණාකර නැවත උත්සාහ කරන්න.",
 
-    // Useful learning labels
-    islandRank: "uq¿ Èjhsfkkau",
-    coins: "ldis",
-    totalFinishedExams: "iïmQ¾K l, úNd.",
+    // ── Forgot Password OTP Screen ────────────────────────────────────────
+    enterOtpTitle:         "OTP ඇතුලත් කරන්න",
+    enterOtpSubtitle:      "OTP යැවිය යුතු ජංගම දුරකතන අංකය",
+    verifyOtp:             "OTP සනාථ කරන්න",
+    didntReceiveCode:      "තවමත් කේතයක් ලැබුනේ නැද්ද?",
+    resendOtp:             "OTP නැවත යවන්න",
+    resendIn:              "ඉන් පසුව නැවත යවන්න",
+    sending:               "යවමින් පවතී...",
+    back:                  "පසුසට",
+    otpVerificationFailed: "OTP සනාතනය අසාර්ථක විය. කරුණාකර නැවත උත්සාහ කරන්න.",
+    otpSentSuccessfully:   "OTP සාර්ථකව යවා ඇත. ඔබගේ SMS පරීක්ෂා කරන්න.",
+    phoneNumberNotFound:   "ජංගම දුරකතන අංකය හමු නොවිණි. කරුණාකර නැවතත් ඉවත්වන්න.",
+    validOtpRequired:      "කරුණාකර වලංගු 6-ඉලක්කම් OTP ඇතුලත් කරන්න",
 
-    paperLibrary: "úNd.",
-    dailyQuiz: "Èkm;d",
-    topicWise: "mdvï wkqj",
-    modelPapers: "wdo¾Y m%Yak",
-    pastPapers: "miq.sh úNd.",
+    // ── Reset Password Screen 2 ───────────────────────────────────────────
+    resetPasswordTitle:     "මුරපදය නැවත සකසන්න",
+    resetPasswordHeading:   "නව මුරපදයක් තනන්න",
+    newPassword:           "නව මුරපදය",
+    confirmNewPassword:    "මුරපදය නැවත ඇතුලත් කරන්න",
+    passwordRequired:      "මුරපදය අවශ්‍ය",
+    passwordMinLength:     "මුරපදයට අවම වශයෙන් 6 අක්ෂර තිබිය යුතුය",
+    confirmPasswordRequired: "මුරපදය තහවුරු කිරීම අවශ්‍ය",
+    confirmPasswordMinLength: "මුරපදය තහවුරු කිරීමට අවම වශයෙන් 6 අක්ෂර තිබිය යුතුය",
+    passwordsMatch:        "මුරපදය නොගැලපේ",
+    resetPasswordFailed:   "මුරපදය නැවත සැකසීම අසාර්ථක විය. කරුණාකර නැවත උත්සාහ කරන්න.",
+    show:                  "පෙන්වන්න",
+    hide:                  "සඟවන්න",
 
-    // Grades
-    grade1: "m,uq fY%a‚h",
-    grade2: "fojk fY%a‚h",
-    grade3: ";=kajk fY%a‚h",
-    grade4: "y;rjk fY%a‚h",
-    grade5: "miajk fY%a‚h",
-    grade6: "yhjk fY%a‚h",
-    grade7: "y;ajk fY%a‚h",
-    grade8: "wgjk fY%a‚h",
-    grade9: "kjjk fY%a‚h",
-    grade10: "oyjk fY%a‚h",
-    grade11: "tfldf,diajk fY%a‚h",
-    grade12: "fodf,diajk fY%a‚h",
-    grade13: "oy;=kajk fY%a‚h",
-    grade: "fY%a‚h",
+    // ── Signup OTP Screen ──────────────────────────────────────────────────
+    enterOtpSignupTitle:   "OTP ඇතුලත් කරන්න",
+    enterOtpSignupSubtitle: "OTP යැවිය යුතු ජංගම දුරකතන අංකය",
+    signupPhoneNotFound:   "ජංගම දුරකතන අංකය හමු නොවිණි. නැවතත් ලියාපදිංචි වන්න.",
+    backToSignup:          "ලියාපදිංචි වෙත ආපසු",
 
-    // Auth UI labels
-    signUp: ",shdmÈxÑ fjkak",
-    signIn: "we;=¿ jkak",
-    selectDistrict: "Èia;%slalh f;darkak",
+    // ── Notice Screen ──────────────────────────────────────────────────────
+    submitNotice:          "තහවුරු කරන්න",
 
-    otpSentTitle: "OTP hkjd",
-    otpSentMsg: "OTP WhatsApp + Email fj; hfõ.",
+    // ── Choose Avatar Screen ───────────────────────────────────────────────
+    chooseAvatar:          "Avatar තෝරන්න",
+    pickFavoriteCharacter: "ඔබ කැමති character තෝරන්න",
+    continueButton:        "ඉදිරියට",
 
-    requiredTitle: "wjYHhs",
+    // ── Hero Component / Stats ─────────────────────────────────────────────
+    coins:                 "කාසි",
+    rank:                  "මුළු දිවයිනෙන්ම",
+    completedPapers:       "සම්පූර්ණ කල විභාග",
 
-    // Forgot password UI labels only
-    forgotPasswordTitle: "uqrmoh wu;lo@",
-    resetPasswordTitle: "uqrmoh keje; ilikak",
+    // ── Leaderboard & Battle Section ───────────────────────────────────────
+    leaderboard:           "දක්ෂතා පුවරුව",
+    seeHowYouRank:         "ඔබ ඉන්නේ කොතැනදැයි බලන්න",
+    view:                  "බලන්න",
+    battle:                "සටන",
+    challengeFriends:      "මිතුරන්ට අභියෝග කරන්න",
+    battleNow:             "දැන් සටන් කරන්න",
 
-    fpSendSubtitle: "lreKdlr ÿrl:k wxlh fyda Bfï,a we;=,;a lrkak",
-    fpResetSubtitle: "bÈßhg hdug kj uqrmoh we;=<;a lrkak",
+    // ── Avatar Section ─────────────────────────────────────────────────────
+    myAvatar:              "මගේ චරිතය",
+    rotateAndExplore:      "ඔබේ ප්‍රතිරූපයයි\nගවේෂණය කරන්න",
+    viewAvatar:            "නරඹන්න",
 
-    // ✅ corrected legacy Sinhala text
-    fpPlaceholderIdentifier: "ÿrl;k wxlh fyda Bfï,a ,smskh we;=,;a lrkak",
-    fpPlaceholderNewPassword: "kj uqrmoh",
-    fpPlaceholderConfirmPassword: "kej; kj uqrmoh we;=,;a lrkak",
+    // ── Paper Grid Section ──────────────────────────────────────────────────
+    papers:                "ප්‍රශ්න පත්‍ර",
+    dailyPapers:           "දිනපතා ප්‍රශ්න",
+    fiveHundredPapers:     "ප්‍රශ්න පත්‍ර 500",
+    lessonByLesson:        "පාඩම් අනුව ප්‍රශ්න",
+    pastPapers:            "පසුගිය විභාග ප්‍රශ්න",
 
-    fpSendOtpBtn: "fla;h hjkak",
-    back: "miqmig hkak",
-    fpVerifyOtpAgain: "OTP kej; ;yjqre lrkak",
+    // ── Bottom Navigation ───────────────────────────────────────────────────
+    navHome:               "මුල් පිටුව",
+    navShortz:             "කෙටි වීඩියෝ",
+    navLive:               "සජීව",
+    navRecordings:         "රෙකෝඩින්",
+    navGame:               "ක්‍රීඩා",
 
-    // OTP Subtitle (legacy kept)
-    otpSubtitle_si:
-      "wxl 6lska hq;= fla;hla Tn we;=,;a lr ÿrl;k wxlfha jÜiema .sKqug fyda  Bfï,a ,smskh tjd we;lreKdlr mßlaIdlr n,d we;=,;a lrkak ",
+    // ── Shortz Menu Section ─────────────────────────────────────────────────
+    shortLessons:          "කෙටි පාඩම්",
+    viewLesson:            "නරඹන්න",
 
-    // ✅ Result page ONLY (5 keys you gave)
-    resultTitle: "m%;sM,",
-    resultTotal: "iïmQ¾K m%Yak",
-    resultCorrect: "ksjerÈ",
-    resultPercentage: "m%;sY;h",
-    resultBest: "fydou m%;sM,h",
+    // ── Enrollment Gate Section ─────────────────────────────────────────────
+    enrollmentGateTitle:       "පන්තිවලට ප්‍රවේශ වීමට ලියාපදිංචි වන්න",
+    enrollmentGateSub:         "විස්තර ඉදිරිපත් කරන්න. ඇඩ්මින් අනුමත කළ පසු සියලුම ලයිව් පන්ති, රෙකෝඩින්ග්ස් සහ කෙටි වීඩියෝ ඔබට විවෘත වේ.",
+    checkingAccess:            "ප්‍රවේශය පරීක්ෂා කරමින්",
+    enrollmentUnderReview:     "ලියාපදිංචිය සමාලෝචනය කරමින්",
+    enrollmentUnderReviewSub:  "ඔබේ ඉල්ලීම ලැබුණා. ඇඩ්මින් අනුමත කළාම සම්පූර්ණ ප්‍රවේශය ලැබෙයි.",
+    freeDemoAvailable:         "💜  ඔබ රැදී සිටින අතරතුර නොමිලේ ආදර්ශ පාඩමකට සම්බන්ධ විය හැක.",
+    checkStatus:               "🔄  තත්වය පරික්ෂාව",
+    enrollmentNotApproved:     "ලියාපදිංචිය අනුමත කර නැත",
+    enrollmentNotApprovedSub:  "ඉල්ලීම අනුමත නැත. නැවත අයදුම් කරන්න",
+    reapply:                   "නැවත අයදුම් කරන්න",
+    yourGrade:                 "ඔබේ ශ්‍රේණිය",
+    fullName:                  "සම්පූර්ණ නම",
+    phoneNumber:               "දුරකතන අංකය",
+    fullNamePlaceholder:       "ඔබේ සම්පූර්ණ නම ",
+    phoneNumberPlaceholder:    "ඔබේ දුරකතන අංකය ",
+    submitEnrollment:          "ලියාපදිංචිය තහවුරු කරන්න ✦",
+    freeDemoNote:              "✦ ඔබේ ඉල්ලීම සමාලෝචනය වන අතරතුර, නොමිලේ ආදර්ශ පාඩමක් නැරඹිය හැකිය.",
+    enrollmentFormError:       "කරුණාකර සියලුම ක්ෂේත්‍ර පුරවන්න.",
+    submissionFailed:          "ඉතුරු කිරීම අසාර්ථක විය. කරුණාකර නැවත උත්සාහ කරන්න.",
 
-    // ✅ Live page ONLY (5 keys you gave)
-    liveTitle: "iÔj mka;s",
-    liveDate: "Èkh",
-    liveTime: "fõ,dj",
-    liveBadge: "iÔj",
-    liveJoin: "iïnkaOfjkak",
+    // ── Daily Quizz Screen ──────────────────────────────────────────────────
+    dailyMathsQuiz:            "දිනපතා ගණිත ගැටළු",
+    sharpenYourSkills:         "සෑම දිනකම අලුත් ගණිත ගැටළුවක් සමඟින්\nඔබේ දක්ෂතා වර්ධනය කරගන්න",
+    start:                     "ආරම්භ කරන්න",
 
-    // ✅ Completed Papers page ONLY (labels you gave)
-    completedPapersTitle: "iïmQ¾K l, m%Yak m;%",
+    // ── Five Hundred Papers Screen ──────────────────────────────────────────
+    fiveHundredPapersTitle:    "ප්‍රශ්න පත්‍ර 500",
+    fiveHundredPapersSubtitle: "සෑම දිනකම අලුත් ගණිත ගැටළුවක් සමඟින්\nඔබේ දක්ෂතා වර්ධනය කරගන්න",
 
-    // ✅ FIX: real Sinhala output
-    completedBadge: "සම්පූර්ණයි",
+    // ── Lesson by Lesson Screen ────────────────────────────────────────────
+    lessonByLessonTitle:       "පාඩම් අනුව",
+    lessonByLessonSubtitle:    "සෑම දිනකම අලුත් පාඩම් අභියෝගයක් සමඟින්\nපියවරෙන් පියවර ඉගෙන ගන්න",
 
-    paperTypeLabel: "m%Yak m;% j¾.h",
-    completedDate: "Èkh",
-    completedTime: "fõ,dj",
+    // ── Past Paper Screen ──────────────────────────────────────────────────
+    pastPaperTitle:            "පසුගිය විභාග ප්‍රශ්න පත්‍ර",
+    pastPaperSubtitle:         "සැබෑ පසුගිය ප්‍රශ්න පත්‍ර සමඟ පුහුණු වී\nදිනපතා ඔබේ විභාග ජයගන්න",
 
-    // ✅ Paper type fetched values mapping (ONLY these 4)
-    paperTypeDailyQuiz: "Èkm;d m%Yak m;%h",
-    paperTypeTopicWise: "mdvï wkqj m;%h",
-    paperTypeModelPaper: "wdo¾Y m%Yak m;%h",
-    paperTypePastPaper: "miq.sh  úNd. m%Yak m;%h",
+    // ── Live Screen ────────────────────────────────────────────────────────
+    liveNow:                   "සජීව",
+    gradeBadge:                "ශ්‍රේණිය",
+    psychologyConsultant:      "මනෝවිද්‍යා උපදේශක",
+    todaysLiveSession:         "අද සජීවී පාඩම",
+    loadingLiveClasses:        "සජීව පන්ති පූරණය වෙමින්",
+    noLiveClassRightNow:       "තවම සජීවී පන්ති නැත",
+    beReadyAndStayOnTime:      "සජීවී පන්ති සදහා නියමිත වේලාවට සහභාගී වන්න",
 
-    // ✅ ADDED ONLY for these pages (your requested labels)
-    dqTitle: "Èkm;d m%Yak m;%",
-    twTitle: "mdvï wkqj m%Yak m;%",
-    mpTitle: "wdo¾Y m%Yak m;%",
-    ppTitle: "miq.sh úNd. m%Yak m;%",
-    selectSubject: "úIh f;darkak",
-    streamLbl: "úIh Odrdj",
-    gradeLbl: "fY%a‚h",
-    subjectLbl: "úIh",
-    continueLbl: "bÈßhg",
+    // ── Past Paper Menu ────────────────────────────────────────────────────
+    startPaper:            "ආරම්භ කරන්න",
+
+    // ── Recordings Screen ──────────────────────────────────────────────────
+    unlock:                    "අගුළු හරින්න",
+    fullAccess:                "සම්පූර්ණ ප්‍රවේශය",
+    demoMode:                  "ඩෙමෝ ප්‍රකාරය",
+    freeDemoLesson:            "නොමිලේ ආදර්ශ පාඩම — දැන් බලන්න!",
+    thisIsRecording:           "මෙය පටිගත කිරීම",
+    enrollToAccess:            "ප්‍රවේශ සඳහා ලියාපදිංචි වන්න",
+    approveEnrollmentToUnlock: "මෙම පටිගත කිරීම බැලීමට ලියාපදිංචිය අනුමත කරන්න",
+    unlockAllRecordings:       "සියලුම පටිගත කිරීම් විවෘත කරන්න",
+    enrollNowAndGetFullAccess: "දැන්ම ලියාපදිංචි වන්න, අනුමැතිය ලැබුණු පසු සම්පූර්ණ ප්‍රවේශය ලබා ගන්න",
+    recordingTitle:            "පටිගත කිරීම",
+
+    // ── Game Screen ────────────────────────────────────────────────────────
+    chakkraWaddaRacingDesc:    "තරඟ කරන්න, විසඳන්න, දිනන්න ගුණ කරමින් අවසාන රේඛාව වෙත පිවිසෙන්න",
+    bossBattleDesc:            "ගණිත අභියෝග විසඳා වීරයෙකු වන්න",
+    play:                      "ක්‍රීඩා කරන්න",
+
+    // ── Error messages ─────────────────────────────────────────────────────
+    errorName:            "නම අවශ්‍ය",
+    errorMobile:          "ජංගම දුරකතන අංකය අවශ්‍ය",
+    errorBirthday:        "උපන්දිනය අවශ්‍ය",
+    errorGrade:           "ශ්‍රේණිය අවශ්‍ය",
+    errorBatchYear:       "කණ්ඩායම් වර්ෂය අවශ්‍ය",
+    errorDistrict:        "දිස්ත්‍රික්කය අවශ්‍ය",
+    errorAddress:         "ලිපිනය අවශ්‍ය",
+    errorGender:          "ස්ත්‍රීත්වය / පුරුෂත්වය අවශ්‍ය",
+    errorPassword:        "මුරපදය අවශ්‍ය",
+    errorConfirmPassword: "මුරපදය තහවුරු කිරීම අවශ්‍ය",
+    errorPasswordMatch:   "මුරපදය නොගැලපේ",
+
+    // ── Birthday warning ───────────────────────────────────────────────────
+    futureDateWarning: "උපන්දිනය ඉදිරි දිනක් විය නොහැක",
+
+    // ── Select Language page ───────────────────────────────────────────────
+    selectLanguage: "භාෂාව තෝරන්න",
+
+    // ── Daily Quiz Menu ────────────────────────────────────────────────────
+    paper:                 "ප්‍රශ්න පත්‍රය",
+
+
+        enrollmentRequired:        "ලියාපදිංචිය අවශ්‍ය",
+    enrollUnlockVideos:        "ලියාපදිංචි වී සියලුම වීඩියෝ පාඩම් අගුළු හරින්න.",
+    enrollNow:                 "දැන්ම ලියාපදිංචි වන්න ✦",
+    nextVideo:                 "ඊලග වීඩියෝව",
+    activity:                  "ක්‍රියාකාරකම්",
+    done:                       "අවසන්",
+    locked:                    "ඉතිරි වීඩීයෝ බැලීමට දැන්ම ලියාපදිංචි වන්න",
+
+      // ── Parent Page / Dashboard ────────────────────────────────────────────
+    parentDashboard:           "දෙමාපියන්ගේ පුවරුව",
+    result:                    "ප්‍රතිඵල",
+    viewAcademicResults:       "සියලු ප්‍රතිඵල නරඹන්න",
+    viewResult:                "පිවිසෙන්න",
+    attendance:                "පැම්ණීම",
+    trackSchoolAttendance:     "දරුවාගේ පැමිණීමේ වාර්ථාව",
+    viewAttendance:            "පිවිසෙන්න",
     
-      // page titles (already added before, keep same)
-  dqTitle: "Èkm;d m%Yak m;%",
-  twTitle: "mdvï wkqj m%Yak m;%",
-  mpTitle: "wdo¾Y m%Yak m;%",
-  ppTitle: "miq.sh úNd. m%Yak m;%",
-
-  questionLbl: "m%Yakh",
-finishLbl: "wjika lrkak",
-nextQuestionLbl: "B<. m%Yakh",
-previousLbl: "fmr m%Yakh",
-submitLbl: "wjika lrkak",
-  // ✅ new button / labels
-  payNow: "oeka f.jkak",
-  attemptNow: "wdrïN lrkak",
-  pleaseWait: "/§ isákak'''",
-  mcqs: "nyqjrK",
-  min: "ñks;a;=",
-  paid: "f.úh hq;=",
-  practise: "mqyqKq",
-  free: "fkdñf,a",
-  viewResult: "m%;sM, n,kak",
-     correctAnswersLbl: "ksjerÈ ms<s;=re",
-    reviewNotAvailableLbl: "iudf,dapkh ,nd .; fkdyel",
-    examPerformanceLbl: "සමාලෝචනය",
-    homeLbl: "uq,a msgqj",
-    improvementNeedLbl: ";j;a mqyqKqj wjYHhs",
-    allCorrectLbl: "Tfí ms,s;=re ish,a, ksjerÈhs",
-    explainVideoLbl: "meyeÈ,s lsÍfï ùäfhdaj",
-    stillNotAvailableLbl: ";ju;a ,nd.; fkdyel",
-    explainLogicLbl: "ms,s;=r meyeÈ,s lsÍu",
-    explanationLbl: "meyeÈ,s lsÍu",
-    closeLbl: "jikak",
-    hideAnswerLbl: "ms,s;=r i.jkak",
-    showAnswerLbl: "ms,s;=r fmkajkak",
-    yourAnswerLbl: "ඔබේ පිලිතුර",
-    correctAnswerLbl: "නිවැරදි පිලිතුර",
-    questionLbl2: "m%Yakh",
-    correctLbl: "ksjerÈ",
-    wrongLbl: "mqyqKqj wjYHhs",
-    loadingReviewLbl: "o;a; ,nd .ksñka",
-    retryLbl: "kej; W;=;aiy lrkak",
-    startingLbl: "mqrjkak...",
-    retryBtnLbl: "kej; W;=;aiy lrkak",
-    startNextAttemptTitle: "il=Kqj wjika ùu wdrïN lrkak?",
-    startNextAttemptYes: "Tõ, wdrïN lrkak",
-    cancelLbl: "wj,agu",
-    cannotStartTitle: "wdrïN lrkak fkdyel",
-    
-    nameLbl: "ku",
-    gradeLbl: "fY%a‚h",
-    districtLbl: "Èia;%slalh",
-    townLbl: "k.rh",
-    streamLbl: "úIh Odrdj",
-    lessonsTitle: "mdvï",
-
-lessonWord: "mdvu",
-dateShort: "Èkh",
-timeShort: "fõ,dj",
-descriptionShort: "wka;¾.;h",
-watchNowShort: "krUkak",
-tapViewFullScreen: "සම්පූර්ණ තිරයෙන් නැරඹීමට View button ඔබන්න",
-    statusApproved: ",shdmÈxÑh id¾:lhs",
-statusPending: "wkque;sh wfmalaIdfjka",
-statusAvailable: ",shdmÈxÑ úh yels",
-viewLessons: "mdvï n,kak",
-requestPending: "b,a,Sï l¾kak",
-enrollNow: ",shdmÈxÑ fjkak",
+    // ── Districts ──────────────────────────────────────────────────────────
     districts: {
-      Ampara: "wïmdr",
-      Anuradhapura: "wkqrdOmqr",
-      Badulla: "nÿ,a,",
-      Batticaloa: "uvl,mqj",
-      Colombo: "fld<U",
-      Galle: ".d,a,",
-      Gampaha: ".ïmy",
-      Hambantota: "yïnkaf;dg",
-      Jaffna: "hdmkh",
-      Kalutara: "l¿;r",
-      Kandy: "kqjr",
-      Kegalle: "lE.,a,",
-      Kilinochchi: "ls<sfkdÉÑh",
-      Kurunegala: "l=reKE.,",
-      Mannar: "ukakdru",
-      Matale: "ud;f,a",
-      Matara: "ud;r",
-      Monaragala: "fudkrd.,",
-      Mullaitivu: "uq,;sjq",
-      NuwaraEliya: "kqjrt<sh",
-      Polonnaruwa: "fmdf,dkakrej",
-      Puttalam: "mq;a;,u",
-      Ratnapura: "r;akmqr",
-      Trincomalee: ";%sl=Kdu,h",
-      Vavuniya: "jjqkshdj",
+      Ampara:       "අම්පාර",
+      Anuradhapura: "අනුරාධපුර",
+      Badulla:      "බදුල්ල",
+      Batticaloa:   "බටිකැලෝ",
+      Colombo:      "කොළඹ",
+      Galle:        "ගාල්ල",
+      Gampaha:      "ගම්පහ",
+      Hambantota:   "හම්බන්තොට",
+      Jaffna:       "යාපනය",
+      Kalutara:     "කළුතර",
+      Kandy:        "නුවර",
+      Kegalle:      "කෑගල්ල",
+      Kilinochchi:  "කිලිනෝච්චි",
+      Kurunegala:   "කුරුණගල",
+      Mannar:       "මන්නාරම",
+      Matale:       "මාතලේ",
+      Matara:       "මාතර",
+      Monaragala:   "මොනරාගල",
+      Mullaitivu:   "මුලතිවු",
+      NuwaraEliya:  "නුවරඑලිය",
+      Polonnaruwa:  "පොලොන්නරුව",
+      Puttalam:     "පුත්තලම",
+      Ratnapura:    "රත්නපුර",
+      Trincomalee:  "ත්‍රිකුණාමලය",
+      Vavuniya:     "වවුනියා",
     },
   },
 
   en: {
-    // Common / useful legacy keys
-    name: "Name",
-    email: "Email",
-    phone: "Phone number",
-    phoneNumber: "Phone Number",
-    district: "District",
-    town: "Town",
-    address: "Address",
-    birthday: "Birthday",
-    password: "Password",
-    forgotPassword: "Forgot password?",
-    welcome: "Welcome",
+    // ── Signup field labels ────────────────────────────────────────────────
+    name:            "Name",
+    mobile:          "Mobile Number (07XXXXXXXX)",
+    mobileNumber:    "Mobile Number",
+    birthday:        "Birthday",
+    grade:           "Grade",
+    batchYear:       "Batch Year",
+    district:        "District",
+    address:         "Address",
+    password:        "Password",
+    confirmPassword: "Confirm Password",
+    signUp:          "Sign Up",
+    signUpLower:     "SignUp",
+    female:          "Female",
+    male:            "Male",
+    alreadyAccount:  "Already have an account?",
+    submit:          "Submit",
+    submitButton:    "Submit",
+    signIn:          "Sign In",
+    pleaseWait:      "Please wait...",
+    forgotPassword:  "Forgot Password?",
+    noAccount:       "Don't have an account?",
 
+    // ── NEW: previously hardcoded strings ─────────────────────────────────
+    close:           "Close",
+    day:             "Day",
+    month:           "Month",
+    year:            "Year",
+
+    // ── Picker labels ──────────────────────────────────────────────────────
+    selectBirthday:  "Select Birthday",
+    confirmBirthday: "Confirm Birthday",
+    selectGrade:     "Select Grade",
+    selectBatchYear: "Select Batch Year",
+    selectDistrict:  "Select District",
+
+    // ── Reset Password Screen ──────────────────────────────────────────────
+    enterMobileNumber:     "Enter Your Mobile Number",
+    resetPasswordSubtitle:  "We'll send you an OTP to reset your password",
+    sendOtp:               "Send OTP",
+    backToSignIn:          "← Back to Sign In",
+    mobileNumberRequired:  "Mobile number is required",
+    failedToSendOtp:       "Failed to send OTP. Please try again.",
+
+    // ── Forgot Password OTP Screen ────────────────────────────────────────
+    enterOtpTitle:         "Enter OTP",
+    enterOtpSubtitle:      "Enter the OTP sent to",
+    verifyOtp:             "Verify OTP",
+    didntReceiveCode:      "Didn't receive code?",
+    resendOtp:             "Resend OTP",
+    resendIn:              "Resend in",
+    sending:               "Sending...",
+    back:                  "← Back",
+    otpVerificationFailed: "OTP verification failed. Please try again.",
+    otpSentSuccessfully:   "OTP sent successfully. Please check your SMS.",
+    phoneNumberNotFound:   "Phone number not found. Please start over.",
+    validOtpRequired:      "Please enter a valid 6-digit OTP",
+
+    // ── Reset Password Screen 2 ───────────────────────────────────────────
+    resetPasswordTitle:     "Reset Password",
+    resetPasswordHeading:   "Create a new password for your account",
+    newPassword:           "New Password",
+    confirmNewPassword:    "Confirm Password",
+    passwordRequired:      "Password is required",
+    passwordMinLength:     "Password must have at least 6 characters",
+    confirmPasswordRequired: "Confirm password is required",
+    confirmPasswordMinLength: "Confirm password must have at least 6 characters",
+    passwordsMatch:        "Passwords do not match",
+    resetPasswordFailed:   "Failed to reset password. Please try again.",
+    show:                  "Show",
+    hide:                  "Hide",
+
+    // ── Signup OTP Screen ──────────────────────────────────────────────────
+    enterOtpSignupTitle:   "Enter OTP",
+    enterOtpSignupSubtitle: "Enter the OTP sent to",
+    signupPhoneNotFound:   "Phone number not found. Please sign up again.",
+    backToSignup:          "← Back to Sign Up",
+
+    // ── Notice Screen ──────────────────────────────────────────────────────
+    submitNotice:          "Submit",
+
+    // ── Choose Avatar Screen ───────────────────────────────────────────────
+    chooseAvatar:          "Choose Avatar",
+    pickFavoriteCharacter: "Pick your favorite character",
+    continueButton:        "Continue",
+
+    // ── Hero Component / Stats ─────────────────────────────────────────────
+    coins:                 "Coins",
+    rank:                  "Rank",
+    completedPapers:       "Completed Papers",
+
+    // ── Leaderboard & Battle Section ───────────────────────────────────────
+    leaderboard:           "Leaderboard",
+    seeHowYouRank:         "See how you rank.",
+    view:                  "View",
+    battle:                "Battle",
+    challengeFriends:      "Challenge friends.",
+    battleNow:             "Battle Now",
+
+    // ── Avatar Section ─────────────────────────────────────────────────────
+    myAvatar:              "My Avatar",
+    rotateAndExplore:      "This is your avatar.\nRotate and explore!",
+    viewAvatar:            "View",
+
+    // ── Paper Grid Section ──────────────────────────────────────────────────
+    papers:                "Papers",
+    dailyPapers:           "Daily papers",
+    fiveHundredPapers:     "500 papers",
+    lessonByLesson:        "Lesson By Lesson",
+    pastPapers:            "Past papers",
+
+    // ── Bottom Navigation ───────────────────────────────────────────────────
+    navHome:               "Home",
+    navShortz:             "Shortz",
+    navLive:               "Live",
+    navRecordings:         "Recordings",
+    navGame:               "Game",
+
+    // ── Shortz Menu Section ─────────────────────────────────────────────────
+    shortLessons:          "10 Min lessons",
+    viewLesson:            "View",
+
+    // ── Enrollment Gate Section ─────────────────────────────────────────────
+    enrollmentGateTitle:       "Enroll to Access Classes",
+    enrollmentGateSub:         "Submit your details. Once the admin approves, you'll unlock all Live Sessions, Recordings and Short Videos.",
+    checkingAccess:            "Checking access…",
+    enrollmentUnderReview:     "Enrollment Under Review",
+    enrollmentUnderReviewSub:  "Your request has been submitted. You'll get full access once the admin approves it.",
+    freeDemoAvailable:         "💜  A free demo lesson is available while you wait.",
+    checkStatus:               "🔄  Check Status",
+    enrollmentNotApproved:     "Enrollment Not Approved",
+    enrollmentNotApprovedSub:  "Your request was not approved. You may reapply or contact support.",
+    reapply:                   "Reapply",
+    yourGrade:                 "Your Grade",
+    fullName:                  "Full Name",
+    phoneNumber:               "Phone Number",
+    fullNamePlaceholder:       "Enter your full name",
+    phoneNumberPlaceholder:    "Enter your phone number",
+    submitEnrollment:          "Submit Enrollment ✦",
+    freeDemoNote:              "✦ A free demo lesson is available while your request is under review.",
+    enrollmentFormError:       "Please fill in all fields.",
+    submissionFailed:          "Submission failed. Please try again.",
+
+    // ── Daily Quizz Screen ──────────────────────────────────────────────────
+    dailyMathsQuiz:            "Daily maths Quiz",
+    sharpenYourSkills:         "Sharpen your skills with a new\nmaths challenge every day!",
+    start:                     "Start",
+
+    // ── Five Hundred Papers Screen ──────────────────────────────────────────
+    fiveHundredPapersTitle:    "500 Papers Quiz",
+    fiveHundredPapersSubtitle: "Challenge yourself with a new\npaper every day!",
+
+    // ── Lesson by Lesson Screen ────────────────────────────────────────────
+    lessonByLessonTitle:       "Lesson by Lesson",
+    lessonByLessonSubtitle:    "Learn step by step with a new\nlesson challenge every day!",
+
+    // ── Past Paper Screen ──────────────────────────────────────────────────
+    pastPaperTitle:            "Past Paper Quiz",
+    pastPaperSubtitle:         "Practise with real past papers and\nace your exams every day!",
+
+    // ── Live Screen ────────────────────────────────────────────────────────
+    liveNow:                   "LIVE NOW",
+    gradeBadge:                "Grade",
+    psychologyConsultant:      "Psychology consultant",
+    todaysLiveSession:         "Today's Live Session",
+    loadingLiveClasses:        "Loading live classes…",
+    noLiveClassRightNow:       "No Live Class Right Now",
+    beReadyAndStayOnTime:      "Be ready and stay on time!",
+
+    // ── Past Paper Menu ────────────────────────────────────────────────────
+    startPaper:            "Start",
+
+    // ── Recordings Screen ──────────────────────────────────────────────────
+    unlock:                    "Unlock",
+    fullAccess:                "Full Access",
+    demoMode:                  "Demo Mode",
+    freeDemoLesson:            "Free demo lesson — watch now!",
+    thisIsRecording:           "This is recording",
+    enrollToAccess:            "Enroll to Access",
+    approveEnrollmentToUnlock: "Approve enrollment to unlock this recording",
+    unlockAllRecordings:       "Unlock All Recordings",
+    enrollNowAndGetFullAccess: "Enroll now and get full access once approved.",
+    recordingTitle:            "Recording",
+
+    // ── Game Screen ────────────────────────────────────────────────────────
+    chakkraWaddaRacingDesc:    "Race, solve and win! Multiply your way to the finish line.",
+    bossBattleDesc:            "Face the boss, solve math challenges and be the hero!",
+    play:                      "Play",
+
+    // ── Error messages ─────────────────────────────────────────────────────
+    errorName:            "Name is required",
+    errorMobile:          "Mobile number is required",
+    errorBirthday:        "Birthday is required",
+    errorGrade:           "Grade is required",
+    errorBatchYear:       "Batch year is required",
+    errorDistrict:        "District is required",
+    errorAddress:         "Address is required",
+    errorGender:          "Gender is required",
+    errorPassword:        "Password is required",
+    errorConfirmPassword: "Confirm password is required",
+    errorPasswordMatch:   "Passwords do not match",
+
+    // ── Birthday warning ───────────────────────────────────────────────────
+    futureDateWarning: "Birthday cannot be a future date",
+
+    // ── Select Language page ───────────────────────────────────────────────
     selectLanguage: "Select Language",
-    sinhala: "Sinhala",
-    english: "English",
-    continue: "Continue",
-    nameLbl: "Name",
-    gradeLbl: "Grade",
-    districtLbl: "District",
-    townLbl: "Town",
-    streamLbl: "Stream",
-    // OTP subtitle (English)
-    otpSubtitle_en:
-      "Enter the 6 digit code we sent to {masked}.\nCheck your WhatsApp.\nCheck your email.",
 
-    // Useful labels kept
-    Date: "Date",
-    Time: "Time",
-    Description: "Description",
-    WatchNow: "Watch Now",
-    Lesson: "Lesson",
-    ViewLesson: "View Lesson",
+    // ── Daily Quiz Menu ────────────────────────────────────────────────────
+    paper:                 "Paper",
 
-    // Nav / useful legacy
-    navHome: "Home",
-    navLive: "Live",
-    navResult: "Results",
-    navEnroll: "Enroll",
-    navLms: "LMS",
-   tapViewFullScreen: "Tap the View button to see it in full screen.",
-    // Useful learning labels
-    islandRank: "Island Rank",
-    coins: "Coins",
-    totalFinishedExams: "Total Finished Exams",
+    // ── Short Video Screen ──────────────────────────────────────────────────
+    enrollmentRequired:        "Enrollment Required",
+    enrollUnlockVideos:        "Enroll and get admin approval to unlock all video lessons.",
+    enrollNow:                 "Enroll Now ✦",
+    nextVideo:                 "Next Video",
+    activity:                  "Activity",
+    done:                       "Done ✓",
+    locked:                    "🔒 Locked — enroll to access",
 
-    paperLibrary: "Paper Library",
-    dailyQuiz: "Daily Quiz",
-    topicWise: "Topic wise papers",
-    modelPapers: "Model papers",
-    pastPapers: "Past papers",
+    
+    // ── Parent Page / Dashboard ────────────────────────────────────────────
+    parentDashboard:           "Parent Dashboard",
+    result:                    "Result",
+    viewAcademicResults:       "View academic results",
+    viewResult:                "View Result",
+    attendance:                "Attendance",
+    trackSchoolAttendance:     "Track school attendance",
+    viewAttendance:            "View Attendance",
 
-    // Grades
-    grade1: "Grade One",
-    grade2: "Grade Two",
-    grade3: "Grade Three",
-    grade4: "Grade Four",
-    grade5: "Grade Five",
-    grade6: "Grade Six",
-    grade7: "Grade Seven",
-    grade8: "Grade Eight",
-    grade9: "Grade Nine",
-    grade10: "Grade Ten",
-    grade11: "Grade Eleven",
-    grade12: "Grade Twelve",
-    grade13: "Grade Thirteen",
-    grade: "Grade",
-
-    // Auth UI labels
-    signUp: "Sign Up",
-    signIn: "Sign In",
-    selectDistrict: "Select District",
-
-    otpSentTitle: "OTP Sent",
-    otpSentMsg: "We sent OTP to your WhatsApp + Email.",
-
-    requiredTitle: "Required",
-
-    // Forgot password UI labels only
-    forgotPasswordTitle: "Forgot Password",
-    resetPasswordTitle: "Reset Password",
-
-    fpSendSubtitle: "Enter your phone number or email to receive OTP",
-    fpResetSubtitle: "Enter your new password to continue",
-
-    fpPlaceholderIdentifier: "Phone number or email",
-    fpPlaceholderNewPassword: "New Password",
-    fpPlaceholderConfirmPassword: "Confirm New Password",
-
-    fpSendOtpBtn: "Send OTP",
-    back: "Back",
-    fpVerifyOtpAgain: "Verify OTP Again",
-
-    // ✅ Result page (same 5 keys)
-    resultTitle: "Result",
-    resultTotal: "Total",
-    resultCorrect: "Correct",
-    resultPercentage: "Percentage",
-    resultBest: "Best Completed Result",
-
-    // ✅ Live page (same 5 keys)
-    liveTitle: "Live Classes",
-    liveDate: "Date",
-    liveTime: "Time",
-    liveBadge: "LIVE",
-    liveJoin: "Join Class",
-
-    // ✅ Completed Papers page (same keys)
-    completedPapersTitle: "Completed Papers",
-    completedBadge: "Completed",
-    paperTypeLabel: "Paper Type",
-    completedDate: "Date",
-    completedTime: "Time",
-
-    questionLbl: "Question",
-finishLbl: "FINISH",
-nextQuestionLbl: "Next Question",
-previousLbl: "Previous",
-submitLbl: "Submit",
-
-lessonsTitle: "Lessons",
-lessonWord: "Lesson",
-dateShort: "Date",
-timeShort: "Time",
-descriptionShort: "Description",
-watchNowShort: "Watch Now",
-
-   correctAnswersLbl: "Correct Answers",
-    reviewNotAvailableLbl: "Review not available",
-    examPerformanceLbl: "EXAM PERFORMANCE",
-    homeLbl: "Home",
-    improvementNeedLbl: "improvement need",
-    allCorrectLbl: "Your All answers correct",
-    explainVideoLbl: "Explain Video",
-    stillNotAvailableLbl: "Still not available",
-    explainLogicLbl: "Explain Logic",
-    explanationLbl: "Explanation",
-    closeLbl: "Close",
-    hideAnswerLbl: "Hide Answer",
-    showAnswerLbl: "Show Answer",
-    yourAnswerLbl: "Your Answer",
-    correctAnswerLbl: "Correct Answer",
-    questionLbl2: "Question",
-    correctLbl: "Correct",
-    wrongLbl: "improvement need",
-    loadingReviewLbl: "Loading review...",
-    retryLbl: "Retry",
-    startingLbl: "Starting...",
-    retryBtnLbl: "Retry",
-    startNextAttemptTitle: "Start next attempt?",
-    startNextAttemptYes: "Yes, Start",
-    cancelLbl: "Cancel",
-    cannotStartTitle: "Cannot start",
-    // ✅ Paper type values (English)
-    paperTypeDailyQuiz: "Daily Quiz",
-    paperTypeTopicWise: "Topic wise paper",
-    paperTypeModelPaper: "Model paper",
-    paperTypePastPaper: "Past paper",
-
-    // ✅ Added only for these pages
-    dqTitle: "Daily Quiz",
-    twTitle: "Topic Wise Papers",
-    mpTitle: "Model Papers",
-    ppTitle: "Past Papers",
-    selectSubject: "Select Subject",
-    streamLbl: "Stream",
-    gradeLbl: "Grade",
-    subjectLbl: "Subject",
-    continueLbl: "Continue",
-
-  payNow: "PAY NOW",
-  attemptNow: "Attempt Now",
-  pleaseWait: "Please wait...",
-  mcqs: "MCQs",
-  min: "min",
-  paid: "PAID",
-  practise: "PRACTISE",
-  free: "FREE",
-  viewResult: "View Result",
-
-  statusApproved: "Approved",
-statusPending: "Pending",
-statusAvailable: "Available",
-viewLessons: "View Lessons",
-requestPending: "Request Pending",
-enrollNow: "Enroll Now",
-
+    // ── Districts ──────────────────────────────────────────────────────────
     districts: {
-      Ampara: "Ampara",
+      Ampara:       "Ampara",
       Anuradhapura: "Anuradhapura",
-      Badulla: "Badulla",
-      Batticaloa: "Batticaloa",
-      Colombo: "Colombo",
-      Galle: "Galle",
-      Gampaha: "Gampaha",
-      Hambantota: "Hambantota",
-      Jaffna: "Jaffna",
-      Kalutara: "Kalutara",
-      Kandy: "Kandy",
-      Kegalle: "Kegalle",
-      Kilinochchi: "Kilinochchi",
-      Kurunegala: "Kurunegala",
-      Mannar: "Mannar",
-      Matale: "Matale",
-      Matara: "Matara",
-      Monaragala: "Monaragala",
-      Mullaitivu: "Mullaitivu",
-      NuwaraEliya: "Nuwara Eliya",
-      Polonnaruwa: "Polonnaruwa",
-      Puttalam: "Puttalam",
-      Ratnapura: "Ratnapura",
-      Trincomalee: "Trincomalee",
-      Vavuniya: "Vavuniya",
+      Badulla:      "Badulla",
+      Batticaloa:   "Batticaloa",
+      Colombo:      "Colombo",
+      Galle:        "Galle",
+      Gampaha:      "Gampaha",
+      Hambantota:   "Hambantota",
+      Jaffna:       "Jaffna",
+      Kalutara:     "Kalutara",
+      Kandy:        "Kandy",
+      Kegalle:      "Kegalle",
+      Kilinochchi:  "Kilinochchi",
+      Kurunegala:   "Kurunegala",
+      Mannar:       "Mannar",
+      Matale:       "Matale",
+      Matara:       "Matara",
+      Monaragala:   "Monaragala",
+      Mullaitivu:   "Mullaitivu",
+      NuwaraEliya:  "Nuwara Eliya",
+      Polonnaruwa:  "Polonnaruwa",
+      Puttalam:     "Puttalam",
+      Ratnapura:    "Ratnapura",
+      Trincomalee:  "Trincomalee",
+      Vavuniya:     "Vavuniya",
     },
   },
 };

@@ -16,11 +16,12 @@ import {
   Dimensions,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { useSelector }    from "react-redux";
+import { useSelector } from "react-redux";
 import {
   useEnrollmentStatus,
   useSubmitEnrollmentMutation,
 } from "../app/features/enrollmentApi";
+import useT from "../app/i18n/useT";
 
 const { width } = Dimensions.get("window");
 
@@ -33,7 +34,7 @@ function FloatEmoji({ emoji, style }) {
     Animated.loop(
       Animated.sequence([
         Animated.timing(y, { toValue: -10, duration: 1500, useNativeDriver: true }),
-        Animated.timing(y, { toValue: 0,   duration: 1500, useNativeDriver: true }),
+        Animated.timing(y, { toValue: 0, duration: 1500, useNativeDriver: true }),
       ])
     ).start();
   }, [y]);
@@ -50,10 +51,10 @@ function FloatEmoji({ emoji, style }) {
 function useUserGrade() {
   return useSelector(
     (s) =>
-      s.user?.user?.grade    ??
+      s.user?.user?.grade ??
       s.user?.profile?.grade ??
-      s.user?.data?.grade    ??
-      s.user?.grade          ??
+      s.user?.data?.grade ??
+      s.user?.grade ??
       null
   );
 }
@@ -62,31 +63,32 @@ function useUserGrade() {
 // Inner content — three states + form
 // ─────────────────────────────────────────────────────────────────────────────
 function GateContent({ onClose }) {
+  const { t } = useT();
   const userGrade = useUserGrade();
   const { status, isLoading, isFetching, refetch } = useEnrollmentStatus();
   const [submit, { isLoading: isSubmitting }] = useSubmitEnrollmentMutation();
 
-  const [name,      setName]      = useState("");
-  const [phone,     setPhone]     = useState("");
-  const [grade,     setGrade]     = useState(userGrade ? String(userGrade) : "");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [grade, setGrade] = useState(userGrade ? String(userGrade) : "");
   const [formError, setFormError] = useState("");
-  const [showForm,  setShowForm]  = useState(false); // re-apply after rejection
+  const [showForm, setShowForm] = useState(false); // re-apply after rejection
 
   const handleSubmit = async () => {
     if (!name.trim() || !phone.trim() || !grade.trim()) {
-      setFormError("Please fill in all fields.");
+      setFormError(t("enrollmentFormError"));
       return;
     }
     setFormError("");
     try {
       await submit({
-        name:  name.trim(),
+        name: name.trim(),
         phone: phone.trim(),
         grade: Number(grade),
       }).unwrap();
       refetch();
     } catch (err) {
-      setFormError(err?.data?.message ?? "Submission failed. Please try again.");
+      setFormError(err?.data?.message ?? t("submissionFailed"));
     }
   };
 
@@ -95,7 +97,7 @@ function GateContent({ onClose }) {
     return (
       <View style={gs.centerBox}>
         <ActivityIndicator size="large" color="#7C3AED" />
-        <Text style={gs.loadingText}>Checking access…</Text>
+        <Text style={gs.loadingText}>{t("checkingAccess")}</Text>
       </View>
     );
   }
@@ -105,15 +107,10 @@ function GateContent({ onClose }) {
     return (
       <View style={gs.centerBox}>
         <FloatEmoji emoji="⏳" style={gs.bigEmoji} />
-        <Text style={gs.gateTitle}>Enrollment Under Review</Text>
-        <Text style={gs.gateSub}>
-          Your request has been submitted. You'll get full access once the admin
-          approves it.
-        </Text>
+        <Text style={gs.gateTitle}>{t("enrollmentUnderReview")}</Text>
+        <Text style={gs.gateSub}>{t("enrollmentUnderReviewSub")}</Text>
         <View style={gs.infoStrip}>
-          <Text style={gs.infoStripText}>
-            💜  A free demo lesson is available while you wait.
-          </Text>
+          <Text style={gs.infoStripText}>{t("freeDemoAvailable")}</Text>
         </View>
         <TouchableOpacity
           style={gs.secondaryBtn}
@@ -123,12 +120,12 @@ function GateContent({ onClose }) {
           {isFetching ? (
             <ActivityIndicator color="#7C3AED" size="small" />
           ) : (
-            <Text style={gs.secondaryBtnText}>🔄  Check Status</Text>
+            <Text style={gs.secondaryBtnText}>{t("checkStatus")}</Text>
           )}
         </TouchableOpacity>
         {onClose && (
           <TouchableOpacity onPress={onClose} style={gs.closeLink}>
-            <Text style={gs.closeLinkText}>Close</Text>
+            <Text style={gs.closeLinkText}>{t("close")}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -140,10 +137,8 @@ function GateContent({ onClose }) {
     return (
       <View style={gs.centerBox}>
         <FloatEmoji emoji="😔" style={gs.bigEmoji} />
-        <Text style={gs.gateTitle}>Enrollment Not Approved</Text>
-        <Text style={gs.gateSub}>
-          Your request was not approved. You may reapply or contact support.
-        </Text>
+        <Text style={gs.gateTitle}>{t("enrollmentNotApproved")}</Text>
+        <Text style={gs.gateSub}>{t("enrollmentNotApprovedSub")}</Text>
         <TouchableOpacity
           style={gs.primaryBtn}
           onPress={() => setShowForm(true)}
@@ -153,12 +148,12 @@ function GateContent({ onClose }) {
             colors={["#7C3AED", "#5B21B6"]}
             style={gs.primaryBtnInner}
           >
-            <Text style={gs.primaryBtnText}>Reapply</Text>
+            <Text style={gs.primaryBtnText}>{t("reapply")}</Text>
           </LinearGradient>
         </TouchableOpacity>
         {onClose && (
           <TouchableOpacity onPress={onClose} style={gs.closeLink}>
-            <Text style={gs.closeLinkText}>Close</Text>
+            <Text style={gs.closeLinkText}>{t("close")}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -177,21 +172,20 @@ function GateContent({ onClose }) {
         keyboardShouldPersistTaps="handled"
       >
         <FloatEmoji emoji="🎓" style={gs.bigEmoji} />
-        <Text style={gs.gateTitle}>Enroll to Access Classes</Text>
-        <Text style={gs.gateSub}>
-          Submit your details. Once the admin approves, you'll unlock all Live
-          Sessions, Recordings and Short Videos.
-        </Text>
+        <Text style={gs.gateTitle}>{t("enrollmentGateTitle")}</Text>
+        <Text style={gs.gateSub}>{t("enrollmentGateSub")}</Text>
 
         <View style={gs.formCard}>
           {/* Grade badge or input */}
           {userGrade ? (
             <View style={gs.gradePill}>
-              <Text style={gs.gradePillText}>Grade {userGrade}</Text>
+              <Text style={gs.gradePillText}>
+                {t("grade")} {userGrade}
+              </Text>
             </View>
           ) : (
             <>
-              <Text style={gs.label}>Your Grade</Text>
+              <Text style={gs.label}>{t("yourGrade")}</Text>
               <TextInput
                 style={gs.input}
                 placeholder="e.g.  3"
@@ -204,10 +198,10 @@ function GateContent({ onClose }) {
             </>
           )}
 
-          <Text style={gs.label}>Full Name</Text>
+          <Text style={gs.label}>{t("fullName")}</Text>
           <TextInput
             style={gs.input}
-            placeholder="Enter your full name"
+            placeholder={t("fullNamePlaceholder")}
             placeholderTextColor="#A78BFA"
             value={name}
             onChangeText={setName}
@@ -215,10 +209,10 @@ function GateContent({ onClose }) {
             returnKeyType="next"
           />
 
-          <Text style={gs.label}>Phone Number</Text>
+          <Text style={gs.label}>{t("phoneNumber")}</Text>
           <TextInput
             style={gs.input}
-            placeholder="Enter your phone number"
+            placeholder={t("phoneNumberPlaceholder")}
             placeholderTextColor="#A78BFA"
             value={phone}
             onChangeText={setPhone}
@@ -226,9 +220,7 @@ function GateContent({ onClose }) {
             returnKeyType="done"
           />
 
-          {!!formError && (
-            <Text style={gs.errorText}>{formError}</Text>
-          )}
+          {!!formError && <Text style={gs.errorText}>{formError}</Text>}
 
           <TouchableOpacity
             onPress={handleSubmit}
@@ -244,19 +236,17 @@ function GateContent({ onClose }) {
               {isSubmitting ? (
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
-                <Text style={gs.submitBtnText}>Submit Enrollment ✦</Text>
+                <Text style={gs.submitBtnText}>{t("submitEnrollment")}</Text>
               )}
             </LinearGradient>
           </TouchableOpacity>
         </View>
 
-        <Text style={gs.footNote}>
-          ✦ A free demo lesson is available while your request is under review.
-        </Text>
+        <Text style={gs.footNote}>{t("freeDemoNote")}</Text>
 
         {onClose && (
           <TouchableOpacity onPress={onClose} style={gs.closeLink}>
-            <Text style={gs.closeLinkText}>Close</Text>
+            <Text style={gs.closeLinkText}>{t("close")}</Text>
           </TouchableOpacity>
         )}
       </ScrollView>

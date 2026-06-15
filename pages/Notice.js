@@ -11,10 +11,12 @@ import {
 } from "react-native";
 import { useFonts } from "expo-font";
 import Floating from "../pages/Floating.js";
+import useT from "../app/i18n/useT";
 
 const { width, height } = Dimensions.get("screen");
 
 export default function Notice({ navigation }) {
+  const { t } = useT();
   const [fontsLoaded] = useFonts({
     FMBasurux: require("../app/api/FMBasurux.ttf"),
     FMGemunux: require("../app/api/FMGemunux.ttf"),
@@ -68,7 +70,7 @@ export default function Notice({ navigation }) {
             navigation.navigate("ChooseAvatar");
           }}
         >
-          <Text style={styles.submitText}>Submit</Text>
+          <Text style={styles.submitText}>{t("submitNotice")}</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

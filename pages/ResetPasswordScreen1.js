@@ -18,11 +18,13 @@ import { useDispatch } from "react-redux";
 import Floating from "../pages/Floating.js";
 import { useForgotPasswordSendOtpMutation } from "../app/features/authApi.js";
 import { setForgotPasswordFlow } from "../app/features/authSlice.js";
+import useT from "../app/i18n/useT";
 
 const { width, height } = Dimensions.get("window");
 
 export default function ResetPasswordScreen1({ navigation }) {
   const dispatch = useDispatch();
+  const { t } = useT();
   const [sendOtp, { isLoading }] = useForgotPasswordSendOtpMutation();
 
   const [mobileNumber, setMobileNumber] = useState("");
@@ -34,7 +36,7 @@ export default function ResetPasswordScreen1({ navigation }) {
     setSuccess("");
 
     if (!mobileNumber) {
-      setError("Mobile number is required");
+      setError(t("mobileNumberRequired"));
       return;
     }
 
@@ -58,7 +60,7 @@ export default function ResetPasswordScreen1({ navigation }) {
       const message =
         err?.data?.message ||
         err?.message ||
-        "Failed to send OTP. Please try again.";
+        t("failedToSendOtp");
       setError(message);
     }
   };
@@ -113,16 +115,17 @@ export default function ResetPasswordScreen1({ navigation }) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Title */}
+         {/* Title */}
           <View style={styles.titleWrapper}>
             <Text style={styles.title}>
               Enter Your{"\n"}
               <Text style={styles.highlight}>Mobile Number</Text>
             </Text>
-            <Text style={styles.subtitle}>
-              We'll send you an OTP to reset your password
+             <Text style={styles.subtitle}>
+              {t("resetPasswordSubtitle")}
             </Text>
           </View>
+
 
           {/* Error message */}
           {!!error && (
@@ -142,7 +145,7 @@ export default function ResetPasswordScreen1({ navigation }) {
           <View style={styles.inputBox}>
             <TextInput
               style={styles.input}
-              placeholder="Mobile Number"
+              placeholder={t("mobileNumber")}
               placeholderTextColor="#64748B"
               keyboardType="phone-pad"
               value={mobileNumber}
@@ -161,7 +164,7 @@ export default function ResetPasswordScreen1({ navigation }) {
             {isLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.submitText}>Send OTP</Text>
+              <Text style={styles.submitText}>{t("sendOtp")}</Text>
             )}
           </TouchableOpacity>
 
@@ -171,7 +174,7 @@ export default function ResetPasswordScreen1({ navigation }) {
             onPress={handleGoBack}
             activeOpacity={0.8}
           >
-            <Text style={styles.backText}>← Back to Sign In</Text>
+            <Text style={styles.backText}>{t("backToSignIn")}</Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>

@@ -11,6 +11,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Audio } from "expo-av";
+import useT from "../app/i18n/useT";
 
 import dailyPapersImg from "../assets/dailypapers.png";
 import fiveHundredPapersImg from "../assets/500papers.png";
@@ -21,40 +22,41 @@ import clickSound from "../assets/click4.mp3";
 
 const CARD_COLORS = ["#FF4757", "#C748E8", "#1E90FF", "#7B68EE"];
 
-const PAPERS = [
-  {
-    id: "daily",
-    label: "Daily papers",
-    image: dailyPapersImg,
-    route: "DailyPapers",
-  },
-  {
-    id: "500",
-    label: "500 papers",
-    image: fiveHundredPapersImg,
-    route: "FiveHundredPapers",
-  },
-  {
-    id: "lesson",
-    label: "Lesson By Lesson",
-    image: lessonByLessonImg,
-    route: "LessonByLesson",
-  },
-  {
-    id: "past",
-    label: "Past papers",
-    image: pastPapersImg,
-    route: "PastPaper",
-  },
-];
-
-const H_PAD = 16;
-const GAP = 12;
-const MAX_LAYOUT_W = 500;
-
 export default function PaperGrid() {
   const navigation = useNavigation();
   const { width: winWidth } = useWindowDimensions();
+  const { t } = useT();
+
+  const PAPERS = [
+    {
+      id: "daily",
+      labelKey: "dailyPapers",
+      image: dailyPapersImg,
+      route: "DailyPapers",
+    },
+    {
+      id: "500",
+      labelKey: "fiveHundredPapers",
+      image: fiveHundredPapersImg,
+      route: "FiveHundredPapers",
+    },
+    {
+      id: "lesson",
+      labelKey: "lessonByLesson",
+      image: lessonByLessonImg,
+      route: "LessonByLesson",
+    },
+    {
+      id: "past",
+      labelKey: "pastPapers",
+      image: pastPapersImg,
+      route: "PastPaper",
+    },
+  ];
+
+  const H_PAD = 16;
+  const GAP = 12;
+  const MAX_LAYOUT_W = 500;
 
   const layoutWidth =
     Platform.OS === "web" ? Math.min(winWidth, MAX_LAYOUT_W) : winWidth;
@@ -93,7 +95,7 @@ export default function PaperGrid() {
           },
         ]}
       >
-        <Text style={styles.sectionTitle}>Papers</Text>
+        <Text style={styles.sectionTitle}>{t("papers")}</Text>
 
         <View style={styles.grid}>
           {PAPERS.map((item, index) => (
@@ -139,7 +141,7 @@ export default function PaperGrid() {
                 style={[styles.cardLabel, { maxWidth: cardWidth - 20 }]}
                 numberOfLines={2}
               >
-                {item.label}
+                {t(item.labelKey)}
               </Text>
             </TouchableOpacity>
           ))}
@@ -160,7 +162,7 @@ const styles = StyleSheet.create({
 
   inner: {
     width: "100%",
-    paddingHorizontal: H_PAD,
+    paddingHorizontal: 16,
     alignSelf: "center",
   },
 
@@ -182,7 +184,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: GAP,
+    marginBottom: 12,
     overflow: "hidden",
     gap: 8,
     shadowColor: "#000",

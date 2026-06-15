@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useMemo } from "react";
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
+import useT from "../app/i18n/useT";
 
 const { width, height } = Dimensions.get("window");
 
@@ -19,32 +20,28 @@ const clickSound = require("../assets/clip5.mp3");
 const PAPERS = [
   {
     id: "1",
-    title: "Paper - 1",
-    subtitle: "Build your skills step by step!",
+    number: "1",
     icon: "📋",
     iconBg: ["#E8E4FF", "#D4CEFF"],
     starColor: "#8B7CF8",
   },
   {
     id: "2",
-    title: "Paper - 2",
-    subtitle: "Challenge yourself and learn!",
+    number: "2",
     icon: "📚",
     iconBg: ["#FFF3D4", "#FFE8A0"],
     starColor: "#F5A623",
   },
   {
     id: "3",
-    title: "Paper - 3",
-    subtitle: "Think smart, score better!",
+    number: "3",
     icon: "💡",
     iconBg: ["#E8F4FF", "#D0EAFF"],
     starColor: "#5BC8FF",
   },
   {
     id: "4",
-    title: "Paper - 4",
-    subtitle: "You've got this! Keep going!",
+    number: "4",
     icon: "🏆",
     iconBg: ["#FFF0E8", "#FFE0CC"],
     starColor: "#FF6EB4",
@@ -152,7 +149,7 @@ const DecoStar = ({
   );
 };
 
-const PaperCard = ({ item, index, navigation, playClickSound }) => {
+const PaperCard = ({ item, index, navigation, playClickSound, paperLabel, startLabel }) => {
   const slideAnim = useRef(new Animated.Value(40)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const btnScale = useRef(new Animated.Value(1)).current;
@@ -179,7 +176,7 @@ const PaperCard = ({ item, index, navigation, playClickSound }) => {
 
     navigation.navigate("paperpage", {
       paperId: item.id,
-      paperTitle: item.title,
+      paperTitle: `${paperLabel} - ${item.number}`,
     });
   };
 
@@ -203,8 +200,7 @@ const PaperCard = ({ item, index, navigation, playClickSound }) => {
       </LinearGradient>
 
       <View style={styles.cardTextBlock}>
-        <Text style={styles.cardTitle}>{item.title}</Text>
-        <Text style={styles.cardSubtitle}>{item.subtitle}</Text>
+        <Text style={styles.cardTitle}>{`${paperLabel} - ${item.number}`}</Text>
 
         <Animated.View style={{ transform: [{ scale: btnScale }] }}>
           <TouchableOpacity
@@ -230,8 +226,7 @@ const PaperCard = ({ item, index, navigation, playClickSound }) => {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
             >
-              <Text style={styles.startBtnText}>Start</Text>
-              
+              <Text style={styles.startBtnText}>{startLabel}</Text>
             </LinearGradient>
           </TouchableOpacity>
         </Animated.View>
@@ -244,6 +239,7 @@ const PaperCard = ({ item, index, navigation, playClickSound }) => {
 
 export default function DailyQuizzmenu({ navigation }) {
   const soundRef = useRef(null);
+  const { t } = useT();
 
   useEffect(() => {
     const loadSound = async () => {
@@ -314,6 +310,8 @@ export default function DailyQuizzmenu({ navigation }) {
             index={index}
             navigation={navigation}
             playClickSound={playClickSound}
+            paperLabel={t("paper")}
+            startLabel={t("start")}
           />
         ))}
       </ScrollView>
@@ -376,12 +374,6 @@ const styles = StyleSheet.create({
     fontSize: 19,
     fontWeight: "800",
     color: "#1A1A2E",
-    marginBottom: 2,
-  },
-  cardSubtitle: {
-    fontSize: 13,
-    color: "#7E7EA0",
-    lineHeight: 18,
     marginBottom: 10,
   },
   startBtn: {

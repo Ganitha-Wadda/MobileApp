@@ -22,11 +22,13 @@ import {
 } from "../app/features/authApi.js";
 import { setToken } from "../app/features/authSlice.js";
 import { setUser } from "../app/features/userSlice.js";
+import useT from "../app/i18n/useT";
 
 const { width, height } = Dimensions.get("window");
 
 export default function OtpScreen({ navigation }) {
   const dispatch = useDispatch();
+  const { t } = useT();
   const [verifyOtp, { isLoading: isVerifying }] = useVerifySignupOtpMutation();
   const [resendOtp, { isLoading: isResending }] = useResendSignupOtpMutation();
 
@@ -88,13 +90,13 @@ export default function OtpScreen({ navigation }) {
     setSuccess("");
 
     if (!pendingPhone) {
-      setError("Phone number not found. Please sign up again.");
+      setError(t("signupPhoneNotFound"));
       return;
     }
 
     const code = otp.join("");
     if (code.length !== 6) {
-      setError("Please enter a valid 6-digit OTP");
+      setError(t("validOtpRequired"));
       return;
     }
 
@@ -119,7 +121,7 @@ export default function OtpScreen({ navigation }) {
       const message =
         err?.data?.message ||
         err?.message ||
-        "OTP verification failed. Please try again.";
+        t("otpVerificationFailed");
       setError(message);
     }
   };
@@ -129,7 +131,7 @@ export default function OtpScreen({ navigation }) {
     setSuccess("");
 
     if (!pendingPhone) {
-      setError("Phone number not found. Please sign up again.");
+      setError(t("signupPhoneNotFound"));
       return;
     }
 
@@ -138,9 +140,7 @@ export default function OtpScreen({ navigation }) {
         phonenumber: pendingPhone,
       }).unwrap();
 
-      setSuccess(
-        result?.message || "OTP sent successfully. Please check your SMS."
-      );
+      setSuccess(result?.message || t("otpSentSuccessfully"));
       setOtp(Array(6).fill(""));
       refs.current[0]?.focus?.();
       setResendTimer(60); // 60 second cooldown
@@ -148,7 +148,7 @@ export default function OtpScreen({ navigation }) {
       const message =
         err?.data?.message ||
         err?.message ||
-        "Failed to resend OTP. Please try again.";
+        t("failedToSendOtp");
       setError(message);
     }
   };
@@ -205,11 +205,11 @@ export default function OtpScreen({ navigation }) {
         >
           {/* Title */}
           <View style={styles.titleWrapper}>
-            <Text style={styles.title}>
+             <Text style={styles.title}>
               Enter <Text style={styles.highlight}>OTP</Text>
             </Text>
             <Text style={styles.subtitle}>
-              Enter the OTP sent to {pendingPhone}
+              {t("enterOtpSignupSubtitle")} {pendingPhone}
             </Text>
           </View>
 
@@ -263,13 +263,13 @@ export default function OtpScreen({ navigation }) {
             {isVerifying ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.submitText}>Verify OTP</Text>
+              <Text style={styles.submitText}>{t("verifyOtp")}</Text>
             )}
           </TouchableOpacity>
 
           {/* Resend OTP */}
           <View style={styles.resendSection}>
-            <Text style={styles.resendLabel}>Didn't receive code?</Text>
+            <Text style={styles.resendLabel}>{t("didntReceiveCode")}</Text>
             <TouchableOpacity
               onPress={handleResendOtp}
               disabled={resendTimer > 0 || isResending}
@@ -282,10 +282,10 @@ export default function OtpScreen({ navigation }) {
                 ]}
               >
                 {resendTimer > 0
-                  ? `Resend in ${resendTimer}s`
+                  ? `${t("resendIn")} ${resendTimer}s`
                   : isResending
-                  ? "Sending..."
-                  : "Resend OTP"}
+                  ? t("sending")
+                  : t("resendOtp")}
               </Text>
             </TouchableOpacity>
           </View>
@@ -296,7 +296,7 @@ export default function OtpScreen({ navigation }) {
             onPress={handleGoBack}
             activeOpacity={0.8}
           >
-            <Text style={styles.backText}>← Back to Sign Up</Text>
+            <Text style={styles.backText}>{t("backToSignup")}</Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>

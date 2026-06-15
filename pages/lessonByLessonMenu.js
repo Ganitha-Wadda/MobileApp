@@ -20,7 +20,6 @@ const LESSONS = [
   {
     id: "1",
     title: "Chakkre",
-    subtitle: "Build your understanding step by step!",
     emoji: "🎡",
     iconBg: ["#E8E4FF", "#D9D0FF"],
     starColor: "#A78BFA",
@@ -28,7 +27,6 @@ const LESSONS = [
   {
     id: "2",
     title: "Ganaka Ramu",
-    subtitle: "Challenge yourself and learn!",
     emoji: "👦",
     iconBg: ["#FFF3E0", "#FFE0B2"],
     starColor: "#FBBF24",
@@ -36,7 +34,6 @@ const LESSONS = [
   {
     id: "3",
     title: "Muilka Ganitha Sankalapa",
-    subtitle: "Think smart, solve better!",
     emoji: "💡",
     iconBg: ["#FFF8D0", "#FFF3A3"],
     starColor: "#60A5FA",
@@ -44,7 +41,6 @@ const LESSONS = [
   {
     id: "4",
     title: "Walakulu Samklpa",
-    subtitle: "You've got this! Keep going!",
     emoji: "🏆",
     iconBg: ["#E3F2FD", "#CFEAFF"],
     starColor: "#F472B6",

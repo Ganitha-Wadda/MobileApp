@@ -11,51 +11,56 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
 import { useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import useT from "../app/i18n/useT";
 
 const { width } = Dimensions.get("screen");
 
 const BOTTOM_NAV_HEIGHT = 78;
 const clickSound = require("../assets/click1.mp3");
 
-const tabs = [
-  {
-    id: "home",
-    label: "Home",
-    icon: "https://img.icons8.com/ios-filled/50/ffffff/home.png",
-    route: "home",
-  },
-  {
-    id: "shortz",
-    label: "Shortz",
-    icon: "https://img.icons8.com/ios-filled/50/ffffff/play.png",
-    route: "shortz",
-  },
-  {
-    id: "live",
-    label: "Live",
-    icon: "https://img.icons8.com/ios-filled/50/ffffff/video.png",
-    badge: "LIVE",
-    route: "live",
-  },
-  {
-    id: "recordings",
-    label: "Recordings",
-    icon: "https://img.icons8.com/ios-filled/50/ffffff/film-reel.png",
-    route: "recording",
-  },
-  {
-    id: "game",
-    label: "Game",
-    icon: "https://img.icons8.com/ios-filled/50/ffffff/controller.png",
-    route: "game",
-  },
-];
-
 export default function BottomNavigation({ navigation }) {
   const route = useRoute();
   const insets = useSafeAreaInsets();
+  const { t } = useT();
   const [selectedTab, setSelectedTab] = useState("home");
   const soundRef = useRef(null);
+
+  const tabs = useMemo(
+    () => [
+      {
+        id: "home",
+        labelKey: "navHome",
+        icon: "https://img.icons8.com/ios-filled/50/ffffff/home.png",
+        route: "home",
+      },
+      {
+        id: "shortz",
+        labelKey: "navShortz",
+        icon: "https://img.icons8.com/ios-filled/50/ffffff/play.png",
+        route: "shortz",
+      },
+      {
+        id: "live",
+        labelKey: "navLive",
+        icon: "https://img.icons8.com/ios-filled/50/ffffff/video.png",
+        badge: "LIVE",
+        route: "live",
+      },
+      {
+        id: "recordings",
+        labelKey: "navRecordings",
+        icon: "https://img.icons8.com/ios-filled/50/ffffff/film-reel.png",
+        route: "recording",
+      },
+      {
+        id: "game",
+        labelKey: "navGame",
+        icon: "https://img.icons8.com/ios-filled/50/ffffff/controller.png",
+        route: "game",
+      },
+    ],
+    []
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -108,7 +113,7 @@ export default function BottomNavigation({ navigation }) {
     });
 
     return matchedTab ? matchedTab.id : selectedTab;
-  }, [route?.name, selectedTab]);
+  }, [route?.name, selectedTab, tabs]);
 
   const handleTabPress = async (tab) => {
     await playClickSound();
@@ -157,7 +162,7 @@ export default function BottomNavigation({ navigation }) {
             </View>
 
             <Text style={isSelected ? styles.labelSelected : styles.label}>
-              {tab.label}
+              {t(tab.labelKey)}
             </Text>
           </TouchableOpacity>
         );

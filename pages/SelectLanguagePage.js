@@ -1,3 +1,4 @@
+// pages/SelectLanguagePage.js
 import React from "react";
 import {
   View,
@@ -7,12 +8,34 @@ import {
   Dimensions,
   StyleSheet,
   SafeAreaView,
+  ActivityIndicator,
 } from "react-native";
+import { useDispatch } from "react-redux";
 
 import Floating from "./Floating";
+import { setLanguage } from "../app/features/Languageselectionslice";
+import { useUpdateLanguageMutation } from "../app/features/Languageapi";
 
 export default function SelectLanguagePage({ navigation }) {
   const { width, height } = Dimensions.get("screen");
+  const dispatch = useDispatch();
+  const [updateLanguage, { isLoading }] = useUpdateLanguageMutation();
+
+  const handleSelectLanguage = async (lang) => {
+    // 1. Immediately update Redux so the whole app re-renders in the new language
+    dispatch(setLanguage(lang));
+
+    // 2. Persist to backend (fire-and-forget — don't block navigation on failure)
+    try {
+      await updateLanguage(lang).unwrap();
+    } catch (_err) {
+      // Silent — local Redux state already reflects the choice.
+      // On next login, getLanguage will sync from backend.
+    }
+
+    // 3. Navigate to Signup
+    navigation.navigate("Signup");
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -49,31 +72,50 @@ export default function SelectLanguagePage({ navigation }) {
         <TouchableOpacity
           style={styles.languageButton}
           activeOpacity={0.8}
-          onPress={() => navigation.navigate("Signup")}
+          disabled={isLoading}
+          onPress={() => handleSelectLanguage("en")}
         >
           <View style={styles.langCircle}>
             <Text style={styles.langLetter}>A</Text>
           </View>
 
           <Text style={styles.langText}>English</Text>
+
+          {isLoading && (
+            <ActivityIndicator
+              size="small"
+              color="#1B7EEF"
+              style={styles.loader}
+            />
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.languageButton}
           activeOpacity={0.8}
-          onPress={() => navigation.navigate("Signup")}
+          disabled={isLoading}
+          onPress={() => handleSelectLanguage("si")}
         >
           <View style={styles.langCircle}>
             <Text style={styles.langLetter}>අ</Text>
           </View>
 
           <Text style={styles.langText}>සිංහල</Text>
+
+          {isLoading && (
+            <ActivityIndicator
+              size="small"
+              color="#1B7EEF"
+              style={styles.loader}
+            />
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
 }
 
+// ── Styles (design unchanged from original) ────────────────────────────────
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -149,5 +191,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     color: "#1E40AF",
+    flex: 1,
+  },
+
+  loader: {
+    marginLeft: 8,
   },
 });

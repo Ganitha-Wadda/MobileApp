@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
+import useT from "../app/i18n/useT";
 
 const { width, height } = Dimensions.get("window");
 
@@ -20,7 +21,6 @@ const PAPERS = [
   {
     id: "1",
     title: "Paper - 1",
-    subtitle: "Start your journey — first steps!",
     icon: "📄",
     iconBg: ["#E0EEFF", "#C8DEFF"],
     starColor: "#3B82F6",
@@ -30,7 +30,6 @@ const PAPERS = [
   {
     id: "2",
     title: "Paper - 2",
-    subtitle: "Keep going — build momentum!",
     icon: "📑",
     iconBg: ["#E8F5FF", "#C8EAFF"],
     starColor: "#F59E0B",
@@ -40,7 +39,6 @@ const PAPERS = [
   {
     id: "3",
     title: "Paper - 3",
-    subtitle: "Push harder — you are improving!",
     icon: "🗒️",
     iconBg: ["#EEF9FF", "#D0F0FF"],
     starColor: "#06B6D4",
@@ -50,7 +48,6 @@ const PAPERS = [
   {
     id: "4",
     title: "Paper - 4",
-    subtitle: "Halfway there — stay focused!",
     icon: "📝",
     iconBg: ["#F0EEFF", "#DDD5FF"],
     starColor: "#8B5CF6",
@@ -60,7 +57,6 @@ const PAPERS = [
   {
     id: "5",
     title: "Paper - 5",
-    subtitle: "Almost there — final push!",
     icon: "📃",
     iconBg: ["#FFF0E8", "#FFE0CC"],
     starColor: "#F97316",
@@ -70,7 +66,6 @@ const PAPERS = [
   {
     id: "6",
     title: "Paper - 6",
-    subtitle: "Master every question!",
     icon: "🗂️",
     iconBg: ["#F0FFF4", "#CCFCE8"],
     starColor: "#10B981",
@@ -80,7 +75,6 @@ const PAPERS = [
   {
     id: "7",
     title: "Paper - 7",
-    subtitle: "Review, revise, repeat!",
     icon: "📋",
     iconBg: ["#FFF8E0", "#FFEEA0"],
     starColor: "#EAB308",
@@ -90,7 +84,6 @@ const PAPERS = [
   {
     id: "8",
     title: "Paper - 8",
-    subtitle: "Sharpen your exam technique!",
     icon: "📊",
     iconBg: ["#F5E8FF", "#E8D0FF"],
     starColor: "#A855F7",
@@ -214,7 +207,7 @@ const NumberBadge = ({ number, color }) => (
   </View>
 );
 
-const PaperCard = ({ item, index, navigation, playClickSound }) => {
+const PaperCard = ({ item, index, navigation, playClickSound, t }) => {
   const slideAnim = useRef(new Animated.Value(50)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const btnScale = useRef(new Animated.Value(1)).current;
@@ -289,8 +282,6 @@ const PaperCard = ({ item, index, navigation, playClickSound }) => {
             <NumberBadge number={`#${item.id}`} color={item.badgeColor} />
           </View>
 
-          <Text style={styles.cardSubtitle}>{item.subtitle}</Text>
-
           <Animated.View style={{ transform: [{ scale: btnScale }] }}>
             <TouchableOpacity
               activeOpacity={1}
@@ -315,7 +306,7 @@ const PaperCard = ({ item, index, navigation, playClickSound }) => {
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
               >
-                <Text style={styles.startBtnText}>Start</Text>
+                <Text style={styles.startBtnText}>{t("start")}</Text>
               </LinearGradient>
             </TouchableOpacity>
           </Animated.View>
@@ -328,6 +319,7 @@ const PaperCard = ({ item, index, navigation, playClickSound }) => {
 };
 
 export default function FiveHundredPaperMenu({ navigation }) {
+  const { t } = useT();
   const soundRef = useRef(null);
 
   useEffect(() => {
@@ -399,6 +391,7 @@ export default function FiveHundredPaperMenu({ navigation }) {
             index={index}
             navigation={navigation}
             playClickSound={playClickSound}
+            t={t}
           />
         ))}
       </ScrollView>

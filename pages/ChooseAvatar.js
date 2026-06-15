@@ -9,6 +9,7 @@ import {
   StyleSheet,
   FlatList,
 } from "react-native";
+import useT from "../app/i18n/useT";
 
 const { width } = Dimensions.get("screen");
 
@@ -22,6 +23,7 @@ const avatars = [
 ];
 
 export default function ChooseAvatar({ navigation }) {
+  const { t } = useT();
   const [selectedAvatar, setSelectedAvatar] = useState(avatars[0]);
 
   const renderItem = ({ item }) => (
@@ -36,8 +38,8 @@ export default function ChooseAvatar({ navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerText}>Choose Avatar</Text>
-        <Text style={styles.subText}>Pick your favorite character</Text>
+        <Text style={styles.headerText}>{t("chooseAvatar")}</Text>
+        <Text style={styles.subText}>{t("pickFavoriteCharacter")}</Text>
       </View>
 
       <View style={styles.mainAvatarContainer}>
@@ -56,7 +58,7 @@ export default function ChooseAvatar({ navigation }) {
         style={styles.continueButton}
         onPress={() => navigation.navigate("home")}
       >
-        <Text style={styles.continueText}>Continue</Text>
+        <Text style={styles.continueText}>{t("continueButton")}</Text>
       </TouchableOpacity>
     </SafeAreaView>
   );

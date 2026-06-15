@@ -18,11 +18,13 @@ import { useSelector, useDispatch } from "react-redux";
 import Floating from "../pages/Floating.js";
 import { useForgotPasswordResetMutation } from "../app/features/authApi.js";
 import { clearForgotPasswordFlow } from "../app/features/authSlice.js";
+import useT from "../app/i18n/useT";
 
 const { width, height } = Dimensions.get("screen");
 
 export default function ResetPasswordScreen2({ navigation }) {
   const dispatch = useDispatch();
+  const { t } = useT();
   const [resetPassword, { isLoading }] = useForgotPasswordResetMutation();
 
   const forgotPasswordPhone = useSelector(
@@ -41,32 +43,32 @@ export default function ResetPasswordScreen2({ navigation }) {
     setSuccess("");
 
     if (!password) {
-      setError("Password is required");
+      setError(t("passwordRequired"));
       return;
     }
 
     if (password.length < 6) {
-      setError("Password must have at least 6 characters");
+      setError(t("passwordMinLength"));
       return;
     }
 
     if (!confirmPassword) {
-      setError("Confirm password is required");
+      setError(t("confirmPasswordRequired"));
       return;
     }
 
     if (confirmPassword.length < 6) {
-      setError("Confirm password must have at least 6 characters");
+      setError(t("confirmPasswordMinLength"));
       return;
     }
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      setError(t("passwordsMatch"));
       return;
     }
 
     if (!forgotPasswordPhone) {
-      setError("Phone number not found. Please start over.");
+      setError(t("phoneNumberNotFound"));
       return;
     }
 
@@ -93,7 +95,7 @@ export default function ResetPasswordScreen2({ navigation }) {
       const message =
         err?.data?.message ||
         err?.message ||
-        "Failed to reset password. Please try again.";
+        t("resetPasswordFailed");
       setError(message);
     }
   };
@@ -155,7 +157,7 @@ export default function ResetPasswordScreen2({ navigation }) {
               Reset <Text style={styles.highlight}>Password</Text>
             </Text>
             <Text style={styles.subtitle}>
-              Create a new password for your account
+              {t("resetPasswordHeading")}
             </Text>
           </View>
 
@@ -177,7 +179,7 @@ export default function ResetPasswordScreen2({ navigation }) {
           <View style={styles.inputBox}>
             <TextInput
               style={styles.input}
-              placeholder="New Password"
+              placeholder={t("newPassword")}
               placeholderTextColor="#64748B"
               secureTextEntry={!showPassword}
               value={password}
@@ -189,7 +191,7 @@ export default function ResetPasswordScreen2({ navigation }) {
               onPress={() => setShowPassword(!showPassword)}
             >
               <Text style={styles.passwordToggleText}>
-                {showPassword ? "Hide" : "Show"}
+                {showPassword ? t("hide") : t("show")}
               </Text>
             </TouchableOpacity>
           </View>
@@ -198,7 +200,7 @@ export default function ResetPasswordScreen2({ navigation }) {
           <View style={styles.inputBox}>
             <TextInput
               style={styles.input}
-              placeholder="Confirm Password"
+              placeholder={t("confirmNewPassword")}
               placeholderTextColor="#64748B"
               secureTextEntry={!showConfirmPassword}
               value={confirmPassword}
@@ -210,7 +212,7 @@ export default function ResetPasswordScreen2({ navigation }) {
               onPress={() => setShowConfirmPassword(!showConfirmPassword)}
             >
               <Text style={styles.passwordToggleText}>
-                {showConfirmPassword ? "Hide" : "Show"}
+                {showConfirmPassword ? t("hide") : t("show")}
               </Text>
             </TouchableOpacity>
           </View>
@@ -225,7 +227,7 @@ export default function ResetPasswordScreen2({ navigation }) {
             {isLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.submitText}>Reset Password</Text>
+              <Text style={styles.submitText}>{t("resetPasswordTitle")}</Text>
             )}
           </TouchableOpacity>
 
@@ -235,7 +237,7 @@ export default function ResetPasswordScreen2({ navigation }) {
             onPress={handleGoBack}
             activeOpacity={0.8}
           >
-            <Text style={styles.backText}>← Back</Text>
+            <Text style={styles.backText}>{t("back")}</Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>

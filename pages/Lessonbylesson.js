@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
+import useT from "../app/i18n/useT";
 
 const { width, height } = Dimensions.get("window");
 
@@ -234,6 +235,7 @@ const FloatChar = ({ char, color, style, delay = 0, fontSize = 58 }) => {
 };
 
 export default function LessonByLesson({ navigation }) {
+  const { t } = useT();
   const buttonScaleAnim = useRef(new Animated.Value(1)).current;
   const fadeInAnim = useRef(new Animated.Value(0)).current;
   const slideUpAnim = useRef(new Animated.Value(32)).current;
@@ -370,10 +372,8 @@ export default function LessonByLesson({ navigation }) {
           },
         ]}
       >
-        <Text style={styles.titleText}>Lesson by Lesson</Text>
-        <Text style={styles.subtitleText}>
-          Learn step by step with a new{"\n"}lesson challenge every day!
-        </Text>
+        <Text style={styles.titleText}>{t("lessonByLessonTitle")}</Text>
+        <Text style={styles.subtitleText}>{t("lessonByLessonSubtitle")}</Text>
       </Animated.View>
 
       <Animated.View
@@ -397,7 +397,7 @@ export default function LessonByLesson({ navigation }) {
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           >
-            <Text style={styles.startButtonText}>Start</Text>
+            <Text style={styles.startButtonText}>{t("start")}</Text>
           </LinearGradient>
         </TouchableOpacity>
       </Animated.View>

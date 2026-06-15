@@ -1,17 +1,25 @@
+// app/store.js
 import { configureStore, combineReducers } from "@reduxjs/toolkit";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   persistStore,
   persistReducer,
-  FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER,
+  FLUSH,
+  REHYDRATE,
+  PAUSE,
+  PERSIST,
+  PURGE,
+  REGISTER,
   createTransform,
 } from "redux-persist";
 
-import authReducer       from "./authSlice";
-import userReducer       from "./userSlice";
-import { authApi }       from "./authApi";
-import { liveApi }       from "./Liveapi";
-import { enrollmentApi } from "./enrollmentApi";
+import authReducer             from "./authSlice";
+import userReducer             from "./userSlice";
+import languageSelectionReducer from "./Languageselectionslice";
+import { authApi }             from "./authApi";
+import { liveApi }             from "./Liveapi";
+import { enrollmentApi }       from "./enrollmentApi";
+import { languageApi }         from "./Languageapi";
 
 // ── Auth persistence transform (unchanged) ─────────────────────────────────
 const authTransform = createTransform(
@@ -34,21 +42,24 @@ const authTransform = createTransform(
   { whitelist: ["auth"] }
 );
 
-// ── Persist config (unchanged) ─────────────────────────────────────────────
+// ── Persist config ─────────────────────────────────────────────────────────
+// languageSelection is persisted so the chosen language survives app restarts
 const persistConfig = {
   key:        "root",
   storage:    AsyncStorage,
-  whitelist:  ["auth", "user"],   // RTK Query caches intentionally excluded
+  whitelist:  ["auth", "user", "languageSelection"], // ← added languageSelection
   transforms: [authTransform],
 };
 
 // ── Root reducer ───────────────────────────────────────────────────────────
 const rootReducer = combineReducers({
-  auth: authReducer,
-  user: userReducer,
+  auth:              authReducer,
+  user:              userReducer,
+  languageSelection: languageSelectionReducer,          // ← NEW
   [authApi.reducerPath]:       authApi.reducer,
   [liveApi.reducerPath]:       liveApi.reducer,
-  [enrollmentApi.reducerPath]: enrollmentApi.reducer,          // ← NEW
+  [enrollmentApi.reducerPath]: enrollmentApi.reducer,
+  [languageApi.reducerPath]:   languageApi.reducer,     // ← NEW
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
@@ -64,7 +75,8 @@ const store = configureStore({
     })
       .concat(authApi.middleware)
       .concat(liveApi.middleware)
-      .concat(enrollmentApi.middleware),                       // ← NEW
+      .concat(enrollmentApi.middleware)
+      .concat(languageApi.middleware),                  // ← NEW
 });
 
 export const persistor = persistStore(store);

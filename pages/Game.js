@@ -12,31 +12,13 @@ import {
   Animated,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import useT from "../app/i18n/useT";
 
 const { width } = Dimensions.get("window");
 
 // ✅ Local asset images
-const chakkraImage = require("../assets/chakkra.png"); // change later if you have chakkra image
-const bossImage = require("../assets/Boss.png"); // change later if you have boss battle image
-
-const GAMES = [
-  {
-    id: 1,
-    title: "Chakkra\nWadda Racing",
-    desc: "Race, solve and win! Multiply your way to the finish line.",
-    image: chakkraImage,
-    color: "#4FC3F7",
-    route: "ChakkraWaddaRacing",  
-  },
-  {
-    id: 2,
-    title: "Boss\nBattle",
-    desc: "Face the boss, solve math challenges and be the hero!",
-    image: bossImage,
-    color: "#7E57C2",
-    route: "BossBattle",
-  },
-];
+const chakkraImage = require("../assets/chakkra.png");
+const bossImage = require("../assets/Boss.png");
 
 function AnimatedCloud({ style, scale = 1, delay = 0, distance = 18 }) {
   const move = useRef(new Animated.Value(0)).current;
@@ -121,7 +103,7 @@ const Sparkle = ({ style, color = "#A78BFA", size = 14 }) => (
   </Text>
 );
 
-const GameCard = ({ game, onPlay }) => (
+const GameCard = ({ game, onPlay, playButtonText }) => (
   <View style={styles.card}>
     <View style={[styles.cardImageWrap, { backgroundColor: game.color }]}>
       <Image source={game.image} style={styles.cardImage} resizeMode="cover" />
@@ -144,13 +126,34 @@ const GameCard = ({ game, onPlay }) => (
         onPress={() => onPlay(game.route)}
         activeOpacity={0.82}
       >
-        <Text style={styles.playBtnText}>Play </Text>
+        <Text style={styles.playBtnText}>{playButtonText} </Text>
       </TouchableOpacity>
     </View>
   </View>
 );
 
 export default function Game({ navigation }) {
+  const { t } = useT();
+
+  const GAMES = [
+    {
+      id: 1,
+      title: "Chakkra\nWadda Racing",
+      desc: t("chakkraWaddaRacingDesc"),
+      image: chakkraImage,
+      color: "#4FC3F7",
+      route: "ChakkraWaddaRacing",
+    },
+    {
+      id: 2,
+      title: "Boss\nBattle",
+      desc: t("bossBattleDesc"),
+      image: bossImage,
+      color: "#7E57C2",
+      route: "BossBattle",
+    },
+  ];
+
   const handlePlay = (route) => {
     navigation?.navigate?.(route);
   };
@@ -185,14 +188,19 @@ export default function Game({ navigation }) {
           >
             <View style={styles.titleRow}>
               <Text style={{ fontSize: 18, marginRight: 6 }}>⭐</Text>
-              <Text style={styles.sectionTitle}>Games</Text>
+              <Text style={styles.sectionTitle}>{t("navGame")}</Text>
               <Text style={{ fontSize: 16, marginLeft: 6, color: "#A78BFA" }}>
                 ★
               </Text>
             </View>
 
             {GAMES.map((game) => (
-              <GameCard key={game.id} game={game} onPlay={handlePlay} />
+              <GameCard 
+                key={game.id} 
+                game={game} 
+                onPlay={handlePlay}
+                playButtonText={t("play")}
+              />
             ))}
           </ScrollView>
 

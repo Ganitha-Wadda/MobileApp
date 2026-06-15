@@ -8,6 +8,7 @@ import Svg, {
   Rect,
   G,
 } from "react-native-svg";
+import useT from "../app/i18n/useT";
 
 function CoinIcon() {
   const bounce = useRef(new Animated.Value(0)).current;
@@ -325,10 +326,12 @@ function StatCard({ label, value, icon, sparkleColor, delay = 0 }) {
 }
 
 export default function Hero() {
+  const { t } = useT();
+
   return (
     <View style={styles.container}>
       <StatCard
-        label="Coins"
+        label={t("coins")}
         value={20}
         icon={<CoinIcon />}
         sparkleColor="#FFD700"
@@ -336,7 +339,7 @@ export default function Hero() {
       />
 
       <StatCard
-        label="Rank"
+        label={t("rank")}
         value={1}
         icon={<MedalIcon />}
         sparkleColor="#FFB020"
@@ -344,7 +347,7 @@ export default function Hero() {
       />
 
       <StatCard
-        label="Completed Papers"
+        label={t("completedPapers")}
         value={1}
         icon={<PapersIcon />}
         sparkleColor="#B8A0FF"

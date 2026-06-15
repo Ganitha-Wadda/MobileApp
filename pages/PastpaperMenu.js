@@ -10,6 +10,7 @@ import {
   StatusBar,
 } from "react-native";
 import { Audio } from "expo-av";
+import useT from "../app/i18n/useT";
 
 const { width } = Dimensions.get("window");
 
@@ -63,7 +64,7 @@ const Star = ({ color, size }) => (
   <Text style={{ color, fontSize: size, lineHeight: size + 4 }}>✦</Text>
 );
 
-const PastPaperCard = ({ item, onPress }) => (
+const PastPaperCard = ({ item, onPress, startButtonText }) => (
   <View style={styles.card}>
     <View style={styles.iconWrapper}>
       <View style={styles.iconCircle}>
@@ -75,15 +76,13 @@ const PastPaperCard = ({ item, onPress }) => (
 
     <View style={styles.cardContent}>
       <Text style={styles.yearText}>{item.year}</Text>
-      <Text style={styles.subtitleText}>{item.subtitle}</Text>
 
       <TouchableOpacity
         style={styles.startButton}
         onPress={() => onPress(item)}
         activeOpacity={0.85}
       >
-        <Text style={styles.startButtonText}>Start</Text>
-        <Text style={styles.startButtonArrow}> →</Text>
+        <Text style={styles.startButtonText}>{startButtonText}</Text>
       </TouchableOpacity>
     </View>
 
@@ -94,6 +93,7 @@ const PastPaperCard = ({ item, onPress }) => (
 );
 
 export default function PastPaperMenu({ navigation, onSelectYear }) {
+  const { t } = useT();
   const soundRef = useRef(null);
 
   useEffect(() => {
@@ -152,6 +152,7 @@ export default function PastPaperMenu({ navigation, onSelectYear }) {
               key={item.year}
               item={item}
               onPress={handleStart}
+              startButtonText={t("startPaper")}
             />
           ))}
         </ScrollView>

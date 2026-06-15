@@ -20,10 +20,12 @@ import {
   useForgotPasswordVerifyOtpMutation,
   useForgotPasswordResendOtpMutation,
 } from "../app/features/authApi.js";
+import useT from "../app/i18n/useT";
 
 const { width, height } = Dimensions.get("window");
 
 export default function ForgotPasswordOtp({ navigation }) {
+  const { t } = useT();
   const [verifyOtp, { isLoading: isVerifying }] =
     useForgotPasswordVerifyOtpMutation();
   const [resendOtp, { isLoading: isResending }] =
@@ -89,13 +91,13 @@ export default function ForgotPasswordOtp({ navigation }) {
     setSuccess("");
 
     if (!forgotPasswordPhone) {
-      setError("Phone number not found. Please start over.");
+      setError(t("phoneNumberNotFound"));
       return;
     }
 
     const code = otp.join("");
     if (code.length !== 6) {
-      setError("Please enter a valid 6-digit OTP");
+      setError(t("validOtpRequired"));
       return;
     }
 
@@ -117,7 +119,7 @@ export default function ForgotPasswordOtp({ navigation }) {
       const message =
         err?.data?.message ||
         err?.message ||
-        "OTP verification failed. Please try again.";
+        t("otpVerificationFailed");
       setError(message);
     }
   };
@@ -127,7 +129,7 @@ export default function ForgotPasswordOtp({ navigation }) {
     setSuccess("");
 
     if (!forgotPasswordPhone) {
-      setError("Phone number not found. Please start over.");
+      setError(t("phoneNumberNotFound"));
       return;
     }
 
@@ -136,9 +138,7 @@ export default function ForgotPasswordOtp({ navigation }) {
         phonenumber: forgotPasswordPhone,
       }).unwrap();
 
-      setSuccess(
-        result?.message || "OTP sent successfully. Please check your SMS."
-      );
+      setSuccess(result?.message || t("otpSentSuccessfully"));
       setOtp(Array(6).fill(""));
       refs.current[0]?.focus?.();
       setResendTimer(60); // 60 second cooldown
@@ -146,7 +146,7 @@ export default function ForgotPasswordOtp({ navigation }) {
       const message =
         err?.data?.message ||
         err?.message ||
-        "Failed to resend OTP. Please try again.";
+        t("failedToSendOtp");
       setError(message);
     }
   };
@@ -203,11 +203,11 @@ export default function ForgotPasswordOtp({ navigation }) {
         >
           {/* Title */}
           <View style={styles.titleWrapper}>
-            <Text style={styles.title}>
+             <Text style={styles.title}>
               Enter <Text style={styles.highlight}>OTP</Text>
             </Text>
             <Text style={styles.subtitle}>
-              Enter the OTP sent to {forgotPasswordPhone}
+              {t("enterOtpSubtitle")} {forgotPasswordPhone}
             </Text>
           </View>
 
@@ -261,13 +261,13 @@ export default function ForgotPasswordOtp({ navigation }) {
             {isVerifying ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.submitText}>Verify OTP</Text>
+              <Text style={styles.submitText}>{t("verifyOtp")}</Text>
             )}
           </TouchableOpacity>
 
           {/* Resend OTP */}
           <View style={styles.resendSection}>
-            <Text style={styles.resendLabel}>Didn't receive code?</Text>
+            <Text style={styles.resendLabel}>{t("didntReceiveCode")}</Text>
             <TouchableOpacity
               onPress={handleResendOtp}
               disabled={resendTimer > 0 || isResending}
@@ -280,10 +280,10 @@ export default function ForgotPasswordOtp({ navigation }) {
                 ]}
               >
                 {resendTimer > 0
-                  ? `Resend in ${resendTimer}s`
+                  ? `${t("resendIn")} ${resendTimer}s`
                   : isResending
-                  ? "Sending..."
-                  : "Resend OTP"}
+                  ? t("sending")
+                  : t("resendOtp")}
               </Text>
             </TouchableOpacity>
           </View>
@@ -294,7 +294,7 @@ export default function ForgotPasswordOtp({ navigation }) {
             onPress={handleGoBack}
             activeOpacity={0.8}
           >
-            <Text style={styles.backText}>← Back</Text>
+            <Text style={styles.backText}>{t("back")}</Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>

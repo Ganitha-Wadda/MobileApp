@@ -17,11 +17,13 @@ import Floating from "../pages/Floating.js";
 import { useSigninMutation } from "../app/features/authApi";
 import { setToken, setPendingIdentity } from "../app/features/authSlice";
 import { setUser } from "../app/features/userSlice";
+import useT from "../app/i18n/useT";
 
 const { width, height } = Dimensions.get("screen");
 
 export default function SignInScreen({ navigation }) {
   const dispatch = useDispatch();
+  const { t } = useT();
 
   const [signin, { isLoading }] = useSigninMutation();
 
@@ -148,7 +150,7 @@ export default function SignInScreen({ navigation }) {
           </View>
           <TextInput
             style={styles.input}
-            placeholder="Mobile Number"
+            placeholder={t("mobileNumber")}
             placeholderTextColor="#64748B"
             keyboardType="phone-pad"
             value={mobile}
@@ -164,7 +166,7 @@ export default function SignInScreen({ navigation }) {
           </View>
           <TextInput
             style={styles.input}
-            placeholder="Password"
+            placeholder={t("password")}
             placeholderTextColor="#64748B"
             secureTextEntry
             value={password}
@@ -178,7 +180,7 @@ export default function SignInScreen({ navigation }) {
           style={styles.forgotPassword}
           onPress={() => navigation.navigate("ResetPassword1")}
         >
-          <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+          <Text style={styles.forgotPasswordText}>{t("forgotPassword")}</Text>
         </TouchableOpacity>
 
         {/* Submit button */}
@@ -188,17 +190,17 @@ export default function SignInScreen({ navigation }) {
           disabled={isLoading}
         >
           <Text style={styles.submitText}>
-            {isLoading ? "Please wait..." : "Submit"}
+            {isLoading ? t("pleaseWait") : t("submitButton")}
           </Text>
         </TouchableOpacity>
 
         <Text style={styles.signinText}>
-          Don't have an account?{" "}
+          {t("noAccount")}{" "}
           <Text
             style={{ color: "#1B7EEF" }}
             onPress={() => navigation.navigate("Signup")}
           >
-            Sign Up
+            {t("signUpLower")}
           </Text>
         </Text>
       </ScrollView>

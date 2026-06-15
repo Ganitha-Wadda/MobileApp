@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
+import useT from "../app/i18n/useT";
 
 const AVATAR_URL = "https://cdn-icons-png.flaticon.com/512/6997/6997662.png";
 
@@ -72,6 +73,7 @@ function FloatingStar({ style, size = 13 }) {
 export default function AvatarSection({ navigation }) {
   const rotate = useRef(new Animated.Value(0)).current;
   const soundRef = useRef(null);
+  const { t } = useT();
 
   useEffect(() => {
     const rotateLoop = Animated.loop(
@@ -138,9 +140,9 @@ export default function AvatarSection({ navigation }) {
         <FloatingStar style={{ bottom: 10, right: 18 }} size={14} />
 
         <View style={styles.textBlock}>
-          <Text style={styles.title}>My Avatar</Text>
+          <Text style={styles.title}>{t("myAvatar")}</Text>
           <Text style={styles.subtitle}>
-            This is your avatar.{"\n"}Rotate and explore!
+            {t("rotateAndExplore")}
           </Text>
 
           <TouchableOpacity
@@ -148,7 +150,7 @@ export default function AvatarSection({ navigation }) {
             onPress={goToAvatarPage}
             activeOpacity={0.85}
           >
-            <Text style={styles.buttonText}>View →</Text>
+            <Text style={styles.buttonText}>{t("viewAvatar")} </Text>
           </TouchableOpacity>
         </View>
 

@@ -1,3 +1,4 @@
+// pages/SignupScreen.js
 import React, { useEffect, useMemo, useState } from "react";
 import {
   SafeAreaView,
@@ -19,6 +20,7 @@ import { useDispatch } from "react-redux";
 import Floating from "../pages/Floating.js";
 import { useSignupMutation } from "../app/features/authApi.js";
 import { setPendingIdentity } from "../app/features/authSlice.js";
+import useT from "../app/i18n/useT.js";
 
 const { width, height } = Dimensions.get("window");
 
@@ -82,24 +84,18 @@ const MIN_BIRTH_YEAR = 1990;
 const formatPartsToYMD = (year, monthIndex, day) => {
   const month = String(monthIndex + 1).padStart(2, "0");
   const cleanDay = String(day).padStart(2, "0");
-
   return `${year}-${month}-${cleanDay}`;
 };
 
 const parseYMDToDate = (value) => {
   if (!value) return null;
-
   const parts = String(value).split("-");
   if (parts.length !== 3) return null;
-
   const year = Number(parts[0]);
   const month = Number(parts[1]);
   const day = Number(parts[2]);
-
   if (!year || !month || !day) return null;
-
   const date = new Date(year, month - 1, day);
-
   if (
     date.getFullYear() !== year ||
     date.getMonth() !== month - 1 ||
@@ -107,7 +103,6 @@ const parseYMDToDate = (value) => {
   ) {
     return null;
   }
-
   return date;
 };
 
@@ -118,15 +113,14 @@ const getDaysInMonth = (year, monthIndex) => {
 const isFutureDate = (year, monthIndex, day) => {
   const selectedDate = new Date(year, monthIndex, day);
   const today = new Date();
-
   today.setHours(23, 59, 59, 999);
-
   return selectedDate > today;
 };
 
 export default function SignupScreen({ navigation }) {
   const dispatch = useDispatch();
   const [signup, { isLoading }] = useSignupMutation();
+  const { t, sinFont } = useT();
 
   const [form, setForm] = useState({
     name: "",
@@ -142,7 +136,6 @@ export default function SignupScreen({ navigation }) {
 
   const [gender, setGender] = useState(null);
   const [error, setError] = useState("");
-
   const [birthdayVisible, setBirthdayVisible] = useState(false);
   const [dropdownVisible, setDropdownVisible] = useState(null);
 
@@ -153,36 +146,35 @@ export default function SignupScreen({ navigation }) {
   const handleSubmit = async () => {
     setError("");
 
-    if (!form.name.trim()) return setError("Name is required");
-    if (!form.mobile.trim()) return setError("Mobile number is required");
-    if (!form.birthday.trim()) return setError("Birthday is required");
-    if (!form.grade.trim()) return setError("Grade is required");
-    if (!form.batchYear.trim()) return setError("Batch year is required");
-    if (!form.district.trim()) return setError("District is required");
-    if (!form.address.trim()) return setError("Address is required");
-    if (!gender) return setError("Gender is required");
-    if (!form.password) return setError("Password is required");
-    if (!form.confirmPassword) return setError("Confirm password is required");
+    if (!form.name.trim())         return setError(t("errorName"));
+    if (!form.mobile.trim())       return setError(t("errorMobile"));
+    if (!form.birthday.trim())     return setError(t("errorBirthday"));
+    if (!form.grade.trim())        return setError(t("errorGrade"));
+    if (!form.batchYear.trim())    return setError(t("errorBatchYear"));
+    if (!form.district.trim())     return setError(t("errorDistrict"));
+    if (!form.address.trim())      return setError(t("errorAddress"));
+    if (!gender)                   return setError(t("errorGender"));
+    if (!form.password)            return setError(t("errorPassword"));
+    if (!form.confirmPassword)     return setError(t("errorConfirmPassword"));
 
     if (form.password !== form.confirmPassword) {
-      return setError("Passwords do not match");
+      return setError(t("errorPasswordMatch"));
     }
 
     try {
       const result = await signup({
-        name: form.name.trim(),
-        phonenumber: form.mobile.trim(),
-        birthday: form.birthday.trim(),
-        grade: Number(form.grade),
-        batchYear: Number(form.batchYear),
-        district: form.district.trim(),
-        address: form.address.trim(),
-        gender: gender.toLowerCase(),
-        password: form.password,
+        name:            form.name.trim(),
+        phonenumber:     form.mobile.trim(),
+        birthday:        form.birthday.trim(),
+        grade:           Number(form.grade),
+        batchYear:       Number(form.batchYear),
+        district:        form.district.trim(),
+        address:         form.address.trim(),
+        gender:          gender.toLowerCase(),
+        password:        form.password,
         confirmPassword: form.confirmPassword,
       }).unwrap();
 
-      // Store pendingPhone in Redux so OtpScreen can read it
       dispatch(
         setPendingIdentity({
           phone: result?.phonenumber || form.mobile.trim(),
@@ -195,7 +187,6 @@ export default function SignupScreen({ navigation }) {
         err?.data?.message ||
         err?.message ||
         "Signup failed. Please try again.";
-
       setError(message);
     }
   };
@@ -258,91 +249,102 @@ export default function SignupScreen({ navigation }) {
 
             {!!error && (
               <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{error}</Text>
+                <Text style={[styles.errorText, sinFont()]}>{error}</Text>
               </View>
             )}
 
             <InputField
               icon="👤"
-              placeholder="Name"
+              placeholder={t("name")}
               value={form.name}
               onChangeText={(v) => updateField("name", v)}
               autoCapitalize="words"
+              sinFont={sinFont()}
             />
 
             <InputField
               icon="📱"
-              placeholder="Mobile Number (07XXXXXXXX)"
+              placeholder={t("mobile")}
               value={form.mobile}
               onChangeText={(v) => updateField("mobile", v)}
               keyboardType="phone-pad"
+              sinFont={sinFont()}
             />
 
             <SelectField
               icon="🎂"
-              placeholder="Select Birthday"
+              placeholder={t("selectBirthday")}
               value={form.birthday}
               onPress={() => setBirthdayVisible(true)}
+              sinFont={sinFont()}
             />
 
             <SelectField
               icon="🎓"
-              placeholder="Select Grade"
-              value={form.grade ? `Grade ${form.grade}` : ""}
+              placeholder={t("selectGrade")}
+              value={form.grade ? `${t("grade")} ${form.grade}` : ""}
               onPress={() => setDropdownVisible("grade")}
+              sinFont={sinFont()}
             />
 
             <SelectField
               icon="📅"
-              placeholder="Select Batch Year"
+              placeholder={t("selectBatchYear")}
               value={form.batchYear}
               onPress={() => setDropdownVisible("batchYear")}
+              sinFont={sinFont()}
             />
 
             <SelectField
               icon="🏙️"
-              placeholder="Select District"
+              placeholder={t("selectDistrict")}
               value={form.district}
               onPress={() => setDropdownVisible("district")}
+              sinFont={sinFont()}
             />
 
             <InputField
               icon="🏠"
-              placeholder="Address"
+              placeholder={t("address")}
               value={form.address}
               onChangeText={(v) => updateField("address", v)}
               autoCapitalize="sentences"
+              sinFont={sinFont()}
             />
 
             <InputField
               icon="🔒"
-              placeholder="Password"
+              placeholder={t("password")}
               value={form.password}
               onChangeText={(v) => updateField("password", v)}
               secureTextEntry
+              sinFont={sinFont()}
             />
 
             <InputField
               icon="🔐"
-              placeholder="Confirm Password"
+              placeholder={t("confirmPassword")}
               value={form.confirmPassword}
               onChangeText={(v) => updateField("confirmPassword", v)}
               secureTextEntry
+              sinFont={sinFont()}
             />
 
             <View style={styles.genderContainer}>
               <GenderOption
                 icon="👦"
-                label="male"
+                label={t("male")}
                 selected={gender === "male"}
                 onPress={() => setGender("male")}
+                sinFont={sinFont()}
               />
 
               <GenderOption
                 icon="👧"
-                label="female"
+                label={t("female")}
                 selected={gender === "female"}
                 onPress={() => setGender("female")}
+                sinFont={sinFont()}
               />
             </View>
 
@@ -355,17 +357,17 @@ export default function SignupScreen({ navigation }) {
               {isLoading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.submitText}>Submit</Text>
+                <Text style={[styles.submitText, sinFont()]}>{t("submit")}</Text>
               )}
             </TouchableOpacity>
 
             <Text style={styles.signinText}>
-              Already have an account?{" "}
+              <Text style={sinFont()}>{t("alreadyAccount")}</Text>{" "}
               <Text
-                style={styles.signinLink}
+                style={[styles.signinLink, sinFont()]}
                 onPress={() => navigation.navigate("Signin")}
               >
-                Sign In
+                {t("signIn")}
               </Text>
             </Text>
           </View>
@@ -380,11 +382,14 @@ export default function SignupScreen({ navigation }) {
           updateField("birthday", dateValue);
           setBirthdayVisible(false);
         }}
+        t={t}
+        sinFont={sinFont()}
       />
 
+      {/* ── FIX: pass closeLabel={t("close")} so the button is translated ── */}
       <DropdownModal
         visible={dropdownVisible === "grade"}
-        title="Select Grade"
+        title={t("selectGrade")}
         options={GRADE_OPTIONS}
         value={form.grade}
         onClose={() => setDropdownVisible(null)}
@@ -392,12 +397,14 @@ export default function SignupScreen({ navigation }) {
           updateField("grade", value);
           setDropdownVisible(null);
         }}
-        labelPrefix="Grade "
+        labelPrefix={`${t("grade")} `}
+        sinFont={sinFont()}
+        closeLabel={t("close")}
       />
 
       <DropdownModal
         visible={dropdownVisible === "batchYear"}
-        title="Select Batch Year"
+        title={t("selectBatchYear")}
         options={BATCH_YEAR_OPTIONS}
         value={form.batchYear}
         onClose={() => setDropdownVisible(null)}
@@ -405,11 +412,13 @@ export default function SignupScreen({ navigation }) {
           updateField("batchYear", value);
           setDropdownVisible(null);
         }}
+        sinFont={sinFont()}
+        closeLabel={t("close")}
       />
 
       <DropdownModal
         visible={dropdownVisible === "district"}
-        title="Select District"
+        title={t("selectDistrict")}
         options={DISTRICT_OPTIONS}
         value={form.district}
         onClose={() => setDropdownVisible(null)}
@@ -417,10 +426,14 @@ export default function SignupScreen({ navigation }) {
           updateField("district", value);
           setDropdownVisible(null);
         }}
+        sinFont={sinFont()}
+        closeLabel={t("close")}
       />
     </SafeAreaView>
   );
 }
+
+// ── Sub-components ─────────────────────────────────────────────────────────
 
 const InputField = ({
   icon,
@@ -430,6 +443,7 @@ const InputField = ({
   secureTextEntry = false,
   keyboardType = "default",
   autoCapitalize = "none",
+  sinFont = {},
 }) => {
   return (
     <View style={styles.inputBox}>
@@ -438,7 +452,7 @@ const InputField = ({
       </View>
 
       <TextInput
-        style={styles.input}
+        style={[styles.input, sinFont]}
         placeholder={placeholder}
         placeholderTextColor="#64748B"
         value={value}
@@ -451,7 +465,7 @@ const InputField = ({
   );
 };
 
-const SelectField = ({ icon, placeholder, value, onPress }) => {
+const SelectField = ({ icon, placeholder, value, onPress, sinFont = {} }) => {
   return (
     <TouchableOpacity
       style={styles.inputBox}
@@ -463,7 +477,7 @@ const SelectField = ({ icon, placeholder, value, onPress }) => {
       </View>
 
       <Text
-        style={[styles.selectText, !value && styles.placeholderText]}
+        style={[styles.selectText, !value && styles.placeholderText, sinFont]}
         numberOfLines={1}
       >
         {value || placeholder}
@@ -474,7 +488,7 @@ const SelectField = ({ icon, placeholder, value, onPress }) => {
   );
 };
 
-const GenderOption = ({ icon, label, selected, onPress }) => {
+const GenderOption = ({ icon, label, selected, onPress, sinFont = {} }) => {
   return (
     <TouchableOpacity
       style={[styles.genderOption, selected && styles.genderSelected]}
@@ -485,11 +499,12 @@ const GenderOption = ({ icon, label, selected, onPress }) => {
         <Text style={styles.genderIcon}>{icon}</Text>
       </View>
 
-      <Text style={styles.genderLabel}>{label}</Text>
+      <Text style={[styles.genderLabel, sinFont]}>{label}</Text>
     </TouchableOpacity>
   );
 };
 
+// ── FIX: added closeLabel prop (replaces hardcoded "Close") ────────────────
 const DropdownModal = ({
   visible,
   title,
@@ -498,12 +513,14 @@ const DropdownModal = ({
   onClose,
   onSelect,
   labelPrefix = "",
+  sinFont = {},
+  closeLabel = "Close",   // ← NEW: translated close label passed from parent
 }) => {
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.modalOverlay}>
         <View style={styles.dropdownSheet}>
-          <Text style={styles.modalTitle}>{title}</Text>
+          <Text style={[styles.modalTitle, sinFont]}>{title}</Text>
 
           <ScrollView
             style={styles.dropdownList}
@@ -526,6 +543,7 @@ const DropdownModal = ({
                     style={[
                       styles.dropdownItemText,
                       selected && styles.dropdownItemTextSelected,
+                      sinFont,
                     ]}
                   >
                     {labelPrefix}
@@ -543,7 +561,8 @@ const DropdownModal = ({
             onPress={onClose}
             activeOpacity={0.85}
           >
-            <Text style={styles.closeButtonText}>Close</Text>
+            {/* ── FIX: use closeLabel prop instead of hardcoded "Close" ── */}
+            <Text style={[styles.closeButtonText, sinFont]}>{closeLabel}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -551,27 +570,24 @@ const DropdownModal = ({
   );
 };
 
-const BirthdayPickerModal = ({ visible, value, onClose, onConfirm }) => {
+const BirthdayPickerModal = ({ visible, value, onClose, onConfirm, t, sinFont = {} }) => {
   const today = new Date();
   const currentYear = today.getFullYear();
 
   const defaultDate = useMemo(() => {
     const parsed = parseYMDToDate(value);
-
     if (parsed) return parsed;
-
     return new Date(currentYear - 10, 0, 1);
   }, [value, currentYear]);
 
-  const [tempDay, setTempDay] = useState(defaultDate.getDate());
+  const [tempDay, setTempDay]     = useState(defaultDate.getDate());
   const [tempMonth, setTempMonth] = useState(defaultDate.getMonth());
-  const [tempYear, setTempYear] = useState(defaultDate.getFullYear());
+  const [tempYear, setTempYear]   = useState(defaultDate.getFullYear());
 
   useEffect(() => {
     if (visible) {
       const parsed = parseYMDToDate(value);
       const startDate = parsed || new Date(currentYear - 10, 0, 1);
-
       setTempDay(startDate.getDate());
       setTempMonth(startDate.getMonth());
       setTempYear(startDate.getFullYear());
@@ -579,16 +595,14 @@ const BirthdayPickerModal = ({ visible, value, onClose, onConfirm }) => {
   }, [visible, value, currentYear]);
 
   const maxDay = getDaysInMonth(tempYear, tempMonth);
-  const selectedDateValue = formatPartsToYMD(tempYear, tempMonth, tempDay);
+  const selectedDateValue    = formatPartsToYMD(tempYear, tempMonth, tempDay);
   const selectedDateIsFuture = isFutureDate(tempYear, tempMonth, tempDay);
 
   const changeDay = (amount) => {
     setTempDay((prev) => {
       const nextDay = prev + amount;
-
       if (nextDay < 1) return 1;
       if (nextDay > maxDay) return maxDay;
-
       return nextDay;
     });
   };
@@ -596,33 +610,17 @@ const BirthdayPickerModal = ({ visible, value, onClose, onConfirm }) => {
   const changeMonth = (amount) => {
     setTempMonth((prev) => {
       let nextMonth = prev + amount;
-      let nextYear = tempYear;
+      let nextYear  = tempYear;
 
-      if (nextMonth < 0) {
-        nextMonth = 11;
-        nextYear = tempYear - 1;
-      }
+      if (nextMonth < 0)  { nextMonth = 11; nextYear = tempYear - 1; }
+      if (nextMonth > 11) { nextMonth = 0;  nextYear = tempYear + 1; }
 
-      if (nextMonth > 11) {
-        nextMonth = 0;
-        nextYear = tempYear + 1;
-      }
-
-      if (nextYear < MIN_BIRTH_YEAR) {
-        nextYear = MIN_BIRTH_YEAR;
-        nextMonth = 0;
-      }
-
-      if (nextYear > currentYear) {
-        nextYear = currentYear;
-        nextMonth = today.getMonth();
-      }
+      if (nextYear < MIN_BIRTH_YEAR) { nextYear = MIN_BIRTH_YEAR; nextMonth = 0; }
+      if (nextYear > currentYear)    { nextYear = currentYear; nextMonth = today.getMonth(); }
 
       const nextMaxDay = getDaysInMonth(nextYear, nextMonth);
-
       setTempYear(nextYear);
       setTempDay((oldDay) => Math.min(oldDay, nextMaxDay));
-
       return nextMonth;
     });
   };
@@ -630,28 +628,23 @@ const BirthdayPickerModal = ({ visible, value, onClose, onConfirm }) => {
   const changeYear = (amount) => {
     setTempYear((prev) => {
       let nextYear = prev + amount;
-
       if (nextYear < MIN_BIRTH_YEAR) nextYear = MIN_BIRTH_YEAR;
-      if (nextYear > currentYear) nextYear = currentYear;
+      if (nextYear > currentYear)    nextYear = currentYear;
 
       let nextMonth = tempMonth;
-
       if (nextYear === currentYear && nextMonth > today.getMonth()) {
         nextMonth = today.getMonth();
         setTempMonth(nextMonth);
       }
 
       const nextMaxDay = getDaysInMonth(nextYear, nextMonth);
-
       setTempDay((oldDay) => Math.min(oldDay, nextMaxDay));
-
       return nextYear;
     });
   };
 
   const handleConfirm = () => {
     if (selectedDateIsFuture) return;
-
     onConfirm(selectedDateValue);
   };
 
@@ -659,10 +652,10 @@ const BirthdayPickerModal = ({ visible, value, onClose, onConfirm }) => {
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.modalOverlay}>
         <View style={styles.smallBirthdaySheet}>
-          <Text style={styles.modalTitle}>Select Birthday</Text>
+          <Text style={[styles.modalTitle, sinFont]}>{t("selectBirthday")}</Text>
 
           <View style={styles.selectedBirthdayBox}>
-            <Text style={styles.selectedBirthdayLabel}>Birthday</Text>
+            <Text style={[styles.selectedBirthdayLabel, sinFont]}>{t("birthday")}</Text>
 
             <Text
               style={[
@@ -674,8 +667,8 @@ const BirthdayPickerModal = ({ visible, value, onClose, onConfirm }) => {
             </Text>
 
             {selectedDateIsFuture && (
-              <Text style={styles.birthdayWarning}>
-                Birthday cannot be a future date
+              <Text style={[styles.birthdayWarning, sinFont]}>
+                {t("futureDateWarning")}
               </Text>
             )}
           </View>
@@ -713,7 +706,9 @@ const BirthdayPickerModal = ({ visible, value, onClose, onConfirm }) => {
             disabled={selectedDateIsFuture}
             activeOpacity={0.85}
           >
-            <Text style={styles.confirmBirthdayText}>Confirm Birthday</Text>
+            <Text style={[styles.confirmBirthdayText, sinFont]}>
+              {t("confirmBirthday")}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -721,7 +716,7 @@ const BirthdayPickerModal = ({ visible, value, onClose, onConfirm }) => {
             onPress={onClose}
             activeOpacity={0.85}
           >
-            <Text style={styles.closeButtonLightText}>Close</Text>
+            <Text style={[styles.closeButtonLightText, sinFont]}>{t("close")}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -759,6 +754,7 @@ const DatePartStepper = ({ label, value, onMinus, onPlus, wide = false }) => {
   );
 };
 
+// ── Styles (design unchanged from original) ────────────────────────────────
 const styles = StyleSheet.create({
   container: {
     flex: 1,

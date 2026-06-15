@@ -10,6 +10,7 @@ import {
   Animated,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import useT from "../app/i18n/useT";
 
 const { width, height } = Dimensions.get("window");
 
@@ -229,6 +230,8 @@ const AttendanceIllustration = () => {
 };
 
 export default function ParentPage({ navigation }) {
+  const { t } = useT();
+
   return (
     <LinearGradient
       colors={["#FAF9FF", "#F3F0FF", "#ECE8FF"]}
@@ -254,7 +257,7 @@ export default function ParentPage({ navigation }) {
 
           <View style={styles.mainWrapper}>
             <View style={styles.titleArea}>
-              <Text style={styles.pageTitle}>Parent Dashboard</Text>
+              <Text style={styles.pageTitle}>{t("parentDashboard")}</Text>
             </View>
 
             <View style={styles.cardsArea}>
@@ -270,11 +273,11 @@ export default function ParentPage({ navigation }) {
                 <ResultIllustration />
 
                 <View style={styles.cardContent}>
-                  <Text style={styles.cardLabel}>Result</Text>
-                  <Text style={styles.cardSubtitle}>View academic results</Text>
+                  <Text style={styles.cardLabel}>{t("result")}</Text>
+                  <Text style={styles.cardSubtitle}>{t("viewAcademicResults")}</Text>
 
                   <ArrowButton
-                    title="View Result"
+                    title={t("viewResult")}
                     onPress={() => navigation.navigate("result")}
                   />
                 </View>
@@ -292,11 +295,11 @@ export default function ParentPage({ navigation }) {
                 <AttendanceIllustration />
 
                 <View style={styles.cardContent}>
-                  <Text style={styles.cardLabel}>Attendance</Text>
-                  <Text style={styles.cardSubtitle}>Track school attendance</Text>
+                  <Text style={styles.cardLabel}>{t("attendance")}</Text>
+                  <Text style={styles.cardSubtitle}>{t("trackSchoolAttendance")}</Text>
 
                   <ArrowButton
-                    title="View Attendance"
+                    title={t("viewAttendance")}
                     onPress={() => navigation.navigate("attendance")}
                   />
                 </View>

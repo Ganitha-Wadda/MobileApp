@@ -10,6 +10,7 @@ import {
   Animated,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import useT from "../app/i18n/useT";
 
 const { width } = Dimensions.get("window");
 
@@ -98,6 +99,8 @@ function LeafDecor({ side = "left" }) {
 }
 
 export default function ShortzMenu({ navigation }) {
+  const { t } = useT();
+
   const handleViewPress = (lesson) => {
     navigation.navigate("ViewShortLessons", {
       lessonId: lesson.id,
@@ -130,7 +133,7 @@ export default function ShortzMenu({ navigation }) {
           <AnimatedCloud style={{ top: 360, left: "38%" }} scale={0.42} delay={2400} />
 
           <View style={styles.titleRow}>
-            <Text style={styles.title}>10 Min lessons</Text>
+            <Text style={styles.title}>{t("shortLessons")}</Text>
           </View>
 
           <View style={styles.list}>
@@ -147,7 +150,7 @@ export default function ShortzMenu({ navigation }) {
                   style={styles.viewButton}
                   onPress={() => handleViewPress(lesson)}
                 >
-                  <Text style={styles.viewButtonText}>View</Text>
+                  <Text style={styles.viewButtonText}>{t("viewLesson")}</Text>
                 </TouchableOpacity>
               </View>
             ))}
