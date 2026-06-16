@@ -22,6 +22,8 @@ export const authApi = createApi({
     credentials: "include",
   }),
 
+  tagTypes: ["CurrentUser"],
+
   endpoints: (builder) => ({
     signup: builder.mutation({
       query: (body) => ({
@@ -58,6 +60,7 @@ export const authApi = createApi({
         method: "POST",
         body,
       }),
+      invalidatesTags: ["CurrentUser"],
     }),
 
     signout: builder.mutation({
@@ -65,6 +68,19 @@ export const authApi = createApi({
         url: "/logout",
         method: "POST",
       }),
+      invalidatesTags: ["CurrentUser"],
+    }),
+
+    // ── NEW: fetches the currently logged-in user's full profile
+    // (name, phonenumber, populated grade, batchYear, gender, district,
+    // town, address, role, isVerified, isActive, ...) from GET /api/auth/current
+    // using whatever token is in the auth cookie / Authorization header.
+    getCurrentUser: builder.query({
+      query: () => ({
+        url: "/current",
+        method: "GET",
+      }),
+      providesTags: ["CurrentUser"],
     }),
 
     // ============= FORGOT PASSWORD MUTATIONS =============
@@ -119,6 +135,7 @@ export const {
   useResendSignupOtpMutation,
   useSigninMutation,
   useSignoutMutation,
+  useGetCurrentUserQuery,
   useForgotPasswordSendOtpMutation,
   useForgotPasswordVerifyOtpMutation,
   useForgotPasswordResetMutation,

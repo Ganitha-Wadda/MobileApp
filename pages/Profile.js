@@ -8,12 +8,26 @@ import {
   Image,
   StatusBar,
   Animated,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import { useSelector, useDispatch } from "react-redux";
+
+// NOTE: adjust these two import paths so they point to wherever
+// authApi.js and userSlice.js actually live in your project — they
+// are siblings of store.js, so from a screen file they are usually
+// one level up, e.g. "../redux/authApi" / "../redux/userSlice".
+import { useGetCurrentUserQuery } from "../app/features/authApi";
+import { setUser } from "../app/features/userSlice";
 
 const PURPLE = "#6c5ce7";
 const LIGHT_BG = "#f0eeff";
+
+// ── Cartoon child avatar — bright, friendly, school-themed PNG ──
+const AVATAR_URI =
+  "https://cdn-icons-png.flaticon.com/512/4140/4140048.png";
 
 function AnimatedCloud({ style, scale = 1, delay = 0, distance = 18 }) {
   const move = useRef(new Animated.Value(0)).current;
@@ -108,7 +122,47 @@ const ProfileField = ({ icon, label, value }) => (
   </View>
 );
 
+// ── helpers to safely read the logged-in user's fields ──
+const capitalize = (value) =>
+  value ? value.charAt(0).toUpperCase() + value.slice(1) : "";
+
 export default function Profile({ navigation }) {
+  const dispatch = useDispatch();
+
+  // Token + any previously cached user (e.g. set right after signin)
+  const token = useSelector((state) => state.auth?.token);
+  const cachedUser = useSelector((state) => state.user?.user);
+
+  // Always re-fetch the freshest copy of the logged-in user's profile
+  // from the backend (GET /api/auth/current), skipping the call
+  // entirely if there's no token yet (not logged in).
+  const {
+    data,
+    isLoading,
+    isFetching,
+    isError,
+    refetch,
+  } = useGetCurrentUserQuery(undefined, { skip: !token });
+
+  // Keep the redux "user" slice in sync with the latest fetched profile,
+  // so other screens reading state.user.user also stay up to date.
+  useEffect(() => {
+    if (data?.user) {
+      dispatch(setUser(data.user));
+    }
+  }, [data, dispatch]);
+
+  const user = data?.user || cachedUser || null;
+
+  const displayName = user?.name?.trim() || "—";
+  // grade is populated on the backend, so it's a Grade document
+  // ({ _id, gradeId, isActive }) — gradeId is the actual number (3/4/5).
+  const displayGrade = user?.grade?.gradeId ? String(user.grade.gradeId) : "—";
+  const displayDistrict = user?.district || "—";
+  const displayGender = user?.gender ? capitalize(user.gender) : "—";
+
+  const showInitialLoader = isLoading && !user;
+
   return (
     <LinearGradient
       colors={["#FAF9FF", "#F3F0FF", "#ECE8FF"]}
@@ -136,6 +190,15 @@ export default function Profile({ navigation }) {
             style={styles.scrollArea}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={isFetching}
+                onRefresh={() => {
+                  if (token) refetch();
+                }}
+                tintColor={PURPLE}
+              />
+            }
           >
             <View style={styles.avatarCard}>
               <Star size={18} color="#f6c90e" style={{ top: 18, left: 22 }} />
@@ -189,15 +252,10 @@ export default function Profile({ navigation }) {
               </View>
 
               <Image
-                source={{ uri: "https://i.imgur.com/0y8Ftya.png" }}
+                source={{ uri: AVATAR_URI }}
                 style={styles.avatarImage}
                 resizeMode="contain"
               />
-
-              <TouchableOpacity style={styles.viewAvatarBtn} activeOpacity={0.85}>
-                <Text style={styles.viewAvatarIcon}>👤</Text>
-                <Text style={styles.viewAvatarText}>View Avatar</Text>
-              </TouchableOpacity>
             </View>
 
             <View style={styles.profileCard}>
@@ -214,16 +272,31 @@ export default function Profile({ navigation }) {
 
               <View style={styles.divider} />
 
-              <ProfileField icon="👤" label="Name" value="Saman Ekanayake" />
-              <View style={styles.fieldDivider} />
+              {showInitialLoader ? (
+                <View style={styles.loaderWrap}>
+                  <ActivityIndicator size="small" color={PURPLE} />
+                  <Text style={styles.loaderText}>Loading your profile…</Text>
+                </View>
+              ) : (
+                <>
+                  {isError && !user && (
+                    <Text style={styles.errorText}>
+                      Couldn't load your profile. Please sign in again.
+                    </Text>
+                  )}
 
-              <ProfileField icon="🎓" label="Grade" value="3" />
-              <View style={styles.fieldDivider} />
+                  <ProfileField icon="👤" label="Name" value={displayName} />
+                  <View style={styles.fieldDivider} />
 
-              <ProfileField icon="📍" label="District" value="Kandy" />
-              <View style={styles.fieldDivider} />
+                  <ProfileField icon="🎓" label="Grade" value={displayGrade} />
+                  <View style={styles.fieldDivider} />
 
-              <ProfileField icon="👥" label="Gender" value="Male" />
+                  <ProfileField icon="📍" label="District" value={displayDistrict} />
+                  <View style={styles.fieldDivider} />
+
+                  <ProfileField icon="👥" label="Gender" value={displayGender} />
+                </>
+              )}
 
               <TouchableOpacity style={styles.updateBtn} activeOpacity={0.85}>
                 <Text style={styles.updateIcon}>✏️</Text>
@@ -317,9 +390,9 @@ const styles = StyleSheet.create({
   },
 
   avatarImage: {
-    width: 200,
-    height: 200,
-    marginTop: -80,
+    width: 180,
+    height: 180,
+    marginTop: -70,
     zIndex: 2,
   },
 
@@ -407,6 +480,27 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "#eeebff",
     marginBottom: 6,
+  },
+
+  loaderWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 28,
+  },
+
+  loaderText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#888",
+  },
+
+  errorText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#E11D48",
+    marginBottom: 10,
   },
 
   fieldRow: {

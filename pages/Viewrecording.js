@@ -1,263 +1,493 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
-  StyleSheet,
-  TouchableOpacity,
   ScrollView,
+  Dimensions,
   StatusBar,
-  SafeAreaView,
+  Platform,
+  Pressable,
+  Modal,
+  Linking,
+  StyleSheet,
   Animated,
-  Image,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { useIsFocused } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 
-import { useEnrollmentStatus }    from "../app/features/enrollmentApi";
-import { EnrollmentModal }        from "../components/EnrollmentGate";
+import CrossWebView from "../components/CrossWebView";
+import YoutubePlayerBox from "../components/YoutubePlayerBox";
+import useT from "../app/i18n/useT";
 
-const ZOOM_ICON = "https://cdn-icons-png.flaticon.com/512/4401/4401470.png";
-
-// First recording is always the demo — clearly labelled
-const recordings = [
-  { id: "1", title: "Recordings - 1", desc: "Free demo lesson — watch now!", isDemo: true  },
-  { id: "2", title: "Recordings - 2", desc: "This is recording",              isDemo: false },
-  { id: "3", title: "Recordings - 3", desc: "This is recording",              isDemo: false },
-  { id: "4", title: "Recordings - 4", desc: "This is recording",              isDemo: false },
-];
+const { width, height } = Dimensions.get("window");
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Animated decorative cloud (unchanged)
+// Decorative helpers (copied from Live page)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function AnimatedCloud({ style, scale = 1, delay = 0, distance = 18 }) {
-  const move  = useRef(new Animated.Value(0)).current;
-  const float = useRef(new Animated.Value(0)).current;
+const Star = ({ style, size = 18, color = "#FDE68A" }) => {
+  const move = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(move,  { toValue: distance, duration: 2600, delay, useNativeDriver: true }),
-        Animated.timing(move,  { toValue: 0,         duration: 2600,        useNativeDriver: true }),
+        Animated.timing(move, {
+          toValue: -10,
+          duration: 1400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(move, {
+          toValue: 0,
+          duration: 1400,
+          useNativeDriver: true,
+        }),
       ])
     ).start();
-    Animated.loop(
+  }, [move]);
+
+  return (
+    <Animated.Text
+      style={[
+        {
+          fontSize: size,
+          position: "absolute",
+          color,
+          transform: [{ translateY: move }],
+        },
+        style,
+      ]}
+    >
+      ★
+    </Animated.Text>
+  );
+};
+
+const MovingCloud = ({ style, size = 34, delay = 0 }) => {
+  const move = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const anim = Animated.loop(
       Animated.sequence([
-        Animated.timing(float, { toValue: -6, duration: 1800, delay, useNativeDriver: true }),
-        Animated.timing(float, { toValue: 0,  duration: 1800,        useNativeDriver: true }),
+        Animated.timing(move, {
+          toValue: 18,
+          duration: 2300,
+          delay,
+          useNativeDriver: true,
+        }),
+        Animated.timing(move, {
+          toValue: 0,
+          duration: 2300,
+          useNativeDriver: true,
+        }),
       ])
-    ).start();
-  }, [move, float, delay, distance]);
+    );
+
+    anim.start();
+    return () => anim.stop();
+  }, [move, delay]);
 
   return (
-    <Animated.View
+    <Animated.Text
       style={[
-        styles.cloud, style,
-        { transform: [{ translateX: move }, { translateY: float }, { scale }] },
+        styles.cloud,
+        style,
+        {
+          fontSize: size,
+          transform: [{ translateX: move }],
+        },
       ]}
     >
-      <View style={styles.cloudCircle1} />
-      <View style={styles.cloudCircle2} />
-      <View style={styles.cloudCircle3} />
-      <View style={styles.cloudBase}    />
-    </Animated.View>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Leaf decoration (unchanged)
-// ─────────────────────────────────────────────────────────────────────────────
-
-function LeafDecor({ side = "left" }) {
-  return (
-    <View
-      pointerEvents="none"
-      style={[
-        styles.leafWrapper,
-        side === "left" ? styles.leafLeft : styles.leafRight,
-        side === "right" && styles.leafFlip,
-      ]}
-    >
-      <View style={styles.leafMain}   />
-      <View style={styles.leafSecond} />
-      <View style={styles.leafThird}  />
-    </View>
-  );
-}
-
-const ZoomIcon = ({ size = 26 }) => (
-  <Image source={{ uri: ZOOM_ICON }} style={{ width: size, height: size }} resizeMode="contain" />
-);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Recording card
-// ─────────────────────────────────────────────────────────────────────────────
-
-const RecordingCard = ({ item, isApproved, onPress }) => {
-  const locked = !item.isDemo && !isApproved;
-
-  return (
-    <TouchableOpacity
-      style={[styles.card, locked && styles.cardLocked]}
-      onPress={() => onPress(item)}
-      activeOpacity={locked ? 0.7 : 0.85}
-    >
-      {/* Icon box */}
-      <View style={[styles.iconBox, locked && styles.iconBoxLocked]}>
-        {locked ? (
-          <Text style={styles.lockIcon}>🔒</Text>
-        ) : (
-          <ZoomIcon size={28} />
-        )}
-      </View>
-
-      {/* Text */}
-      <View style={styles.textBlock}>
-        <View style={styles.titleRow}>
-          <Text
-            style={[styles.cardTitle, locked && styles.cardTitleLocked]}
-            numberOfLines={1}
-          >
-            {locked ? "Enroll to Access" : item.title}
-          </Text>
-          {item.isDemo && (
-            <View style={styles.demoBadge}>
-              <Text style={styles.demoBadgeText}>FREE DEMO</Text>
-            </View>
-          )}
-        </View>
-        <Text style={[styles.cardDesc, locked && styles.cardDescLocked]} numberOfLines={1}>
-          {locked ? "Approve enrollment to unlock this recording" : item.desc}
-        </Text>
-      </View>
-
-      {/* Action button */}
-      <TouchableOpacity
-        style={[styles.viewBtn, locked && styles.viewBtnLocked]}
-        onPress={() => onPress(item)}
-        activeOpacity={0.85}
-      >
-        <Text style={styles.viewBtnText}>{locked ? "Unlock" : "View"}</Text>
-      </TouchableOpacity>
-    </TouchableOpacity>
+      ☁️
+    </Animated.Text>
   );
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Main screen
+// Unchanged helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function Recording({ navigation }) {
-  const { isApproved } = useEnrollmentStatus();
-  const [modalVisible, setModalVisible] = useState(false);
+function escapeHtml(value = "") {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
 
-  const handlePress = (item) => {
-    if (!item.isDemo && !isApproved) {
-      // Locked — open enrollment modal
-      setModalVisible(true);
-      return;
+function normalizeValue(value = "") {
+  return String(value ?? "").trim();
+}
+
+function pickVideoUrl(params = {}) {
+  const recording = params?.recording ?? params?.raw ?? {};
+
+  return (
+    params?.youtubeUrl ??
+    params?.recordingUrl ??
+    params?.videoUrl ??
+    params?.lessonUrl ??
+    params?.url ??
+    params?.videoId ??
+    recording?.youtubeUrl ??
+    recording?.recordingUrl ??
+    recording?.videoUrl ??
+    recording?.lessonUrl ??
+    recording?.url ??
+    recording?.videoId ??
+    ""
+  );
+}
+
+function pickTitle(params = {}) {
+  const recording = params?.recording ?? params?.raw ?? {};
+
+  return (
+    params?.title ??
+    params?.recordingTitle ??
+    params?.name ??
+    recording?.title ??
+    recording?.recordingTitle ??
+    recording?.name ??
+    "Recording Video"
+  );
+}
+
+function getYouTubeId(url = "") {
+  if (!url) return "";
+
+  const cleanUrl = String(url).trim();
+
+  const shortMatch = cleanUrl.match(/youtu\.be\/([A-Za-z0-9_-]{6,})/);
+  if (shortMatch?.[1]) return shortMatch[1];
+
+  const watchMatch = cleanUrl.match(/[?&]v=([A-Za-z0-9_-]{6,})/);
+  if (watchMatch?.[1]) return watchMatch[1];
+
+  const embedMatch = cleanUrl.match(/youtube\.com\/embed\/([A-Za-z0-9_-]{6,})/);
+  if (embedMatch?.[1]) return embedMatch[1];
+
+  const shortsMatch = cleanUrl.match(/youtube\.com\/shorts\/([A-Za-z0-9_-]{6,})/);
+  if (shortsMatch?.[1]) return shortsMatch[1];
+
+  const plainIdMatch = cleanUrl.match(/^[A-Za-z0-9_-]{6,}$/);
+  if (plainIdMatch) return cleanUrl;
+
+  return "";
+}
+
+function isDirectVideoFile(url = "") {
+  const cleanUrl = String(url || "").trim().toLowerCase();
+
+  return (
+    /\.mp4(\?|#|$)/i.test(cleanUrl) ||
+    /\.m3u8(\?|#|$)/i.test(cleanUrl) ||
+    /\.mov(\?|#|$)/i.test(cleanUrl) ||
+    /\.webm(\?|#|$)/i.test(cleanUrl)
+  );
+}
+
+function getVideoHtml(url = "") {
+  const safeUrl = String(url || "").trim();
+  if (!safeUrl) return "";
+
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <style>
+          html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            overflow: hidden;
+          }
+
+          video {
+            width: 100%;
+            height: 100%;
+            background: #000;
+          }
+        </style>
+      </head>
+
+      <body>
+        <video controls playsinline webkit-playsinline preload="metadata">
+          <source src="${escapeHtml(safeUrl)}" />
+        </video>
+      </body>
+    </html>
+  `;
+}
+
+function getYouTubeEmbedHtml(videoId = "") {
+  if (!videoId) return "";
+
+  const safeVideoId = escapeHtml(videoId);
+
+  const src =
+    `https://www.youtube-nocookie.com/embed/${safeVideoId}` +
+    `?playsinline=1&rel=0&modestbranding=1&controls=1`;
+
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <style>
+          html, body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+          }
+
+          iframe {
+            width: 100%;
+            height: 100%;
+            border: 0;
+          }
+        </style>
+      </head>
+
+      <body>
+        <iframe
+          src="${src}"
+          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+          allowfullscreen
+        ></iframe>
+      </body>
+    </html>
+  `;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main component
+// ─────────────────────────────────────────────────────────────────────────────
+
+export default function Viewrecording({ route }) {
+  const { t, lang } = useT();
+  const isSi = lang === "si";
+  const isFocused = useIsFocused();
+
+  const params = route?.params ?? {};
+
+  const title = normalizeValue(pickTitle(params));
+  const videoUrl = normalizeValue(pickVideoUrl(params));
+
+  const [fullOpen, setFullOpen] = useState(false);
+  const [playerKey, setPlayerKey] = useState(0);
+
+  const youtubeId = useMemo(() => getYouTubeId(videoUrl), [videoUrl]);
+  const isYoutube = !!youtubeId;
+
+  const isDirectFile = useMemo(() => isDirectVideoFile(videoUrl), [videoUrl]);
+
+  const cardWidth = width - 32;
+  const normalHeight = Math.round(cardWidth * 0.56);
+  const fullHeight = Math.round(height * 0.34);
+
+  const playerHtml = useMemo(() => {
+    if (isYoutube) return getYouTubeEmbedHtml(youtubeId);
+    if (isDirectFile) return getVideoHtml(videoUrl);
+    return "";
+  }, [isYoutube, youtubeId, isDirectFile, videoUrl]);
+
+  useEffect(() => {
+    setFullOpen(false);
+    setPlayerKey((prev) => prev + 1);
+  }, [videoUrl]);
+
+  useEffect(() => {
+    if (!isFocused) {
+      setFullOpen(false);
+      setPlayerKey((prev) => prev + 1);
     }
-    // Approved or demo — navigate to recording view
-    navigation.navigate("viewrecording", { recordingId: item.id });
+  }, [isFocused]);
+
+  const handleOpenExternal = async () => {
+    try {
+      if (!videoUrl) return;
+
+      const supported = await Linking.canOpenURL(videoUrl);
+
+      if (supported) {
+        await Linking.openURL(videoUrl);
+      }
+    } catch (error) {
+      console.log("Failed to open recording video url:", error);
+    }
+  };
+
+  const renderPlayer = (playerHeight, mode = "normal") => {
+    const currentPlayerKey = `${mode}-${playerKey}-${videoUrl}`;
+
+    if (!isFocused) {
+      return (
+        <View style={styles.playerFallback}>
+          <Ionicons name="pause-circle-outline" size={22} color="#FFFFFF" />
+          <Text style={styles.fallbackText}>Playback stopped</Text>
+        </View>
+      );
+    }
+
+    if (!videoUrl) {
+      return (
+        <View style={styles.playerFallback}>
+          <Ionicons name="alert-circle-outline" size={22} color="#FFFFFF" />
+          <Text style={styles.fallbackText}>Missing recording video link</Text>
+        </View>
+      );
+    }
+
+    if (isYoutube) {
+      if (Platform.OS === "web") {
+        return (
+          <CrossWebView
+            key={`web-youtube-${currentPlayerKey}`}
+            source={{ html: playerHtml }}
+            style={[styles.webview, { height: playerHeight }]}
+          />
+        );
+      }
+
+      return (
+        <YoutubePlayerBox
+          key={`native-youtube-${currentPlayerKey}`}
+          videoId={youtubeId}
+          height={playerHeight}
+        />
+      );
+    }
+
+    if (isDirectFile) {
+      return (
+        <CrossWebView
+          key={`direct-video-${currentPlayerKey}`}
+          source={{ html: playerHtml }}
+          style={[styles.webview, { height: playerHeight }]}
+        />
+      );
+    }
+
+    return (
+      <View style={styles.playerFallback}>
+        <Ionicons name="alert-circle-outline" size={22} color="#FFFFFF" />
+        <Text style={styles.fallbackText}>This link cannot play inside app</Text>
+
+        <Pressable style={styles.openExternalBtn} onPress={handleOpenExternal}>
+          <Text style={styles.openExternalBtnText}>Open Outside</Text>
+        </Pressable>
+      </View>
+    );
   };
 
   return (
+    // ── Live-page purple gradient background ──────────────────────────────────
     <LinearGradient
-      colors={["#FAF9FF", "#F3F0FF", "#ECE8FF"]}
+      colors={["#EDE9FE", "#DDD6FE", "#C4B5FD"]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
       style={styles.gradient}
     >
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FAF9FF" />
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
 
-        <View style={styles.root}>
-          {/* Sparkles */}
-          <Text style={[styles.sparkSmall, { top: 36, left: "18%" }]}>•</Text>
-          <Text style={[styles.spark,      { top: 34, left: "22%" }]}>✦</Text>
-          <Text style={[styles.spark,      { top: 34, right: "21%" }]}>✦</Text>
-          <Text style={[styles.sparkSmall, { top: 31, right: "16%" }]}>•</Text>
+      {/* Decorative layer (glows + clouds + stars) */}
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <View style={styles.purpleGlowOne} />
+        <View style={styles.purpleGlowTwo} />
 
-          {/* Animated clouds */}
-          <AnimatedCloud style={{ top: 92,     left:  -18 }} scale={0.85} delay={0}    />
-          <AnimatedCloud style={{ top: 145,    right:  20 }} scale={0.65} delay={300}  />
-          <AnimatedCloud style={{ top: 235,    left:   35 }} scale={0.5}  delay={600}  />
-          <AnimatedCloud style={{ top: 315,    right:  -8 }} scale={0.72} delay={900}  />
-          <AnimatedCloud style={{ bottom: 130, left:   32 }} scale={0.78} delay={1200} />
-          <AnimatedCloud style={{ bottom: 105, right:  32 }} scale={0.68} delay={1500} />
-          <AnimatedCloud style={{ bottom: 65,  left:   -8 }} scale={0.5}  delay={1800} />
-          <AnimatedCloud style={{ bottom: 42,  right:  -2 }} scale={0.55} delay={2100} />
+        <MovingCloud style={{ top: 58, left: -12 }} size={38} delay={0} />
+        <MovingCloud style={{ top: 110, right: 20 }} size={32} delay={300} />
+        <MovingCloud style={{ top: 185, left: 35 }} size={28} delay={600} />
+        <MovingCloud style={{ bottom: 185, right: -4 }} size={36} delay={900} />
+        <MovingCloud style={{ bottom: 95, left: 12 }} size={30} delay={1200} />
+        <MovingCloud style={{ bottom: 45, right: 35 }} size={26} delay={1500} />
 
-          {/* Title */}
-          <View style={styles.titleContainer}>
-            <Text style={styles.pageTitle}>Recordings</Text>
-            {/* Enrollment status pill */}
-            {isApproved ? (
-              <View style={styles.statusPill}>
-                <Text style={styles.statusPillText}>✅ Full Access</Text>
-              </View>
-            ) : (
-              <View style={[styles.statusPill, styles.statusPillPending]}>
-                <Text style={[styles.statusPillText, styles.statusPillTextPending]}>
-                  🔒 Demo Mode
-                </Text>
-              </View>
-            )}
+        <Star style={{ top: 42, left: "12%" }} size={23} color="#FDE68A" />
+        <Star style={{ top: 34, right: "14%" }} size={27} color="#A78BFA" />
+        <Star style={{ top: 145, left: "8%" }} size={18} color="#F9A8D4" />
+        <Star style={{ bottom: 130, right: "8%" }} size={22} color="#FDE68A" />
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.centerWrap}>
+          <Text style={styles.titleText} numberOfLines={2}>
+            {title}
+          </Text>
+
+          <View style={[styles.mainCard, { width: cardWidth }]}>
+            <View style={[styles.playerBox, { height: normalHeight }]}>
+              {fullOpen ? (
+                <View style={styles.playerFallback}>
+                  <Ionicons name="expand-outline" size={22} color="#FFFFFF" />
+                  <Text style={styles.fallbackText}>Fullscreen opened</Text>
+                </View>
+              ) : (
+                renderPlayer(normalHeight, "normal")
+              )}
+            </View>
+
+            <View style={styles.actionRow}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.fullBtn,
+                  pressed && styles.fullBtnPressed,
+                ]}
+                onPress={() => {
+                  setPlayerKey((prev) => prev + 1);
+                  setFullOpen(true);
+                }}
+              >
+                <Ionicons name="expand-outline" size={14} color="#FFFFFF" />
+                <Text style={styles.fullBtnText}>View</Text>
+              </Pressable>
+            </View>
+
+            <Text style={[styles.helperText, isSi && styles.helperTextSi]}>
+              {t("tapViewFullScreen") || "Tap View for full screen"}
+            </Text>
+          </View>
+        </View>
+      </ScrollView>
+
+      <Modal visible={fullOpen && isFocused} animationType="fade" transparent={false}>
+        <SafeAreaView style={styles.fullScreenWrap}>
+          <View style={styles.fullHeader}>
+            <Text style={styles.fullHeaderText} numberOfLines={1}>
+              {title}
+            </Text>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.closeBtn,
+                pressed && styles.closeBtnPressed,
+              ]}
+              onPress={() => {
+                setFullOpen(false);
+                setPlayerKey((prev) => prev + 1);
+              }}
+            >
+              <Ionicons name="close" size={22} color="#FFFFFF" />
+            </Pressable>
           </View>
 
-          {/* Cards */}
-          <ScrollView
-            style={styles.scrollArea}
-            contentContainerStyle={styles.container}
-            showsVerticalScrollIndicator={false}
-          >
-            {recordings.map((item) => (
-              <RecordingCard
-                key={item.id}
-                item={item}
-                isApproved={isApproved}
-                onPress={handlePress}
-              />
-            ))}
-
-            {/* Enroll CTA banner (shown when not approved) */}
-            {!isApproved && (
-              <TouchableOpacity
-                style={styles.enrollBanner}
-                onPress={() => setModalVisible(true)}
-                activeOpacity={0.85}
-              >
-                <LinearGradient
-                  colors={["#7C3AED", "#5B21B6"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.enrollBannerInner}
-                >
-                  <Text style={styles.enrollBannerEmoji}>🎓</Text>
-                  <View style={styles.enrollBannerText}>
-                    <Text style={styles.enrollBannerTitle}>Unlock All Recordings</Text>
-                    <Text style={styles.enrollBannerSub}>
-                      Enroll now and get full access once approved.
-                    </Text>
-                  </View>
-                  <Text style={styles.enrollBannerArrow}>›</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            )}
-          </ScrollView>
-
-          {/* Decorative */}
-          <View style={[styles.bgCircle, styles.bgCircleLeft]}  />
-          <View style={[styles.bgCircle, styles.bgCircleRight]} />
-          <Text style={[styles.softDot, { bottom: 38, left: "28%" }]}>✦</Text>
-          <Text style={[styles.softDot, { bottom: 46, right: "17%" }]}>✦</Text>
-          <LeafDecor side="left"  />
-          <LeafDecor side="right" />
-        </View>
-      </SafeAreaView>
-
-      {/* Enrollment Modal — slides up when locked content is tapped */}
-      <EnrollmentModal
-        visible={modalVisible}
-        onClose={() => setModalVisible(false)}
-      />
+          <View style={styles.fullPlayerArea}>
+            <View style={[styles.fullPlayerBox, { height: fullHeight }]}>
+              {renderPlayer(fullHeight, "full")}
+            </View>
+          </View>
+        </SafeAreaView>
+      </Modal>
     </LinearGradient>
   );
 }
@@ -267,223 +497,202 @@ export default function Recording({ navigation }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  gradient:  { flex: 1 },
-  safeArea:  { flex: 1 },
+  // ── Background (from Live page) ───────────────────────────────────────────
+  gradient: { flex: 1 },
 
-  root: {
-    flex: 1,
-    position: "relative",
-    overflow: "hidden",
+  purpleGlowOne: {
+    position: "absolute",
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: "rgba(168,85,247,0.25)",
+    top: -60,
+    right: -60,
+  },
+  purpleGlowTwo: {
+    position: "absolute",
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: "rgba(124,58,237,0.22)",
+    bottom: 40,
+    left: -70,
   },
 
-  titleContainer: {
-    width: "100%",
-    paddingHorizontal: 20,
-    paddingTop: 26,
-    paddingBottom: 14,
+  cloud: { position: "absolute", opacity: 0.52, zIndex: 1 },
+
+  // ── Content (unchanged) ───────────────────────────────────────────────────
+  content: {
+    flexGrow: 1,
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 24,
+  },
+
+  centerWrap: {
     alignItems: "center",
+    justifyContent: "center",
+  },
+
+  titleText: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: "#2E1065",
+    textAlign: "center",
+    marginBottom: 10,
+    width: "100%",
+    lineHeight: 26,
+  },
+
+  mainCard: {
+    backgroundColor: "rgba(255,255,255,0.9)",
+    borderRadius: 20,
+    padding: 12,
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.95)",
+    shadowColor: "#6D28D9",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 6,
     zIndex: 5,
   },
 
-  pageTitle: {
-    fontSize: 26,
-    fontWeight: "900",
-    color: "#07124A",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-
-  statusPill: {
-    backgroundColor: "#D1FAE5",
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 5,
-    borderWidth: 1,
-    borderColor: "rgba(16,185,129,0.3)",
-  },
-  statusPillPending: {
-    backgroundColor: "#EDE9FE",
-    borderColor: "rgba(109,40,217,0.3)",
-  },
-  statusPillText: {
-    fontSize: 11.5,
-    fontWeight: "800",
-    color: "#065F46",
-  },
-  statusPillTextPending: {
-    color: "#6D28D9",
-  },
-
-  scrollArea: { flex: 1, zIndex: 5 },
-
-  container: {
-    paddingHorizontal: 8,
-    paddingTop: 4,
-    paddingBottom: 130,
-  },
-
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.92)",
-    borderRadius: 11,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "#ECE8FF",
-    shadowColor: "#A39BF5",
-    shadowOpacity: 0.18,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
-    elevation: 3,
-  },
-
-  cardLocked: {
-    opacity: 0.72,
-    backgroundColor: "rgba(237,233,254,0.6)",
-    borderColor: "rgba(109,40,217,0.15)",
-  },
-
-  iconBox: {
-    width: 42, height: 42,
-    borderRadius: 12,
-    backgroundColor: "#ECE6FF",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 13,
-  },
-
-  iconBoxLocked: {
-    backgroundColor: "#F5F3FF",
-  },
-
-  lockIcon: { fontSize: 20 },
-
-  textBlock: { flex: 1, paddingRight: 8 },
-
-  titleRow: { flexDirection: "row", alignItems: "center", marginBottom: 3, flexWrap: "wrap" },
-
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: "900",
-    color: "#07124A",
-    marginRight: 6,
-  },
-
-  cardTitleLocked: { color: "#6D28D9" },
-
-  demoBadge: {
-    backgroundColor: "#FEF3C7",
-    borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderWidth: 1,
-    borderColor: "#FCD34D",
-  },
-
-  demoBadgeText: {
-    fontSize: 9,
-    fontWeight: "900",
-    color: "#92400E",
-    letterSpacing: 0.4,
-  },
-
-  cardDesc: {
-    fontSize: 12,
-    color: "#9CA3AF",
-    fontWeight: "600",
-  },
-
-  cardDescLocked: { color: "#A78BFA" },
-
-  viewBtn: {
-    width: 83, height: 36,
-    borderRadius: 12,
-    backgroundColor: "#6547F5",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#6547F5",
-    shadowOpacity: 0.35,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 4,
-  },
-
-  viewBtnLocked: {
-    backgroundColor: "#7C3AED",
-  },
-
-  viewBtnText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "900",
-  },
-
-  // Enroll CTA banner
-  enrollBanner: {
-    borderRadius: 18,
+  playerBox: {
+    width: "100%",
+    borderRadius: 14,
     overflow: "hidden",
-    marginTop: 6,
-    marginBottom: 4,
-    shadowColor: "#5B21B6",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
+    backgroundColor: "#0B1220",
   },
 
-  enrollBannerInner: {
+  webview: {
+    width: "100%",
+    backgroundColor: "#0B1220",
+  },
+
+  playerFallback: {
+    flex: 1,
+    backgroundColor: "#0B1220",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 14,
+  },
+
+  fallbackText: {
+    color: "#FFFFFF",
+    fontWeight: "800",
+    fontSize: 13,
+    textAlign: "center",
+  },
+
+  openExternalBtn: {
+    marginTop: 8,
+    backgroundColor: "#214294",
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
+  },
+
+  openExternalBtnText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+
+  actionRow: {
+    marginTop: 10,
+    alignItems: "flex-end",
+  },
+
+  fullBtn: {
+    height: 34,
+    minWidth: 82,
+    borderRadius: 10,
+    backgroundColor: "#7C3AED",
+    paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 18,
-    borderRadius: 18,
+    justifyContent: "center",
+    marginRight: 14,
+    gap: 6,
   },
 
-  enrollBannerEmoji: { fontSize: 28, marginRight: 14 },
+  fullBtnPressed: {
+    opacity: 0.95,
+    transform: [{ scale: 0.985 }],
+  },
 
-  enrollBannerText: { flex: 1 },
+  fullBtnText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "800",
+  },
 
-  enrollBannerTitle: {
+  helperText: {
+    marginTop: 10,
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#6D28D9",
+    textAlign: "center",
+    lineHeight: 17,
+  },
+
+  helperTextSi: {
+    fontFamily: "AbhayaLibre_700Bold",
+    fontWeight: "normal",
+  },
+
+  fullScreenWrap: {
+    flex: 1,
+    backgroundColor: "#020617",
+  },
+
+  fullHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.08)",
+  },
+
+  fullHeaderText: {
+    color: "#FFFFFF",
     fontSize: 14,
-    fontWeight: "900",
-    color: "#FFFFFF",
-    marginBottom: 3,
+    fontWeight: "800",
+    flex: 1,
+    textAlign: "center",
+    paddingLeft: 38,
+    paddingRight: 10,
   },
 
-  enrollBannerSub: {
-    fontSize: 11.5,
-    color: "rgba(255,255,255,0.82)",
-    fontWeight: "600",
+  closeBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(255,255,255,0.10)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
-  enrollBannerArrow: {
-    color: "#FFFFFF",
-    fontSize: 28,
-    fontWeight: "300",
+  closeBtnPressed: {
+    opacity: 0.9,
   },
 
-  // Sparkles / decoratives
-  spark:      { position: "absolute", fontSize: 15, color: "#FFC84D", fontWeight: "900", zIndex: 2 },
-  sparkSmall: { position: "absolute", fontSize: 18, color: "#B9AFF7", zIndex: 2 },
-  softDot:    { position: "absolute", color: "#D6CDFC", fontSize: 14, zIndex: 2 },
+  fullPlayerArea: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+  },
 
-  cloud: { position: "absolute", width: 58, height: 30, opacity: 0.8, zIndex: 1 },
-  cloudCircle1: { position: "absolute", left: 4,  bottom: 4, width: 20, height: 20, borderRadius: 10, backgroundColor: "#FFFFFF" },
-  cloudCircle2: { position: "absolute", left: 18, bottom: 8, width: 27, height: 27, borderRadius: 14, backgroundColor: "#FFFFFF" },
-  cloudCircle3: { position: "absolute", right: 4, bottom: 4, width: 21, height: 21, borderRadius: 11, backgroundColor: "#FFFFFF" },
-  cloudBase:    { position: "absolute", left: 5, right: 4, bottom: 3, height: 13, borderRadius: 8, backgroundColor: "#FFFFFF" },
-
-  bgCircle:      { position: "absolute", width: 86, height: 86, borderRadius: 43, backgroundColor: "rgba(214,205,252,0.55)", bottom: -20, zIndex: 0 },
-  bgCircleLeft:  { left: 39 },
-  bgCircleRight: { right: 32 },
-
-  leafWrapper: { position: "absolute", bottom: -8, width: 86, height: 95, zIndex: 2 },
-  leafLeft:    { left: -4 },
-  leafRight:   { right: -4 },
-  leafFlip:    { transform: [{ scaleX: -1 }] },
-  leafMain:    { position: "absolute", left: 12, bottom: 0, width: 25, height: 65, backgroundColor: "#9E94F4", borderTopLeftRadius: 30, borderTopRightRadius: 20, borderBottomLeftRadius: 10, borderBottomRightRadius: 35, transform: [{ rotate: "28deg" }] },
-  leafSecond:  { position: "absolute", left: 36, bottom: -4, width: 22, height: 58, backgroundColor: "#B7AFFA", borderTopLeftRadius: 26, borderTopRightRadius: 18, borderBottomLeftRadius: 10, borderBottomRightRadius: 32, transform: [{ rotate: "10deg" }] },
-  leafThird:   { position: "absolute", left: 2, bottom: -5, width: 20, height: 50, backgroundColor: "#8175E8", borderTopLeftRadius: 24, borderTopRightRadius: 15, borderBottomLeftRadius: 8, borderBottomRightRadius: 28, transform: [{ rotate: "50deg" }] },
+  fullPlayerBox: {
+    width: "100%",
+    borderRadius: 16,
+    overflow: "hidden",
+    backgroundColor: "#000000",
+  },
 });

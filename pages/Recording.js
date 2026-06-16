@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -12,39 +12,156 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
-import { useEnrollmentStatus }    from "../app/features/enrollmentApi.js";
-import { EnrollmentModal }        from "../components/EnrollmentGate";
-import useT                       from "../app/i18n/useT";
+import { useEnrollmentStatus } from "../app/features/enrollmentApi";
+import {
+  useGetMyRecordingsQuery,
+  useGetDemoRecordingsQuery,
+} from "../app/features/recordingApi";
+import { EnrollmentModal } from "../components/EnrollmentGate";
 
 const ZOOM_ICON = "https://cdn-icons-png.flaticon.com/512/4401/4401470.png";
 
-// First recording is always the demo — clearly labelled
-const recordings = [
-  { id: "1", title: "Recordings - 1", desc: "freeDemoLesson", isDemo: true  },
-  { id: "2", title: "Recordings - 2", desc: "thisIsRecording", isDemo: false },
-  { id: "3", title: "Recordings - 3", desc: "thisIsRecording", isDemo: false },
-  { id: "4", title: "Recordings - 4", desc: "thisIsRecording", isDemo: false },
+// Shown only when user is not approved. Demo lessons stay open; these are locked previews.
+const lockedPreviewRecordings = [
+  { id: "locked-1", title: "Recordings - 1", desc: "This is recording", isLocked: true },
+  { id: "locked-2", title: "Recordings - 2", desc: "This is recording", isLocked: true },
+  { id: "locked-3", title: "Recordings - 3", desc: "This is recording", isLocked: true },
+  { id: "locked-4", title: "Recordings - 4", desc: "This is recording", isLocked: true },
 ];
 
+const getRecordingVideoUrl = (recording) =>
+  recording?.youtubeUrl ??
+  recording?.recordingUrl ??
+  recording?.videoUrl ??
+  recording?.lessonUrl ??
+  recording?.url ??
+  recording?.raw?.youtubeUrl ??
+  recording?.raw?.recordingUrl ??
+  recording?.raw?.videoUrl ??
+  recording?.raw?.lessonUrl ??
+  recording?.raw?.url ??
+  "";
+
+const isDemoRecording = (recording) => {
+  const raw = recording?.raw || recording || {};
+  const title = String(raw?.title ?? recording?.title ?? "").toLowerCase();
+  const typeText = String(
+    raw?.type ?? raw?.lessonType ?? raw?.accessType ?? raw?.category ?? ""
+  ).toLowerCase();
+
+  return Boolean(
+    recording?.isDemo ||
+      raw?.isDemo ||
+      raw?.demo ||
+      raw?.isFree ||
+      raw?.free ||
+      title.includes("demo") ||
+      title.includes("free") ||
+      typeText.includes("demo") ||
+      typeText.includes("free")
+  );
+};
+
+const formatRecordingDesc = (recording) => {
+  const classInfo = recording?.classId || recording?.raw?.classId || {};
+
+  const grade =
+    classInfo?.grade?.gradeId ??
+    classInfo?.grade?.grade ??
+    classInfo?.gradeId ??
+    classInfo?.grade;
+
+  const batch =
+    classInfo?.batchnumber ??
+    classInfo?.batchNumber ??
+    classInfo?.batchNo ??
+    classInfo?.batch ??
+    classInfo?.batch_number ??
+    "";
+
+  const teacherName = classInfo?.teacherName;
+
+  const parts = [];
+
+  if (grade) parts.push(`Grade ${grade}`);
+  if (batch) parts.push(String(batch));
+  if (teacherName) parts.push(String(teacherName));
+
+  if (parts.length > 0) return parts.join(" • ");
+
+  if (recording?.date || recording?.raw?.date) {
+    try {
+      return new Date(recording?.date || recording?.raw?.date).toLocaleDateString();
+    } catch {
+      return "This is recording";
+    }
+  }
+
+  return "This is recording";
+};
+
+const normalizeRecordingList = (payload) => {
+  const list =
+    payload?.recordings ??
+    payload?.data?.recordings ??
+    payload?.data ??
+    [];
+
+  if (!Array.isArray(list)) return [];
+
+  return list.map((recording, index) => {
+    const item = {
+      id: recording?._id || recording?.id || `recording-${index + 1}`,
+      title: recording?.title || `Recordings - ${index + 1}`,
+      desc: formatRecordingDesc(recording),
+      youtubeUrl: getRecordingVideoUrl(recording),
+      videoUrl: getRecordingVideoUrl(recording),
+      isDemo: Boolean(recording?.isDemo || isDemoRecording(recording)),
+      raw: recording,
+    };
+
+    return item;
+  });
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Animated decorative cloud (unchanged)
+// Animated decorative cloud unchanged
 // ─────────────────────────────────────────────────────────────────────────────
 
 function AnimatedCloud({ style, scale = 1, delay = 0, distance = 18 }) {
-  const move  = useRef(new Animated.Value(0)).current;
+  const move = useRef(new Animated.Value(0)).current;
   const float = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(move,  { toValue: distance, duration: 2600, delay, useNativeDriver: true }),
-        Animated.timing(move,  { toValue: 0,         duration: 2600,        useNativeDriver: true }),
+        Animated.timing(move, {
+          toValue: distance,
+          duration: 2600,
+          delay,
+          useNativeDriver: true,
+        }),
+        Animated.timing(move, {
+          toValue: 0,
+          duration: 2600,
+          useNativeDriver: true,
+        }),
       ])
     ).start();
+
     Animated.loop(
       Animated.sequence([
-        Animated.timing(float, { toValue: -6, duration: 1800, delay, useNativeDriver: true }),
-        Animated.timing(float, { toValue: 0,  duration: 1800,        useNativeDriver: true }),
+        Animated.timing(float, {
+          toValue: -6,
+          duration: 1800,
+          delay,
+          useNativeDriver: true,
+        }),
+        Animated.timing(float, {
+          toValue: 0,
+          duration: 1800,
+          useNativeDriver: true,
+        }),
       ])
     ).start();
   }, [move, float, delay, distance]);
@@ -52,20 +169,23 @@ function AnimatedCloud({ style, scale = 1, delay = 0, distance = 18 }) {
   return (
     <Animated.View
       style={[
-        styles.cloud, style,
-        { transform: [{ translateX: move }, { translateY: float }, { scale }] },
+        styles.cloud,
+        style,
+        {
+          transform: [{ translateX: move }, { translateY: float }, { scale }],
+        },
       ]}
     >
       <View style={styles.cloudCircle1} />
       <View style={styles.cloudCircle2} />
       <View style={styles.cloudCircle3} />
-      <View style={styles.cloudBase}    />
+      <View style={styles.cloudBase} />
     </Animated.View>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Leaf decoration (unchanged)
+// Leaf decoration unchanged
 // ─────────────────────────────────────────────────────────────────────────────
 
 function LeafDecor({ side = "left" }) {
@@ -78,23 +198,27 @@ function LeafDecor({ side = "left" }) {
         side === "right" && styles.leafFlip,
       ]}
     >
-      <View style={styles.leafMain}   />
+      <View style={styles.leafMain} />
       <View style={styles.leafSecond} />
-      <View style={styles.leafThird}  />
+      <View style={styles.leafThird} />
     </View>
   );
 }
 
 const ZoomIcon = ({ size = 26 }) => (
-  <Image source={{ uri: ZOOM_ICON }} style={{ width: size, height: size }} resizeMode="contain" />
+  <Image
+    source={{ uri: ZOOM_ICON }}
+    style={{ width: size, height: size }}
+    resizeMode="contain"
+  />
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Recording card
 // ─────────────────────────────────────────────────────────────────────────────
 
-const RecordingCard = ({ item, isApproved, onPress, t }) => {
-  const locked = !item.isDemo && !isApproved;
+const RecordingCard = ({ item, isApproved, onPress }) => {
+  const locked = !isApproved && !item?.isDemo;
 
   return (
     <TouchableOpacity
@@ -118,16 +242,19 @@ const RecordingCard = ({ item, isApproved, onPress, t }) => {
             style={[styles.cardTitle, locked && styles.cardTitleLocked]}
             numberOfLines={1}
           >
-            {locked ? t("enrollToAccess") : item.title}
+            {locked ? "Enroll to Access" : item.title}
           </Text>
-          {item.isDemo && (
-            <View style={styles.demoBadge}>
-              <Text style={styles.demoBadgeText}>FREE DEMO</Text>
-            </View>
-          )}
         </View>
-        <Text style={[styles.cardDesc, locked && styles.cardDescLocked]} numberOfLines={1}>
-          {locked ? t("approveEnrollmentToUnlock") : t(item.desc)}
+
+        <Text
+          style={[styles.cardDesc, locked && styles.cardDescLocked]}
+          numberOfLines={1}
+        >
+          {locked
+            ? "Approve enrollment to unlock this recording"
+            : item?.isDemo && !isApproved
+              ? "Free demo lesson — watch now!"
+              : item.desc}
         </Text>
       </View>
 
@@ -137,7 +264,7 @@ const RecordingCard = ({ item, isApproved, onPress, t }) => {
         onPress={() => onPress(item)}
         activeOpacity={0.85}
       >
-        <Text style={styles.viewBtnText}>{locked ? t("unlock") : t("view")}</Text>
+        <Text style={styles.viewBtnText}>{locked ? "Unlock" : "View"}</Text>
       </TouchableOpacity>
     </TouchableOpacity>
   );
@@ -148,19 +275,93 @@ const RecordingCard = ({ item, isApproved, onPress, t }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function Recording({ navigation }) {
-  const { t } = useT();
-  const { isApproved } = useEnrollmentStatus();
+  const {
+    isApproved,
+    canAccessRecording,
+  } = useEnrollmentStatus();
+
   const [modalVisible, setModalVisible] = useState(false);
 
+  // Approved users: backend reads approved grade + batch from enrollment using token.
+  // Do not require frontend grade/batch to start this query.
+  const canLoadRecordings = Boolean(isApproved || canAccessRecording);
+
+  const {
+    data: recordingsData,
+    isLoading,
+    isFetching,
+    error,
+    refetch,
+  } = useGetMyRecordingsQuery(undefined, {
+    skip: !canLoadRecordings,
+    refetchOnMountOrArgChange: true,
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
+  });
+
+  // Not-approved users: load only demo lesson; do not open EnrollmentGate for demo.
+  const {
+    data: demoRecordingsData,
+    isLoading: isDemoLoading,
+    isFetching: isDemoFetching,
+  } = useGetDemoRecordingsQuery(undefined, {
+    skip: canLoadRecordings,
+    refetchOnMountOrArgChange: true,
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
+  });
+
+  const backendRecordings = useMemo(
+    () => normalizeRecordingList(recordingsData),
+    [recordingsData]
+  );
+
+  const demoRecordings = useMemo(() => {
+    const list = normalizeRecordingList(demoRecordingsData).map((item) => ({
+      ...item,
+      isDemo: true,
+    }));
+
+    return list.slice(0, 1);
+  }, [demoRecordingsData]);
+
+  const displayRecordings = useMemo(() => {
+    if (canLoadRecordings) return backendRecordings;
+
+    const lockedCards = lockedPreviewRecordings.map((item, index) => ({
+      ...item,
+      id: demoRecordings.length > 0 ? `locked-${index + 1}` : item.id,
+    }));
+
+    return [...demoRecordings, ...lockedCards];
+  }, [canLoadRecordings, backendRecordings, demoRecordings]);
+
   const handlePress = (item) => {
-    if (!item.isDemo && !isApproved) {
-      // Locked — open enrollment modal
+    const locked = !canLoadRecordings && !item?.isDemo;
+
+    if (locked) {
       setModalVisible(true);
       return;
     }
-    // Approved or demo — navigate to recording view
-    navigation.navigate("viewrecording", { recordingId: item.id });
+
+    const selectedVideoUrl = getRecordingVideoUrl(item);
+
+    navigation.navigate("viewrecording", {
+      recordingId: item.id,
+      title: item.title,
+      recordingTitle: item.title,
+      youtubeUrl: selectedVideoUrl,
+      videoUrl: selectedVideoUrl,
+      isDemo: Boolean(item?.isDemo),
+      recording: item.raw || item,
+    });
   };
+
+  const showLoading = canLoadRecordings && (isLoading || isFetching);
+  const showDemoLoading = !canLoadRecordings && (isDemoLoading || isDemoFetching);
+  const showError = canLoadRecordings && !!error;
+  const showEmpty =
+    canLoadRecordings && !isLoading && !isFetching && backendRecordings.length === 0;
 
   return (
     <LinearGradient
@@ -173,32 +374,34 @@ export default function Recording({ navigation }) {
         <View style={styles.root}>
           {/* Sparkles */}
           <Text style={[styles.sparkSmall, { top: 36, left: "18%" }]}>•</Text>
-          <Text style={[styles.spark,      { top: 34, left: "22%" }]}>✦</Text>
-          <Text style={[styles.spark,      { top: 34, right: "21%" }]}>✦</Text>
+          <Text style={[styles.spark, { top: 34, left: "22%" }]}>✦</Text>
+          <Text style={[styles.spark, { top: 34, right: "21%" }]}>✦</Text>
           <Text style={[styles.sparkSmall, { top: 31, right: "16%" }]}>•</Text>
 
           {/* Animated clouds */}
-          <AnimatedCloud style={{ top: 92,     left:  -18 }} scale={0.85} delay={0}    />
-          <AnimatedCloud style={{ top: 145,    right:  20 }} scale={0.65} delay={300}  />
-          <AnimatedCloud style={{ top: 235,    left:   35 }} scale={0.5}  delay={600}  />
-          <AnimatedCloud style={{ top: 315,    right:  -8 }} scale={0.72} delay={900}  />
-          <AnimatedCloud style={{ bottom: 130, left:   32 }} scale={0.78} delay={1200} />
-          <AnimatedCloud style={{ bottom: 105, right:  32 }} scale={0.68} delay={1500} />
-          <AnimatedCloud style={{ bottom: 65,  left:   -8 }} scale={0.5}  delay={1800} />
-          <AnimatedCloud style={{ bottom: 42,  right:  -2 }} scale={0.55} delay={2100} />
+          <AnimatedCloud style={{ top: 92, left: -18 }} scale={0.85} delay={0} />
+          <AnimatedCloud style={{ top: 145, right: 20 }} scale={0.65} delay={300} />
+          <AnimatedCloud style={{ top: 235, left: 35 }} scale={0.5} delay={600} />
+          <AnimatedCloud style={{ top: 315, right: -8 }} scale={0.72} delay={900} />
+          <AnimatedCloud style={{ bottom: 130, left: 32 }} scale={0.78} delay={1200} />
+          <AnimatedCloud style={{ bottom: 105, right: 32 }} scale={0.68} delay={1500} />
+          <AnimatedCloud style={{ bottom: 65, left: -8 }} scale={0.5} delay={1800} />
+          <AnimatedCloud style={{ bottom: 42, right: -2 }} scale={0.55} delay={2100} />
 
           {/* Title */}
           <View style={styles.titleContainer}>
-            <Text style={styles.pageTitle}>{t("navRecordings")}</Text>
-            {/* Enrollment status pill */}
-            {isApproved ? (
+            <Text style={styles.pageTitle}>Recordings</Text>
+
+            {canLoadRecordings ? (
               <View style={styles.statusPill}>
-                <Text style={styles.statusPillText}>✅ {t("fullAccess")}</Text>
+                <Text style={styles.statusPillText}>✅ Full Access</Text>
               </View>
             ) : (
               <View style={[styles.statusPill, styles.statusPillPending]}>
-                <Text style={[styles.statusPillText, styles.statusPillTextPending]}>
-                  🔒 {t("demoMode")}
+                <Text
+                  style={[styles.statusPillText, styles.statusPillTextPending]}
+                >
+                  🔒 Demo Mode
                 </Text>
               </View>
             )}
@@ -210,18 +413,45 @@ export default function Recording({ navigation }) {
             contentContainerStyle={styles.container}
             showsVerticalScrollIndicator={false}
           >
-            {recordings.map((item) => (
+            {showLoading && (
+              <Text style={styles.infoText}>Loading recordings...</Text>
+            )}
+
+            {showDemoLoading && (
+              <Text style={styles.infoText}>Loading demo lesson...</Text>
+            )}
+
+            {showError && (
+              <TouchableOpacity
+                style={styles.infoBox}
+                onPress={refetch}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.infoTitle}>Could not load recordings</Text>
+                <Text style={styles.infoSub}>Tap here to try again</Text>
+              </TouchableOpacity>
+            )}
+
+            {displayRecordings.map((item) => (
               <RecordingCard
                 key={item.id}
                 item={item}
-                isApproved={isApproved}
+                isApproved={canLoadRecordings}
                 onPress={handlePress}
-                t={t}
               />
             ))}
 
-            {/* Enroll CTA banner (shown when not approved) */}
-            {!isApproved && (
+            {showEmpty && (
+              <View style={styles.infoBox}>
+                <Text style={styles.infoTitle}>No recordings available yet</Text>
+                <Text style={styles.infoSub}>
+                  Your approved grade and batch have no uploaded recordings.
+                </Text>
+              </View>
+            )}
+
+            {/* Enroll CTA banner shown when not approved */}
+            {!canLoadRecordings && (
               <TouchableOpacity
                 style={styles.enrollBanner}
                 onPress={() => setModalVisible(true)}
@@ -234,12 +464,16 @@ export default function Recording({ navigation }) {
                   style={styles.enrollBannerInner}
                 >
                   <Text style={styles.enrollBannerEmoji}>🎓</Text>
+
                   <View style={styles.enrollBannerText}>
-                    <Text style={styles.enrollBannerTitle}>{t("unlockAllRecordings")}</Text>
+                    <Text style={styles.enrollBannerTitle}>
+                      Unlock All Recordings
+                    </Text>
                     <Text style={styles.enrollBannerSub}>
-                      {t("enrollNowAndGetFullAccess")}
+                      Enroll now and get full access once approved.
                     </Text>
                   </View>
+
                   <Text style={styles.enrollBannerArrow}>›</Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -247,16 +481,15 @@ export default function Recording({ navigation }) {
           </ScrollView>
 
           {/* Decorative */}
-          <View style={[styles.bgCircle, styles.bgCircleLeft]}  />
+          <View style={[styles.bgCircle, styles.bgCircleLeft]} />
           <View style={[styles.bgCircle, styles.bgCircleRight]} />
           <Text style={[styles.softDot, { bottom: 38, left: "28%" }]}>✦</Text>
           <Text style={[styles.softDot, { bottom: 46, right: "17%" }]}>✦</Text>
-          <LeafDecor side="left"  />
+          <LeafDecor side="left" />
           <LeafDecor side="right" />
         </View>
       </SafeAreaView>
 
-      {/* Enrollment Modal — slides up when locked content is tapped */}
       <EnrollmentModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
@@ -266,12 +499,12 @@ export default function Recording({ navigation }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Styles
+// Styles — unchanged
 // ─────────────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  gradient:  { flex: 1 },
-  safeArea:  { flex: 1 },
+  gradient: { flex: 1 },
+  safeArea: { flex: 1 },
 
   root: {
     flex: 1,
@@ -304,15 +537,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(16,185,129,0.3)",
   },
+
   statusPillPending: {
     backgroundColor: "#EDE9FE",
     borderColor: "rgba(109,40,217,0.3)",
   },
+
   statusPillText: {
     fontSize: 11.5,
     fontWeight: "800",
     color: "#065F46",
   },
+
   statusPillTextPending: {
     color: "#6D28D9",
   },
@@ -349,7 +585,8 @@ const styles = StyleSheet.create({
   },
 
   iconBox: {
-    width: 42, height: 42,
+    width: 42,
+    height: 42,
     borderRadius: 12,
     backgroundColor: "#ECE6FF",
     alignItems: "center",
@@ -365,7 +602,12 @@ const styles = StyleSheet.create({
 
   textBlock: { flex: 1, paddingRight: 8 },
 
-  titleRow: { flexDirection: "row", alignItems: "center", marginBottom: 3, flexWrap: "wrap" },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 3,
+    flexWrap: "wrap",
+  },
 
   cardTitle: {
     fontSize: 15,
@@ -376,22 +618,6 @@ const styles = StyleSheet.create({
 
   cardTitleLocked: { color: "#6D28D9" },
 
-  demoBadge: {
-    backgroundColor: "#FEF3C7",
-    borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderWidth: 1,
-    borderColor: "#FCD34D",
-  },
-
-  demoBadgeText: {
-    fontSize: 9,
-    fontWeight: "900",
-    color: "#92400E",
-    letterSpacing: 0.4,
-  },
-
   cardDesc: {
     fontSize: 12,
     color: "#9CA3AF",
@@ -401,7 +627,8 @@ const styles = StyleSheet.create({
   cardDescLocked: { color: "#A78BFA" },
 
   viewBtn: {
-    width: 83, height: 36,
+    width: 83,
+    height: 36,
     borderRadius: 12,
     backgroundColor: "#6547F5",
     alignItems: "center",
@@ -423,7 +650,39 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
 
-  // Enroll CTA banner
+  infoText: {
+    textAlign: "center",
+    color: "#6D28D9",
+    fontSize: 13,
+    fontWeight: "800",
+    marginBottom: 10,
+  },
+
+  infoBox: {
+    backgroundColor: "rgba(255,255,255,0.88)",
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#ECE8FF",
+  },
+
+  infoTitle: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: "#07124A",
+    textAlign: "center",
+    marginBottom: 4,
+  },
+
+  infoSub: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#9CA3AF",
+    textAlign: "center",
+  },
+
   enrollBanner: {
     borderRadius: 18,
     overflow: "hidden",
@@ -467,26 +726,143 @@ const styles = StyleSheet.create({
     fontWeight: "300",
   },
 
-  // Sparkles / decoratives
-  spark:      { position: "absolute", fontSize: 15, color: "#FFC84D", fontWeight: "900", zIndex: 2 },
-  sparkSmall: { position: "absolute", fontSize: 18, color: "#B9AFF7", zIndex: 2 },
-  softDot:    { position: "absolute", color: "#D6CDFC", fontSize: 14, zIndex: 2 },
+  spark: {
+    position: "absolute",
+    fontSize: 15,
+    color: "#FFC84D",
+    fontWeight: "900",
+    zIndex: 2,
+  },
 
-  cloud: { position: "absolute", width: 58, height: 30, opacity: 0.8, zIndex: 1 },
-  cloudCircle1: { position: "absolute", left: 4,  bottom: 4, width: 20, height: 20, borderRadius: 10, backgroundColor: "#FFFFFF" },
-  cloudCircle2: { position: "absolute", left: 18, bottom: 8, width: 27, height: 27, borderRadius: 14, backgroundColor: "#FFFFFF" },
-  cloudCircle3: { position: "absolute", right: 4, bottom: 4, width: 21, height: 21, borderRadius: 11, backgroundColor: "#FFFFFF" },
-  cloudBase:    { position: "absolute", left: 5, right: 4, bottom: 3, height: 13, borderRadius: 8, backgroundColor: "#FFFFFF" },
+  sparkSmall: {
+    position: "absolute",
+    fontSize: 18,
+    color: "#B9AFF7",
+    zIndex: 2,
+  },
 
-  bgCircle:      { position: "absolute", width: 86, height: 86, borderRadius: 43, backgroundColor: "rgba(214,205,252,0.55)", bottom: -20, zIndex: 0 },
-  bgCircleLeft:  { left: 39 },
+  softDot: {
+    position: "absolute",
+    color: "#D6CDFC",
+    fontSize: 14,
+    zIndex: 2,
+  },
+
+  cloud: {
+    position: "absolute",
+    width: 58,
+    height: 30,
+    opacity: 0.8,
+    zIndex: 1,
+  },
+
+  cloudCircle1: {
+    position: "absolute",
+    left: 4,
+    bottom: 4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
+  },
+
+  cloudCircle2: {
+    position: "absolute",
+    left: 18,
+    bottom: 8,
+    width: 27,
+    height: 27,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+  },
+
+  cloudCircle3: {
+    position: "absolute",
+    right: 4,
+    bottom: 4,
+    width: 21,
+    height: 21,
+    borderRadius: 11,
+    backgroundColor: "#FFFFFF",
+  },
+
+  cloudBase: {
+    position: "absolute",
+    left: 5,
+    right: 4,
+    bottom: 3,
+    height: 13,
+    borderRadius: 8,
+    backgroundColor: "#FFFFFF",
+  },
+
+  bgCircle: {
+    position: "absolute",
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    backgroundColor: "rgba(214,205,252,0.55)",
+    bottom: -20,
+    zIndex: 0,
+  },
+
+  bgCircleLeft: { left: 39 },
+
   bgCircleRight: { right: 32 },
 
-  leafWrapper: { position: "absolute", bottom: -8, width: 86, height: 95, zIndex: 2 },
-  leafLeft:    { left: -4 },
-  leafRight:   { right: -4 },
-  leafFlip:    { transform: [{ scaleX: -1 }] },
-  leafMain:    { position: "absolute", left: 12, bottom: 0, width: 25, height: 65, backgroundColor: "#9E94F4", borderTopLeftRadius: 30, borderTopRightRadius: 20, borderBottomLeftRadius: 10, borderBottomRightRadius: 35, transform: [{ rotate: "28deg" }] },
-  leafSecond:  { position: "absolute", left: 36, bottom: -4, width: 22, height: 58, backgroundColor: "#B7AFFA", borderTopLeftRadius: 26, borderTopRightRadius: 18, borderBottomLeftRadius: 10, borderBottomRightRadius: 32, transform: [{ rotate: "10deg" }] },
-  leafThird:   { position: "absolute", left: 2, bottom: -5, width: 20, height: 50, backgroundColor: "#8175E8", borderTopLeftRadius: 24, borderTopRightRadius: 15, borderBottomLeftRadius: 8, borderBottomRightRadius: 28, transform: [{ rotate: "50deg" }] },
+  leafWrapper: {
+    position: "absolute",
+    bottom: -8,
+    width: 86,
+    height: 95,
+    zIndex: 2,
+  },
+
+  leafLeft: { left: -4 },
+
+  leafRight: { right: -4 },
+
+  leafFlip: { transform: [{ scaleX: -1 }] },
+
+  leafMain: {
+    position: "absolute",
+    left: 12,
+    bottom: 0,
+    width: 25,
+    height: 65,
+    backgroundColor: "#9E94F4",
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 20,
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 35,
+    transform: [{ rotate: "28deg" }],
+  },
+
+  leafSecond: {
+    position: "absolute",
+    left: 36,
+    bottom: -4,
+    width: 22,
+    height: 58,
+    backgroundColor: "#B7AFFA",
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 18,
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 32,
+    transform: [{ rotate: "10deg" }],
+  },
+
+  leafThird: {
+    position: "absolute",
+    left: 2,
+    bottom: -5,
+    width: 20,
+    height: 50,
+    backgroundColor: "#8175E8",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 15,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 28,
+    transform: [{ rotate: "50deg" }],
+  },
 });

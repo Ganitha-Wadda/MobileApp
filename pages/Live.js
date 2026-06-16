@@ -16,9 +16,9 @@ import {
   RefreshControl,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { useSelector } from "react-redux";
 
 import { useGetActiveLiveClassesQuery } from "../app/features/Liveapi";
+import { useEnrollmentStatus } from "../app/features/enrollmentApi";
 import EnrollmentGate from "../components/EnrollmentGate";
 import useT from "../app/i18n/useT";
 
@@ -31,24 +31,54 @@ const isVeryShortScreen = height < 700;
 const ZOOM_ICON =
   "https://cdn-icons-png.flaticon.com/512/4401/4401470.png";
 
+const normalizeValue = (value) => {
+  if (value === null || value === undefined) return "";
+  return String(value).trim();
+};
+
+const getGradeNumber = (grade) => {
+  if (!grade) return "";
+  if (typeof grade === "number") return grade;
+  if (typeof grade === "string") return Number(grade);
+  if (typeof grade === "object") {
+    return Number(grade.gradeId ?? grade.grade ?? "");
+  }
+  return "";
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Decorative helpers (unchanged)
+// Decorative helpers unchanged
 // ─────────────────────────────────────────────────────────────────────────────
 
 const Star = ({ style, size = 18, color = "#FDE68A" }) => {
   const move = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(move, { toValue: -10, duration: 1400, useNativeDriver: true }),
-        Animated.timing(move, { toValue: 0, duration: 1400, useNativeDriver: true }),
+        Animated.timing(move, {
+          toValue: -10,
+          duration: 1400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(move, {
+          toValue: 0,
+          duration: 1400,
+          useNativeDriver: true,
+        }),
       ])
     ).start();
   }, [move]);
+
   return (
     <Animated.Text
       style={[
-        { fontSize: size, position: "absolute", color, transform: [{ translateY: move }] },
+        {
+          fontSize: size,
+          position: "absolute",
+          color,
+          transform: [{ translateY: move }],
+        },
         style,
       ]}
     >
@@ -59,18 +89,39 @@ const Star = ({ style, size = 18, color = "#FDE68A" }) => {
 
 const MovingCloud = ({ style, size = 34, delay = 0 }) => {
   const move = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
     const anim = Animated.loop(
       Animated.sequence([
-        Animated.timing(move, { toValue: 18, duration: 2300, delay, useNativeDriver: true }),
-        Animated.timing(move, { toValue: 0, duration: 2300, useNativeDriver: true }),
+        Animated.timing(move, {
+          toValue: 18,
+          duration: 2300,
+          delay,
+          useNativeDriver: true,
+        }),
+        Animated.timing(move, {
+          toValue: 0,
+          duration: 2300,
+          useNativeDriver: true,
+        }),
       ])
     );
+
     anim.start();
     return () => anim.stop();
   }, [move, delay]);
+
   return (
-    <Animated.Text style={[styles.cloud, style, { fontSize: size, transform: [{ translateX: move }] }]}>
+    <Animated.Text
+      style={[
+        styles.cloud,
+        style,
+        {
+          fontSize: size,
+          transform: [{ translateX: move }],
+        },
+      ]}
+    >
       ☁️
     </Animated.Text>
   );
@@ -78,24 +129,40 @@ const MovingCloud = ({ style, size = 34, delay = 0 }) => {
 
 const LiveDot = () => {
   const pulse = useRef(new Animated.Value(1)).current;
+
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, { toValue: 1.7, duration: 700, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1, duration: 700, useNativeDriver: true }),
+        Animated.timing(pulse, {
+          toValue: 1.7,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 700,
+          useNativeDriver: true,
+        }),
       ])
     ).start();
   }, [pulse]);
+
   return (
     <View style={styles.liveDotWrapper}>
-      <Animated.View style={[styles.liveDotRing, { transform: [{ scale: pulse }] }]} />
+      <Animated.View
+        style={[styles.liveDotRing, { transform: [{ scale: pulse }] }]}
+      />
       <View style={styles.liveDot} />
     </View>
   );
 };
 
 const ZoomIcon = ({ size = 22 }) => (
-  <Image source={{ uri: ZOOM_ICON }} style={{ width: size, height: size }} resizeMode="contain" />
+  <Image
+    source={{ uri: ZOOM_ICON }}
+    style={{ width: size, height: size }}
+    resizeMode="contain"
+  />
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -109,8 +176,16 @@ const LiveClassCard = ({ liveClass, index, t }) => {
 
   useEffect(() => {
     Animated.parallel([
-      Animated.spring(cardScale, { toValue: 1, friction: 7, useNativeDriver: true }),
-      Animated.timing(cardOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+      Animated.spring(cardScale, {
+        toValue: 1,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+      Animated.timing(cardOpacity, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }),
       Animated.spring(btnTranslate, {
         toValue: 0,
         friction: 7,
@@ -138,7 +213,13 @@ const LiveClassCard = ({ liveClass, index, t }) => {
 
   return (
     <Animated.View
-      style={[styles.card, { transform: [{ scale: cardScale }], opacity: cardOpacity }]}
+      style={[
+        styles.card,
+        {
+          transform: [{ scale: cardScale }],
+          opacity: cardOpacity,
+        },
+      ]}
     >
       <View style={styles.liveNowBadge}>
         <LiveDot />
@@ -172,6 +253,7 @@ const LiveClassCard = ({ liveClass, index, t }) => {
             />
           </View>
         </LinearGradient>
+
         <View style={styles.cameraBadge}>
           <ZoomIcon size={19} />
         </View>
@@ -191,7 +273,14 @@ const LiveClassCard = ({ liveClass, index, t }) => {
         <View style={styles.dividerLine} />
       </View>
 
-      <Animated.View style={[styles.buttonsBlock, { transform: [{ translateY: btnTranslate }] }]}>
+      <Animated.View
+        style={[
+          styles.buttonsBlock,
+          {
+            transform: [{ translateY: btnTranslate }],
+          },
+        ]}
+      >
         {links.map((link, i) => (
           <TouchableOpacity
             key={i}
@@ -201,7 +290,9 @@ const LiveClassCard = ({ liveClass, index, t }) => {
           >
             <LinearGradient
               colors={
-                i % 2 === 0 ? ["#8B5CF6", "#6D28D9"] : ["#A855F7", "#4C1D95"]
+                i % 2 === 0
+                  ? ["#8B5CF6", "#6D28D9"]
+                  : ["#A855F7", "#4C1D95"]
               }
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
@@ -210,6 +301,7 @@ const LiveClassCard = ({ liveClass, index, t }) => {
               <View style={styles.btnIconCircle}>
                 <ZoomIcon size={20} />
               </View>
+
               <Text style={styles.linkBtnText}>Zoom Live Link {i + 1}</Text>
               <Text style={styles.linkBtnArrow}>›</Text>
             </LinearGradient>
@@ -221,30 +313,71 @@ const LiveClassCard = ({ liveClass, index, t }) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Actual live content (shown only when enrolled & approved)
+// Actual live content shown only when enrolled and approved
 // ─────────────────────────────────────────────────────────────────────────────
 
 function LiveContent() {
   const { t } = useT();
-  const userGrade = useSelector(
-    (state) =>
-      state.user?.user?.grade ??
-      state.user?.profile?.grade ??
-      state.user?.data?.grade ??
-      state.user?.grade ??
-      null
+
+  const {
+    enrollment,
+    isLoading: isEnrollmentLoading,
+    isFetching: isEnrollmentFetching,
+    refetch: refetchEnrollment,
+  } = useEnrollmentStatus();
+
+  // FIX:
+  // Do not read batch number from user profile.
+  // Approved enrollment contains the correct grade + batchnumber.
+  const userGrade = getGradeNumber(enrollment?.grade);
+  const userBatchNumber = normalizeValue(
+    enrollment?.batchnumber ??
+      enrollment?.batchNumber ??
+      enrollment?.batch ??
+      ""
   );
 
-  const { data, isLoading, isFetching, isError, error, refetch } =
-    useGetActiveLiveClassesQuery(userGrade, { skip: !userGrade });
+  const canLoadLiveClasses = Boolean(userGrade && userBatchNumber);
+
+  const {
+    data,
+    isLoading,
+    isFetching,
+    isError,
+    error,
+    refetch,
+  } = useGetActiveLiveClassesQuery(
+    {
+      grade: userGrade,
+      batchnumber: userBatchNumber,
+    },
+    {
+      skip: !canLoadLiveClasses,
+    }
+  );
 
   const liveClasses = data?.liveClasses ?? [];
-  const isRefreshing = isFetching && !isLoading;
+  const isRefreshing =
+    canLoadLiveClasses && (isFetching || isEnrollmentFetching) && !isLoading;
+
+  const handleRefresh = () => {
+    if (typeof refetchEnrollment === "function") {
+      refetchEnrollment();
+    }
+
+    if (!canLoadLiveClasses) return;
+
+    if (typeof refetch === "function") {
+      refetch();
+    }
+  };
 
   const errorMessage = isError
     ? error?.data?.message ?? error?.error ?? "Failed to load live classes."
-    : !userGrade
-    ? "Grade not found in your profile. Please contact support."
+    : !isEnrollmentLoading && !userGrade
+    ? "Grade not found in your approved enrollment. Please contact support."
+    : !isEnrollmentLoading && !userBatchNumber
+    ? "Batch number not found in your approved enrollment. Please contact support."
     : null;
 
   return (
@@ -255,18 +388,24 @@ function LiveContent() {
       style={styles.gradient}
     >
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+        <StatusBar
+          barStyle="dark-content"
+          backgroundColor="transparent"
+          translucent
+        />
 
         {/* Decorative layer */}
         <View pointerEvents="none" style={StyleSheet.absoluteFill}>
           <View style={styles.purpleGlowOne} />
           <View style={styles.purpleGlowTwo} />
+
           <MovingCloud style={{ top: 58, left: -12 }} size={38} delay={0} />
           <MovingCloud style={{ top: 110, right: 20 }} size={32} delay={300} />
           <MovingCloud style={{ top: 185, left: 35 }} size={28} delay={600} />
           <MovingCloud style={{ bottom: 185, right: -4 }} size={36} delay={900} />
           <MovingCloud style={{ bottom: 95, left: 12 }} size={30} delay={1200} />
           <MovingCloud style={{ bottom: 45, right: 35 }} size={26} delay={1500} />
+
           <Star style={{ top: 42, left: "12%" }} size={23} color="#FDE68A" />
           <Star style={{ top: 34, right: "14%" }} size={27} color="#A78BFA" />
           <Star style={{ top: 145, left: "8%" }} size={18} color="#F9A8D4" />
@@ -279,7 +418,7 @@ function LiveContent() {
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
-              onRefresh={refetch}
+              onRefresh={handleRefresh}
               tintColor="#7C3AED"
               colors={["#7C3AED"]}
             />
@@ -290,12 +429,15 @@ function LiveContent() {
             <View style={styles.headerLeft}>
               <View style={styles.liveIconBg}>
                 <ZoomIcon size={24} />
+
                 <View style={styles.liveBadge}>
                   <Text style={styles.liveBadgeText}>{t("liveNow")}</Text>
                 </View>
               </View>
+
               <View style={styles.headerTextBox}>
                 <Text style={styles.headerTitle}>{t("todaysLiveSession")}</Text>
+
                 <Text style={styles.headerSub}>
                   {userGrade
                     ? `${t("gradeBadge")} ${userGrade} — your classes`
@@ -303,30 +445,32 @@ function LiveContent() {
                 </Text>
               </View>
             </View>
+
             <TouchableOpacity
               style={styles.calendarBtn}
               activeOpacity={0.8}
-              onPress={refetch}
+              onPress={handleRefresh}
             >
               <Text style={styles.calendarIcon}>📅</Text>
             </TouchableOpacity>
           </View>
 
-          {isLoading && (
+          {(isLoading || isEnrollmentLoading) && (
             <View style={styles.centerBox}>
               <ActivityIndicator size="large" color="#7C3AED" />
               <Text style={styles.loadingText}>{t("loadingLiveClasses")}</Text>
             </View>
           )}
 
-          {!isLoading && errorMessage && (
+          {!isLoading && !isEnrollmentLoading && errorMessage && (
             <View style={styles.centerBox}>
               <Text style={styles.stateEmoji}>😕</Text>
               <Text style={styles.stateTitle}>Something went wrong</Text>
               <Text style={styles.stateSub}>{errorMessage}</Text>
+
               <TouchableOpacity
                 style={styles.retryBtn}
-                onPress={refetch}
+                onPress={handleRefresh}
                 activeOpacity={0.8}
               >
                 <Text style={styles.retryBtnText}>Try Again</Text>
@@ -334,16 +478,18 @@ function LiveContent() {
             </View>
           )}
 
-          {!isLoading && !errorMessage && liveClasses.length === 0 && (
-            <View style={styles.centerBox}>
-              <Text style={styles.stateEmoji}>📡</Text>
-              <Text style={styles.stateTitle}>
-                {t("noLiveClassRightNow")}
-              </Text>
-            </View>
-          )}
+          {!isLoading &&
+            !isEnrollmentLoading &&
+            !errorMessage &&
+            liveClasses.length === 0 && (
+              <View style={styles.centerBox}>
+                <Text style={styles.stateEmoji}>📡</Text>
+                <Text style={styles.stateTitle}>{t("noLiveClassRightNow")}</Text>
+              </View>
+            )}
 
           {!isLoading &&
+            !isEnrollmentLoading &&
             !errorMessage &&
             liveClasses.map((lc, i) => (
               <LiveClassCard
@@ -354,22 +500,28 @@ function LiveContent() {
               />
             ))}
 
-          {!isLoading && !errorMessage && liveClasses.length > 0 && (
-            <View style={styles.reminderStrip}>
-              <View style={styles.reminderIcon}>
-                <ZoomIcon size={22} />
+          {!isLoading &&
+            !isEnrollmentLoading &&
+            !errorMessage &&
+            liveClasses.length > 0 && (
+              <View style={styles.reminderStrip}>
+                <View style={styles.reminderIcon}>
+                  <ZoomIcon size={22} />
+                </View>
+
+                <View style={styles.reminderTextBox}>
+                  <Text style={styles.reminderTitle}>
+                    {t("beReadyAndStayOnTime")}
+                  </Text>
+
+                  <Text style={styles.reminderSub}>
+                    Open Zoom early and check your internet connection.
+                  </Text>
+                </View>
+
+                <Text style={styles.clockIcon}>⏰</Text>
               </View>
-              <View style={styles.reminderTextBox}>
-                <Text style={styles.reminderTitle}>
-                  {t("beReadyAndStayOnTime")}
-                </Text>
-                <Text style={styles.reminderSub}>
-                  Open Zoom early and check your internet connection.
-                </Text>
-              </View>
-              <Text style={styles.clockIcon}>⏰</Text>
-            </View>
-          )}
+            )}
         </ScrollView>
       </SafeAreaView>
     </LinearGradient>
@@ -459,7 +611,12 @@ const styles = StyleSheet.create({
   liveBadgeText: { color: "#FFFFFF", fontSize: 7, fontWeight: "900" },
   headerTextBox: { marginLeft: 10, flex: 1 },
   headerTitle: { fontSize: 16, fontWeight: "900", color: "#2E1065" },
-  headerSub: { fontSize: 11, color: "#6D28D9", marginTop: 1, fontWeight: "700" },
+  headerSub: {
+    fontSize: 11,
+    color: "#6D28D9",
+    marginTop: 1,
+    fontWeight: "700",
+  },
   calendarBtn: {
     width: 40,
     height: 40,
@@ -540,7 +697,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     paddingHorizontal: 4,
   },
-  classDecor: { fontSize: 18, color: "#FBBF24", marginHorizontal: 7, fontWeight: "900" },
+  classDecor: {
+    fontSize: 18,
+    color: "#FBBF24",
+    marginHorizontal: 7,
+    fontWeight: "900",
+  },
   className: {
     fontSize: isVeryShortScreen ? 20 : 24,
     fontWeight: "900",
@@ -549,7 +711,11 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
 
-  avatarWrapper: { alignItems: "center", justifyContent: "center", marginBottom: 10 },
+  avatarWrapper: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
+  },
   avatarRing: {
     width: isVeryShortScreen ? 104 : isShortScreen ? 114 : 126,
     height: isVeryShortScreen ? 104 : isShortScreen ? 114 : 126,
@@ -583,15 +749,43 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
 
-  teacherName: { fontSize: 18, fontWeight: "900", color: "#2E1065", marginBottom: 2 },
-  teacherRole: { fontSize: 12, color: "#7C3AED", marginBottom: 10, fontWeight: "700" },
+  teacherName: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#2E1065",
+    marginBottom: 2,
+  },
+  teacherRole: {
+    fontSize: 12,
+    color: "#7C3AED",
+    marginBottom: 10,
+    fontWeight: "700",
+  },
 
-  dividerRow: { flexDirection: "row", alignItems: "center", width: "100%", marginBottom: 12 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: "rgba(168,85,247,0.25)" },
-  dividerStar: { marginHorizontal: 9, fontSize: 15, color: "#FBBF24" },
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
+    marginBottom: 12,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "rgba(168,85,247,0.25)",
+  },
+  dividerStar: {
+    marginHorizontal: 9,
+    fontSize: 15,
+    color: "#FBBF24",
+  },
 
   buttonsBlock: { width: "100%" },
-  linkBtn: { width: "100%", marginBottom: 10, borderRadius: 50, overflow: "hidden" },
+  linkBtn: {
+    width: "100%",
+    marginBottom: 10,
+    borderRadius: 50,
+    overflow: "hidden",
+  },
   linkBtnGradient: {
     flexDirection: "row",
     alignItems: "center",
@@ -615,7 +809,11 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 0.3,
   },
-  linkBtnArrow: { color: "#FFFFFF", fontSize: 24, fontWeight: "300" },
+  linkBtnArrow: {
+    color: "#FFFFFF",
+    fontSize: 24,
+    fontWeight: "300",
+  },
 
   reminderStrip: {
     width: "100%",
@@ -646,8 +844,18 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   reminderTextBox: { flex: 1 },
-  reminderTitle: { fontSize: 12.5, fontWeight: "900", color: "#2E1065", marginBottom: 2 },
-  reminderSub: { fontSize: 10.5, color: "#6B21A8", lineHeight: 14, fontWeight: "700" },
+  reminderTitle: {
+    fontSize: 12.5,
+    fontWeight: "900",
+    color: "#2E1065",
+    marginBottom: 2,
+  },
+  reminderSub: {
+    fontSize: 10.5,
+    color: "#6B21A8",
+    lineHeight: 14,
+    fontWeight: "700",
+  },
   clockIcon: { fontSize: 30, marginLeft: 6 },
 
   gradeBadge: {
@@ -677,7 +885,11 @@ const styles = StyleSheet.create({
     alignSelf: "stretch",
   },
   scheduleIcon: { fontSize: 14, marginRight: 6 },
-  scheduleText: { fontSize: 12, fontWeight: "700", color: "#4C1D95" },
+  scheduleText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#4C1D95",
+  },
 
   centerBox: {
     width: "100%",
@@ -697,7 +909,12 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 6,
   },
-  loadingText: { marginTop: 14, fontSize: 13, fontWeight: "700", color: "#7C3AED" },
+  loadingText: {
+    marginTop: 14,
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#7C3AED",
+  },
   stateEmoji: { fontSize: 48, marginBottom: 12 },
   stateTitle: {
     fontSize: 16,
@@ -727,3 +944,5 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
 });
+
+

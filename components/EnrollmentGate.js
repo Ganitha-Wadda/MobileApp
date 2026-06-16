@@ -1,508 +1,449 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-  View,
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-  StatusBar,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Modal,
-  Animated,
-  Dimensions,
+  View,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { useSelector } from "react-redux";
 import {
   useEnrollmentStatus,
+  useGetAvailableBatchesByGradeQuery,
   useSubmitEnrollmentMutation,
 } from "../app/features/enrollmentApi";
-import useT from "../app/i18n/useT";
 
-const { width } = Dimensions.get("window");
+const getProfile = (state) =>
+  state.user?.user ?? state.user?.profile ?? state.user?.data ?? state.auth?.user ?? {};
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Tiny floating emoji
-// ─────────────────────────────────────────────────────────────────────────────
-function FloatEmoji({ emoji, style }) {
-  const y = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(y, { toValue: -10, duration: 1500, useNativeDriver: true }),
-        Animated.timing(y, { toValue: 0, duration: 1500, useNativeDriver: true }),
-      ])
-    ).start();
-  }, [y]);
+const getGradeNumber = (grade) => {
+  if (!grade) return "";
+  if (typeof grade === "number") return String(grade);
+  if (typeof grade === "string") {
+    const match = grade.match(/\d+/);
+    return match?.[0] ?? grade;
+  }
+  if (typeof grade === "object") {
+    const value = grade.gradeId ?? grade.grade ?? grade.gradeNumber ?? "";
+    return value ? String(value) : "";
+  }
+  return "";
+};
+
+const getBatchNumber = (profile) =>
+  String(
+    profile?.batchnumber ??
+      profile?.batchNumber ??
+      profile?.batchYear ??
+      profile?.batch ??
+      profile?.batch_number ??
+      ""
+  ).trim();
+
+const gradeOptions = ["3", "4", "5"];
+
+function SelectBox({
+  label,
+  placeholder,
+  value,
+  options,
+  onSelect,
+  disabled = false,
+  loading = false,
+  emptyText = "No options available",
+}) {
+  const [open, setOpen] = useState(false);
+
   return (
-    <Animated.Text style={[{ transform: [{ translateY: y }] }, style]}>
-      {emoji}
-    </Animated.Text>
+    <View style={styles.selectWrap}>
+      {!!label && <Text style={styles.inputLabel}>{label}</Text>}
+
+      <TouchableOpacity
+        style={[styles.selectButton, disabled && styles.selectButtonDisabled]}
+        activeOpacity={0.85}
+        disabled={disabled}
+        onPress={() => setOpen((prev) => !prev)}
+      >
+        <Text style={[styles.selectButtonText, !value && styles.placeholderText]}>
+          {value || placeholder}
+        </Text>
+        {loading ? (
+          <ActivityIndicator size="small" color="#7C3AED" />
+        ) : (
+          <Text style={styles.selectArrow}>{open ? "▲" : "▼"}</Text>
+        )}
+      </TouchableOpacity>
+
+      {open && !disabled && (
+        <View style={styles.dropdownBox}>
+          {options.length > 0 ? (
+            <ScrollView nestedScrollEnabled style={styles.dropdownScroll}>
+              {options.map((item) => (
+                <TouchableOpacity
+                  key={String(item)}
+                  style={[
+                    styles.dropdownItem,
+                    String(item) === String(value) && styles.dropdownItemActive,
+                  ]}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    onSelect(String(item));
+                    setOpen(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.dropdownItemText,
+                      String(item) === String(value) && styles.dropdownItemTextActive,
+                    ]}
+                  >
+                    {String(item)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          ) : (
+            <Text style={styles.dropdownEmpty}>{emptyText}</Text>
+          )}
+        </View>
+      )}
+    </View>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Shared grade selector from Redux
-// ─────────────────────────────────────────────────────────────────────────────
-function useUserGrade() {
-  return useSelector(
-    (s) =>
-      s.user?.user?.grade ??
-      s.user?.profile?.grade ??
-      s.user?.data?.grade ??
-      s.user?.grade ??
-      null
+export function EnrollmentModal({ visible, onClose }) {
+  const profile = useSelector(getProfile);
+  const defaults = useMemo(
+    () => ({
+      name: String(profile?.name ?? ""),
+      phone: String(profile?.phonenumber ?? profile?.phone ?? ""),
+      grade: getGradeNumber(profile?.grade),
+      batchnumber: getBatchNumber(profile),
+    }),
+    [profile]
   );
-}
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Inner content — three states + form
-// ─────────────────────────────────────────────────────────────────────────────
-function GateContent({ onClose }) {
-  const { t } = useT();
-  const userGrade = useUserGrade();
-  const { status, isLoading, isFetching, refetch } = useEnrollmentStatus();
-  const [submit, { isLoading: isSubmitting }] = useSubmitEnrollmentMutation();
+  const [name, setName] = useState(defaults.name);
+  const [phone, setPhone] = useState(defaults.phone);
+  const [grade, setGrade] = useState(defaults.grade);
+  const [batchnumber, setBatchnumber] = useState(defaults.batchnumber);
+  const [message, setMessage] = useState("");
 
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [grade, setGrade] = useState(userGrade ? String(userGrade) : "");
-  const [formError, setFormError] = useState("");
-  const [showForm, setShowForm] = useState(false); // re-apply after rejection
+  const {
+    data: batchesData,
+    isLoading: isBatchesLoading,
+    isFetching: isBatchesFetching,
+    refetch: refetchBatches,
+  } = useGetAvailableBatchesByGradeQuery(grade, {
+    skip: !grade,
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
+  });
 
-  const handleSubmit = async () => {
-    if (!name.trim() || !phone.trim() || !grade.trim()) {
-      setFormError(t("enrollmentFormError"));
+  const availableBatches = useMemo(() => {
+    const batches = batchesData?.batches;
+    return Array.isArray(batches)
+      ? batches.map((b) => String(b).trim()).filter(Boolean)
+      : [];
+  }, [batchesData]);
+
+  const [submitEnrollment, { isLoading }] = useSubmitEnrollmentMutation();
+
+  useEffect(() => {
+    if (visible) {
+      setName(defaults.name);
+      setPhone(defaults.phone);
+      setGrade(defaults.grade);
+      setBatchnumber(defaults.batchnumber);
+      setMessage("");
+    }
+  }, [visible, defaults.name, defaults.phone, defaults.grade, defaults.batchnumber]);
+
+  useEffect(() => {
+    if (!grade) {
+      setBatchnumber("");
       return;
     }
-    setFormError("");
+
+    if (availableBatches.length > 0 && !availableBatches.includes(batchnumber)) {
+      setBatchnumber("");
+    }
+  }, [grade, availableBatches, batchnumber]);
+
+  const handleGradeSelect = (selectedGrade) => {
+    setGrade(selectedGrade);
+    setBatchnumber("");
+    setMessage("");
+  };
+
+  const handleSubmit = async () => {
+    setMessage("");
+
+    if (!name.trim() || !phone.trim() || !grade || !batchnumber.trim()) {
+      setMessage("Name, phone, grade, and batch number are required.");
+      return;
+    }
+
     try {
-      await submit({
+      const res = await submitEnrollment({
         name: name.trim(),
         phone: phone.trim(),
         grade: Number(grade),
+        batchnumber: batchnumber.trim(),
       }).unwrap();
-      refetch();
+
+      setMessage(res?.message || "Enrollment request submitted. Please wait for admin approval.");
     } catch (err) {
-      setFormError(err?.data?.message ?? t("submissionFailed"));
+      setMessage(err?.data?.message || err?.error || "Failed to submit enrollment request.");
     }
   };
 
-  // ── Loading ───────────────────────────────────────────────────────────
-  if (isLoading) {
-    return (
-      <View style={gs.centerBox}>
-        <ActivityIndicator size="large" color="#7C3AED" />
-        <Text style={gs.loadingText}>{t("checkingAccess")}</Text>
-      </View>
-    );
-  }
-
-  // ── Pending ───────────────────────────────────────────────────────────
-  if (status === "pending" && !showForm) {
-    return (
-      <View style={gs.centerBox}>
-        <FloatEmoji emoji="⏳" style={gs.bigEmoji} />
-        <Text style={gs.gateTitle}>{t("enrollmentUnderReview")}</Text>
-        <Text style={gs.gateSub}>{t("enrollmentUnderReviewSub")}</Text>
-        <View style={gs.infoStrip}>
-          <Text style={gs.infoStripText}>{t("freeDemoAvailable")}</Text>
-        </View>
-        <TouchableOpacity
-          style={gs.secondaryBtn}
-          onPress={refetch}
-          activeOpacity={0.8}
-        >
-          {isFetching ? (
-            <ActivityIndicator color="#7C3AED" size="small" />
-          ) : (
-            <Text style={gs.secondaryBtnText}>{t("checkStatus")}</Text>
-          )}
-        </TouchableOpacity>
-        {onClose && (
-          <TouchableOpacity onPress={onClose} style={gs.closeLink}>
-            <Text style={gs.closeLinkText}>{t("close")}</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    );
-  }
-
-  // ── Rejected ──────────────────────────────────────────────────────────
-  if (status === "rejected" && !showForm) {
-    return (
-      <View style={gs.centerBox}>
-        <FloatEmoji emoji="😔" style={gs.bigEmoji} />
-        <Text style={gs.gateTitle}>{t("enrollmentNotApproved")}</Text>
-        <Text style={gs.gateSub}>{t("enrollmentNotApprovedSub")}</Text>
-        <TouchableOpacity
-          style={gs.primaryBtn}
-          onPress={() => setShowForm(true)}
-          activeOpacity={0.85}
-        >
-          <LinearGradient
-            colors={["#7C3AED", "#5B21B6"]}
-            style={gs.primaryBtnInner}
-          >
-            <Text style={gs.primaryBtnText}>{t("reapply")}</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-        {onClose && (
-          <TouchableOpacity onPress={onClose} style={gs.closeLink}>
-            <Text style={gs.closeLinkText}>{t("close")}</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    );
-  }
-
-  // ── Enrollment form (not_enrolled OR showForm after rejection) ────────
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={{ flex: 1 }}
-    >
-      <ScrollView
-        contentContainerStyle={gs.formScroll}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        <FloatEmoji emoji="🎓" style={gs.bigEmoji} />
-        <Text style={gs.gateTitle}>{t("enrollmentGateTitle")}</Text>
-        <Text style={gs.gateSub}>{t("enrollmentGateSub")}</Text>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>Enrollment Required</Text>
+          <Text style={styles.modalSub}>
+            Submit your request. After admin approval, Shortz, recordings, and live classes will unlock.
+          </Text>
 
-        <View style={gs.formCard}>
-          {/* Grade badge or input */}
-          {userGrade ? (
-            <View style={gs.gradePill}>
-              <Text style={gs.gradePillText}>
-                {t("grade")} {userGrade}
-              </Text>
-            </View>
-          ) : (
-            <>
-              <Text style={gs.label}>{t("yourGrade")}</Text>
-              <TextInput
-                style={gs.input}
-                placeholder="e.g.  3"
-                placeholderTextColor="#A78BFA"
-                value={grade}
-                onChangeText={setGrade}
-                keyboardType="number-pad"
-                returnKeyType="next"
-              />
-            </>
-          )}
-
-          <Text style={gs.label}>{t("fullName")}</Text>
+          <TextInput style={styles.input} placeholder="Name" value={name} onChangeText={setName} />
           <TextInput
-            style={gs.input}
-            placeholder={t("fullNamePlaceholder")}
-            placeholderTextColor="#A78BFA"
-            value={name}
-            onChangeText={setName}
-            autoCapitalize="words"
-            returnKeyType="next"
-          />
-
-          <Text style={gs.label}>{t("phoneNumber")}</Text>
-          <TextInput
-            style={gs.input}
-            placeholder={t("phoneNumberPlaceholder")}
-            placeholderTextColor="#A78BFA"
+            style={styles.input}
+            placeholder="Phone"
             value={phone}
             onChangeText={setPhone}
             keyboardType="phone-pad"
-            returnKeyType="done"
           />
 
-          {!!formError && <Text style={gs.errorText}>{formError}</Text>}
+          <SelectBox
+            label="Grade"
+            placeholder="Select grade"
+            value={grade}
+            options={gradeOptions}
+            onSelect={handleGradeSelect}
+          />
 
-          <TouchableOpacity
-            onPress={handleSubmit}
-            disabled={isSubmitting}
-            activeOpacity={0.85}
-          >
-            <LinearGradient
-              colors={["#7C3AED", "#5B21B6"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={gs.submitBtn}
+          <SelectBox
+            label="Batch Number"
+            placeholder={grade ? "Select batch number" : "Select grade first"}
+            value={batchnumber}
+            options={availableBatches}
+            onSelect={(value) => {
+              setBatchnumber(value);
+              setMessage("");
+            }}
+            disabled={!grade}
+            loading={isBatchesLoading || isBatchesFetching}
+            emptyText={
+              grade
+                ? "No batches available for this grade"
+                : "Select grade first"
+            }
+          />
+
+          {!!grade && (
+            <TouchableOpacity
+              style={styles.refreshBatchesBtn}
+              activeOpacity={0.85}
+              onPress={refetchBatches}
             >
-              {isSubmitting ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={gs.submitBtnText}>{t("submitEnrollment")}</Text>
-              )}
-            </LinearGradient>
+              <Text style={styles.refreshBatchesText}>Refresh Batches</Text>
+            </TouchableOpacity>
+          )}
+
+          {!!message && <Text style={styles.message}>{message}</Text>}
+
+          <TouchableOpacity style={styles.primaryBtn} onPress={handleSubmit} disabled={isLoading}>
+            {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Submit Enrollment</Text>}
           </TouchableOpacity>
+
+          <Pressable style={styles.closeBtn} onPress={onClose}>
+            <Text style={styles.closeBtnText}>Close</Text>
+          </Pressable>
         </View>
-
-        <Text style={gs.footNote}>{t("freeDemoNote")}</Text>
-
-        {onClose && (
-          <TouchableOpacity onPress={onClose} style={gs.closeLink}>
-            <Text style={gs.closeLinkText}>{t("close")}</Text>
-          </TouchableOpacity>
-        )}
-      </ScrollView>
-    </KeyboardAvoidingView>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// DEFAULT EXPORT — full-screen gate (used in Live.jsx)
-// Children are rendered only when status === "approved"
-// ─────────────────────────────────────────────────────────────────────────────
-export default function EnrollmentGate({ children }) {
-  const { status, isLoading } = useEnrollmentStatus();
-
-  if (!isLoading && status === "approved") {
-    return <>{children}</>;
-  }
-
-  return (
-    <LinearGradient
-      colors={["#EDE9FE", "#DDD6FE", "#C4B5FD"]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={{ flex: 1 }}
-    >
-      <SafeAreaView style={{ flex: 1 }}>
-        <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
-        <GateContent />
-      </SafeAreaView>
-    </LinearGradient>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// NAMED EXPORT — modal variant (used in Recording.jsx + ShortVideoScreen.jsx)
-// ─────────────────────────────────────────────────────────────────────────────
-export function EnrollmentModal({ visible, onClose }) {
-  return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={false}
-      onRequestClose={onClose}
-      statusBarTranslucent
-    >
-      <LinearGradient
-        colors={["#EDE9FE", "#DDD6FE", "#C4B5FD"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{ flex: 1 }}
-      >
-        <SafeAreaView style={{ flex: 1 }}>
-          <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
-          <GateContent onClose={onClose} />
-        </SafeAreaView>
-      </LinearGradient>
+      </View>
     </Modal>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Styles
-// ─────────────────────────────────────────────────────────────────────────────
-const gs = StyleSheet.create({
-  centerBox: {
+export default function EnrollmentGate({ children, allowWhenNotEnrolled = false }) {
+  const { isLoading, isFetching, isApproved, isPending, isRejected, isNotEnrolled, refetch } =
+    useEnrollmentStatus();
+  const [modalVisible, setModalVisible] = useState(false);
+
+  if (isLoading || isFetching) {
+    return (
+      <View style={styles.centerScreen}>
+        <ActivityIndicator size="large" color="#7C3AED" />
+        <Text style={styles.loadingText}>Checking enrollment...</Text>
+      </View>
+    );
+  }
+
+  if (isApproved || (allowWhenNotEnrolled && isNotEnrolled)) return children;
+
+  return (
+    <View style={styles.centerScreen}>
+      <Text style={styles.lockEmoji}>🔒</Text>
+      <Text style={styles.title}>Enrollment Required</Text>
+      {isPending ? (
+        <Text style={styles.sub}>Your request is pending. These sections unlock after admin approval.</Text>
+      ) : isRejected ? (
+        <Text style={styles.sub}>Your request was rejected. Submit again after checking your details.</Text>
+      ) : isNotEnrolled ? (
+        <Text style={styles.sub}>Enroll first to unlock Shortz, recordings, and live classes.</Text>
+      ) : (
+        <Text style={styles.sub}>Please submit enrollment to continue.</Text>
+      )}
+
+      <TouchableOpacity style={styles.primaryBtn} onPress={() => setModalVisible(true)}>
+        <Text style={styles.primaryBtnText}>{isPending ? "View Request" : "Enroll Now"}</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.secondaryBtn} onPress={refetch}>
+        <Text style={styles.secondaryBtnText}>Refresh Status</Text>
+      </TouchableOpacity>
+
+      <EnrollmentModal visible={modalVisible} onClose={() => setModalVisible(false)} />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  centerScreen: {
     flex: 1,
+    backgroundColor: "#EDE9FE",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 28,
+    padding: 24,
   },
-
-  formScroll: {
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 36,
-    paddingBottom: 40,
-  },
-
-  bigEmoji: {
-    fontSize: 62,
-    marginBottom: 14,
-  },
-
-  gateTitle: {
-    fontSize: 22,
-    fontWeight: "900",
-    color: "#2E1065",
-    textAlign: "center",
-    marginBottom: 10,
-  },
-
-  gateSub: {
-    fontSize: 13,
-    color: "#6D28D9",
-    textAlign: "center",
-    lineHeight: 20,
-    fontWeight: "600",
-    marginBottom: 22,
-    paddingHorizontal: 6,
-  },
-
-  infoStrip: {
-    backgroundColor: "rgba(255,255,255,0.75)",
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "rgba(109,40,217,0.2)",
-  },
-
-  infoStripText: {
-    fontSize: 12.5,
-    color: "#4C1D95",
-    fontWeight: "700",
-    textAlign: "center",
-  },
-
-  formCard: {
-    width: "100%",
-    backgroundColor: "rgba(255,255,255,0.92)",
-    borderRadius: 24,
-    padding: 22,
-    borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.95)",
-    shadowColor: "#6D28D9",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.18,
-    shadowRadius: 20,
-    elevation: 8,
-    marginBottom: 18,
-  },
-
-  gradePill: {
-    alignSelf: "flex-start",
-    backgroundColor: "#EDE9FE",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 5,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "rgba(109,40,217,0.25)",
-  },
-
-  gradePillText: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#6D28D9",
-    letterSpacing: 0.4,
-  },
-
-  label: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#4C1D95",
-    marginBottom: 6,
-    marginTop: 4,
-    letterSpacing: 0.3,
-  },
-
-  input: {
-    width: "100%",
-    height: 48,
-    backgroundColor: "#F5F3FF",
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#2E1065",
-    borderWidth: 1.5,
-    borderColor: "rgba(109,40,217,0.2)",
-    marginBottom: 14,
-  },
-
-  errorText: {
-    color: "#DC2626",
-    fontSize: 12,
-    fontWeight: "700",
-    marginBottom: 10,
-    textAlign: "center",
-  },
-
-  submitBtn: {
-    borderRadius: 50,
-    paddingVertical: 14,
-    alignItems: "center",
-    marginTop: 4,
-  },
-
-  submitBtnText: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "900",
-    letterSpacing: 0.4,
-  },
-
+  loadingText: { marginTop: 12, color: "#6D28D9", fontWeight: "700" },
+  lockEmoji: { fontSize: 58, marginBottom: 14 },
+  title: { fontSize: 22, fontWeight: "900", color: "#2E1065", marginBottom: 8 },
+  sub: { fontSize: 14, lineHeight: 21, color: "#6D28D9", textAlign: "center", marginBottom: 20 },
   primaryBtn: {
-    width: "70%",
-    borderRadius: 50,
-    overflow: "hidden",
-    marginTop: 6,
-  },
-
-  primaryBtnInner: {
-    paddingVertical: 13,
+    minHeight: 48,
+    minWidth: 180,
+    backgroundColor: "#7C3AED",
+    borderRadius: 16,
     alignItems: "center",
-    borderRadius: 50,
+    justifyContent: "center",
+    paddingHorizontal: 22,
+    marginTop: 8,
   },
-
-  primaryBtnText: {
-    color: "#FFFFFF",
-    fontSize: 15,
+  primaryBtnText: { color: "#fff", fontSize: 15, fontWeight: "900" },
+  secondaryBtn: { padding: 14 },
+  secondaryBtnText: { color: "#6D28D9", fontSize: 13, fontWeight: "800" },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+  },
+  modalCard: { width: "100%", maxWidth: 420, backgroundColor: "#fff", borderRadius: 24, padding: 20 },
+  modalTitle: { fontSize: 21, fontWeight: "900", color: "#2E1065", marginBottom: 8 },
+  modalSub: { color: "#6D28D9", lineHeight: 20, marginBottom: 14, fontWeight: "600" },
+  input: {
+    height: 48,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    marginBottom: 10,
+    color: "#2E1065",
+    fontWeight: "700",
+  },
+  inputLabel: {
+    fontSize: 12,
+    color: "#4C1D95",
     fontWeight: "900",
-    letterSpacing: 0.3,
+    marginBottom: 6,
   },
-
-  secondaryBtn: {
-    paddingHorizontal: 28,
-    paddingVertical: 11,
-    borderRadius: 50,
-    backgroundColor: "rgba(255,255,255,0.85)",
-    borderWidth: 1.5,
-    borderColor: "rgba(109,40,217,0.3)",
+  selectWrap: {
+    marginBottom: 10,
+  },
+  selectButton: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFFFFF",
+  },
+  selectButtonDisabled: {
+    backgroundColor: "#F5F3FF",
+    opacity: 0.75,
+  },
+  selectButtonText: {
+    color: "#2E1065",
+    fontWeight: "800",
+    flex: 1,
+  },
+  placeholderText: {
+    color: "#9CA3AF",
+  },
+  selectArrow: {
+    color: "#7C3AED",
+    fontSize: 12,
+    fontWeight: "900",
+    marginLeft: 10,
+  },
+  dropdownBox: {
     marginTop: 6,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    overflow: "hidden",
   },
-
-  secondaryBtnText: {
-    color: "#6D28D9",
-    fontSize: 14,
+  dropdownScroll: {
+    maxHeight: 150,
+  },
+  dropdownItem: {
+    minHeight: 44,
+    paddingHorizontal: 14,
+    justifyContent: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F5F3FF",
+  },
+  dropdownItemActive: {
+    backgroundColor: "#EDE9FE",
+  },
+  dropdownItemText: {
+    color: "#2E1065",
     fontWeight: "800",
   },
-
-  closeLink: {
-    marginTop: 18,
-    paddingVertical: 8,
+  dropdownItemTextActive: {
+    color: "#6D28D9",
+    fontWeight: "900",
   },
-
-  closeLinkText: {
-    color: "#7C3AED",
-    fontSize: 13,
+  dropdownEmpty: {
+    padding: 14,
+    color: "#6D28D9",
     fontWeight: "700",
-    textDecorationLine: "underline",
-  },
-
-  footNote: {
-    fontSize: 11.5,
-    color: "#7C3AED",
     textAlign: "center",
-    fontWeight: "600",
-    paddingHorizontal: 10,
   },
-
-  loadingText: {
-    marginTop: 14,
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#7C3AED",
+  refreshBatchesBtn: {
+    alignSelf: "flex-end",
+    marginBottom: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
   },
+  refreshBatchesText: {
+    color: "#6D28D9",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  message: { color: "#4C1D95", fontSize: 13, fontWeight: "700", marginBottom: 8 },
+  closeBtn: { alignItems: "center", padding: 12 },
+  closeBtnText: { color: "#6D28D9", fontWeight: "800" },
 });

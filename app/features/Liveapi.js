@@ -25,10 +25,17 @@ export const liveApi = createApi({
   endpoints: (builder) => ({
     // ── STUDENT-FACING ────────────────────────────────────────────────────
     // Returns only the live classes that are currently in the visibility
-    // window for the logged-in student's grade:
+    // window for the logged-in student's grade + batch number:
     //   classDate − 3 h  ≤  now  ≤  classDate + 10 h
     getActiveLiveClasses: builder.query({
-      query: (grade) => `/active/${grade}`,
+      query: ({ grade, batchnumber }) => ({
+        url: "/active",
+        method: "GET",
+        params: {
+          grade,
+          batchnumber,
+        },
+      }),
       providesTags: ["LiveClass"],
     }),
 
@@ -45,7 +52,7 @@ export const liveApi = createApi({
 
     createLiveClass: builder.mutation({
       query: (body) => ({
-        url:    "/",
+        url: "/",
         method: "POST",
         body,
       }),
@@ -54,7 +61,7 @@ export const liveApi = createApi({
 
     updateLiveClass: builder.mutation({
       query: ({ id, ...body }) => ({
-        url:    `/${id}`,
+        url: `/${id}`,
         method: "PUT",
         body,
       }),
@@ -66,7 +73,7 @@ export const liveApi = createApi({
 
     deleteLiveClass: builder.mutation({
       query: (id) => ({
-        url:    `/${id}`,
+        url: `/${id}`,
         method: "DELETE",
       }),
       invalidatesTags: ["LiveClass"],
