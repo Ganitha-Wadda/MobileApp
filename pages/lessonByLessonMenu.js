@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useMemo } from "react";
 import {
   View,
   Text,
@@ -8,44 +8,109 @@ import {
   Dimensions,
   ScrollView,
   StatusBar,
+  ActivityIndicator,
 } from "react-native";
+import { useSelector } from "react-redux";
 import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
+import useT from "../app/i18n/useT";
+import { useGetMyGradePapersByTypeQuery } from "../app/features/paperApi";
 
 const { width, height } = Dimensions.get("window");
 
 const clickSound = require("../assets/clip5.mp3");
 
-const LESSONS = [
+const CARD_STYLES = [
   {
-    id: "1",
-    title: "Chakkre",
     emoji: "🎡",
     iconBg: ["#E8E4FF", "#D9D0FF"],
     starColor: "#A78BFA",
   },
   {
-    id: "2",
-    title: "Ganaka Ramu",
     emoji: "👦",
     iconBg: ["#FFF3E0", "#FFE0B2"],
     starColor: "#FBBF24",
   },
   {
-    id: "3",
-    title: "Muilka Ganitha Sankalapa",
     emoji: "💡",
     iconBg: ["#FFF8D0", "#FFF3A3"],
     starColor: "#60A5FA",
   },
   {
-    id: "4",
-    title: "Walakulu Samklpa",
     emoji: "🏆",
     iconBg: ["#E3F2FD", "#CFEAFF"],
     starColor: "#F472B6",
   },
 ];
+
+const getPapersFromResponse = (response) => {
+  if (Array.isArray(response?.data)) return response.data;
+  if (Array.isArray(response?.data?.data)) return response.data.data;
+  if (Array.isArray(response?.papers)) return response.papers;
+  if (Array.isArray(response)) return response;
+  return [];
+};
+
+const getPaperId = (paper) => paper?.id || paper?._id || "";
+
+const getPaperTitle = (paper) =>
+  String(
+    paper?.paperTitle ||
+      paper?.paperName ||
+      paper?.lessonTitle ||
+      paper?.lessonName ||
+      paper?.title ||
+      paper?.name ||
+      "Lesson"
+  ).trim();
+
+const getPaperSubtitle = (paper) =>
+  String(
+    paper?.paperSubtitle ||
+      paper?.subtitle ||
+      paper?.description ||
+      ""
+  ).trim();
+
+const mapBackendPapersToLessons = (papers) =>
+  papers.map((paper, index) => {
+    const style = CARD_STYLES[index % CARD_STYLES.length];
+
+    return {
+      id: getPaperId(paper) || String(index + 1),
+      paperId: getPaperId(paper),
+      title: getPaperTitle(paper),
+      subtitle: getPaperSubtitle(paper),
+      emoji: style.emoji,
+      iconBg: style.iconBg,
+      starColor: style.starColor,
+      rawPaper: paper,
+    };
+  });
+
+const getErrorMessage = (error, token) => {
+  if (!token) return "Please login first.";
+  return (
+    error?.data?.message ||
+    error?.error ||
+    error?.message ||
+    "Unable to load papers."
+  );
+};
+
+const StateBox = ({ loading, title, message, onRetry }) => (
+  <TouchableOpacity
+    activeOpacity={onRetry ? 0.85 : 1}
+    onPress={onRetry}
+    disabled={!onRetry || loading}
+    style={styles.stateBox}
+  >
+    {loading && <ActivityIndicator size="small" />}
+    <Text style={styles.stateTitle}>{title}</Text>
+    {!!message && <Text style={styles.stateText}>{message}</Text>}
+    {!!onRetry && !loading && <Text style={styles.retryText}>Tap to retry</Text>}
+  </TouchableOpacity>
+);
 
 const FloatingDot = ({ style, color = "#A78BFA", delay = 0, size = 8 }) => {
   const scaleAnim = useRef(new Animated.Value(0.5)).current;
@@ -161,7 +226,7 @@ const FloatingStar = ({ style, color = "#C8BFFF", size = 18, delay = 0 }) => {
   );
 };
 
-const LessonCard = ({ lesson, index, navigation, playClickSound }) => {
+const LessonCard = ({ lesson, index, navigation, playClickSound, startText }) => {
   const slideAnim = useRef(new Animated.Value(45)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const cardScale = useRef(new Animated.Value(1)).current;
@@ -188,8 +253,12 @@ const LessonCard = ({ lesson, index, navigation, playClickSound }) => {
     await playClickSound();
 
     navigation.navigate("paperpage", {
+      paperId: lesson.paperId,
       lessonId: lesson.id,
       lessonTitle: lesson.title,
+      paperTitle: lesson.title,
+      paperType: "lesson by lesson",
+      paper: lesson.rawPaper,
     });
   };
 
@@ -231,13 +300,15 @@ const LessonCard = ({ lesson, index, navigation, playClickSound }) => {
         </LinearGradient>
 
         <View style={styles.textBlock}>
-          <Text style={styles.lessonTitle} numberOfLines={1}>
+          <Text style={styles.lessonTitle} numberOfLines={2}>
             {lesson.title}
           </Text>
 
-          <Text style={styles.lessonSubtitle} numberOfLines={2}>
-            {lesson.subtitle}
-          </Text>
+          {!!lesson.subtitle && (
+            <Text style={styles.lessonSubtitle} numberOfLines={2}>
+              {lesson.subtitle}
+            </Text>
+          )}
 
           <Animated.View style={{ transform: [{ scale: btnScale }] }}>
             <TouchableOpacity
@@ -263,7 +334,7 @@ const LessonCard = ({ lesson, index, navigation, playClickSound }) => {
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
               >
-                <Text style={styles.startText}>Start</Text>
+                <Text style={styles.startText}>{startText}</Text>
               </LinearGradient>
             </TouchableOpacity>
           </Animated.View>
@@ -277,6 +348,26 @@ const LessonCard = ({ lesson, index, navigation, playClickSound }) => {
 
 export default function LessonByLessonMenu({ navigation }) {
   const soundRef = useRef(null);
+  const { t } = useT();
+  const token = useSelector((state) => state?.auth?.token);
+
+  const {
+    data,
+    isLoading,
+    isFetching,
+    error,
+    refetch,
+  } = useGetMyGradePapersByTypeQuery(
+    { paperType: "lesson by lesson" },
+    { skip: !token }
+  );
+
+  const backendPapers = getPapersFromResponse(data);
+
+  const lessons = useMemo(
+    () => mapBackendPapersToLessons(backendPapers),
+    [backendPapers]
+  );
 
   useEffect(() => {
     const loadSound = async () => {
@@ -302,6 +393,9 @@ export default function LessonByLessonMenu({ navigation }) {
       console.log("Sound play error:", error);
     }
   };
+
+  const isBusy = isLoading || isFetching;
+  const errorMessage = error || !token ? getErrorMessage(error, token) : "";
 
   return (
     <View style={styles.container}>
@@ -334,15 +428,24 @@ export default function LessonByLessonMenu({ navigation }) {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {LESSONS.map((lesson, index) => (
-          <LessonCard
-            key={lesson.id}
-            lesson={lesson}
-            index={index}
-            navigation={navigation}
-            playClickSound={playClickSound}
-          />
-        ))}
+        {isBusy ? (
+          <StateBox loading title="Loading lesson by lesson papers..." />
+        ) : errorMessage ? (
+          <StateBox title="Cannot load papers" message={errorMessage} onRetry={token ? refetch : undefined} />
+        ) : lessons.length === 0 ? (
+          <StateBox title="No lesson papers" message="No published lesson by lesson papers are available for your login grade yet." />
+        ) : (
+          lessons.map((lesson, index) => (
+            <LessonCard
+              key={lesson.id}
+              lesson={lesson}
+              index={index}
+              navigation={navigation}
+              playClickSound={playClickSound}
+              startText={t("start") || "Start"}
+            />
+          ))
+        )}
       </ScrollView>
     </View>
   );
@@ -357,6 +460,42 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 32,
     paddingBottom: 40,
+  },
+  stateBox: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    paddingVertical: 26,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 130,
+    shadowColor: "#7864C8",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 5,
+    borderWidth: 1.5,
+    borderColor: "#F0EEFF",
+  },
+  stateTitle: {
+    marginTop: 8,
+    color: "#1A1040",
+    fontSize: 16,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  stateText: {
+    marginTop: 6,
+    color: "#9B8EC4",
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: "center",
+  },
+  retryText: {
+    marginTop: 10,
+    color: "#7C5CFC",
+    fontSize: 13,
+    fontWeight: "700",
   },
   card: {
     backgroundColor: "#FFFFFF",
@@ -445,3 +584,4 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
 });
+

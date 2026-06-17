@@ -71,16 +71,25 @@ export const authApi = createApi({
       invalidatesTags: ["CurrentUser"],
     }),
 
-    // ── NEW: fetches the currently logged-in user's full profile
-    // (name, phonenumber, populated grade, batchYear, gender, district,
-    // town, address, role, isVerified, isActive, ...) from GET /api/auth/current
-    // using whatever token is in the auth cookie / Authorization header.
+    // Fetches the currently logged-in user's full profile.
     getCurrentUser: builder.query({
       query: () => ({
         url: "/current",
         method: "GET",
       }),
       providesTags: ["CurrentUser"],
+    }),
+
+    // Updates the currently logged-in user's profile.
+    // Used by Profile screen for grade change. Backend validates grade
+    // against available active grade documents only.
+    updateCurrentUserProfile: builder.mutation({
+      query: (body) => ({
+        url: "/profile",
+        method: "PATCH",
+        body,
+      }),
+      invalidatesTags: ["CurrentUser"],
     }),
 
     // ============= FORGOT PASSWORD MUTATIONS =============
@@ -136,6 +145,7 @@ export const {
   useSigninMutation,
   useSignoutMutation,
   useGetCurrentUserQuery,
+  useUpdateCurrentUserProfileMutation,
   useForgotPasswordSendOtpMutation,
   useForgotPasswordVerifyOtpMutation,
   useForgotPasswordResetMutation,

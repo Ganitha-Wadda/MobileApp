@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -10,11 +10,87 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import { Audio } from "expo-av";
+import { useDispatch, useSelector } from "react-redux";
+import { useGetCurrentUserQuery } from "../app/features/authApi";
+import { setUser } from "../app/features/userSlice";
+
+const getUserFromResponse = (response) => {
+  if (!response) return null;
+  if (response.user && typeof response.user === "object") return response.user;
+  if (response.data?.user && typeof response.data.user === "object") {
+    return response.data.user;
+  }
+  if (response.data && typeof response.data === "object" && !Array.isArray(response.data)) {
+    return response.data;
+  }
+  return null;
+};
+
+const parseGradeId = (value) => {
+  if (value === undefined || value === null || value === "") return "";
+
+  if (typeof value === "object") {
+    return parseGradeId(value.gradeId ?? value.grade ?? value.value ?? value.id);
+  }
+
+  const gradeId = Number(value);
+  return Number.isInteger(gradeId) && gradeId > 0 && gradeId < 20
+    ? String(gradeId)
+    : "";
+};
+
+const getUserGradeLabel = (user) => {
+  const gradeId = parseGradeId(
+    user?.grade?.gradeId ??
+      user?.gradeId ??
+      user?.gradeNumber ??
+      user?.selectedGrade?.gradeId ??
+      user?.selectedGrade ??
+      user?.grade
+  );
+
+  return gradeId ? `Grade ${gradeId}` : "Grade —";
+};
+
+const getDisplayName = (user) => {
+  const name = String(user?.name || user?.fullname || user?.fullName || "").trim();
+  return name || "Student";
+};
 
 export default function TopBar() {
   const navigation = useNavigation();
+  const dispatch = useDispatch();
   const { width } = useWindowDimensions();
   const soundRef = useRef(null);
+
+  const token = useSelector((state) => state?.auth?.token);
+  const cachedUser = useSelector((state) => state?.user?.user);
+
+  const {
+    data: currentUserResponse,
+    isLoading,
+    isFetching,
+  } = useGetCurrentUserQuery(undefined, {
+    skip: !token,
+    refetchOnMountOrArgChange: true,
+  });
+
+  const backendUser = useMemo(
+    () => getUserFromResponse(currentUserResponse),
+    [currentUserResponse]
+  );
+
+  useEffect(() => {
+    if (backendUser) {
+      dispatch(setUser(backendUser));
+    }
+  }, [backendUser, dispatch]);
+
+  const user = token ? backendUser || cachedUser : null;
+  const isUserLoading = Boolean(token) && !user && (isLoading || isFetching);
+
+  const displayName = isUserLoading ? "Loading..." : getDisplayName(user);
+  const displayGrade = isUserLoading ? "Loading grade..." : getUserGradeLabel(user);
 
   useEffect(() => {
     return () => {
@@ -71,9 +147,9 @@ export default function TopBar() {
         activeOpacity={0.8}
       >
         <Text style={styles.userName} numberOfLines={1} adjustsFontSizeToFit>
-          Saman Ekanayake
+          {displayName}
         </Text>
-        <Text style={styles.userGrade}>Grade 3</Text>
+        <Text style={styles.userGrade}>{displayGrade}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity onPress={goToParent} activeOpacity={0.8}>

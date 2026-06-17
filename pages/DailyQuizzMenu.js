@@ -8,45 +8,107 @@ import {
   Dimensions,
   ScrollView,
   StatusBar,
+  ActivityIndicator,
 } from "react-native";
+import { useSelector } from "react-redux";
 import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
 import useT from "../app/i18n/useT";
+import { useGetMyGradePapersByTypeQuery } from "../app/features/paperApi";
 
 const { width, height } = Dimensions.get("window");
 
 const clickSound = require("../assets/clip5.mp3");
 
-const PAPERS = [
+const CARD_STYLES = [
   {
-    id: "1",
-    number: "1",
     icon: "📋",
     iconBg: ["#E8E4FF", "#D4CEFF"],
     starColor: "#8B7CF8",
   },
   {
-    id: "2",
-    number: "2",
     icon: "📚",
     iconBg: ["#FFF3D4", "#FFE8A0"],
     starColor: "#F5A623",
   },
   {
-    id: "3",
-    number: "3",
     icon: "💡",
     iconBg: ["#E8F4FF", "#D0EAFF"],
     starColor: "#5BC8FF",
   },
   {
-    id: "4",
-    number: "4",
     icon: "🏆",
     iconBg: ["#FFF0E8", "#FFE0CC"],
     starColor: "#FF6EB4",
   },
 ];
+
+const getPapersFromResponse = (response) => {
+  if (Array.isArray(response?.data)) return response.data;
+  if (Array.isArray(response?.data?.data)) return response.data.data;
+  if (Array.isArray(response?.papers)) return response.papers;
+  if (Array.isArray(response)) return response;
+  return [];
+};
+
+const getPaperId = (paper) => paper?.id || paper?._id || "";
+
+const getPaperTitle = (paper) =>
+  String(
+    paper?.paperTitle ||
+      paper?.paperName ||
+      paper?.title ||
+      paper?.name ||
+      "Paper"
+  ).trim();
+
+const getPaperSubtitle = (paper) =>
+  String(
+    paper?.paperSubtitle ||
+      paper?.subtitle ||
+      paper?.description ||
+      ""
+  ).trim();
+
+const mapBackendPapersToCards = (papers) =>
+  papers.map((paper, index) => {
+    const style = CARD_STYLES[index % CARD_STYLES.length];
+
+    return {
+      id: getPaperId(paper) || String(index + 1),
+      paperId: getPaperId(paper),
+      title: getPaperTitle(paper),
+      subtitle: getPaperSubtitle(paper),
+      icon: style.icon,
+      iconBg: style.iconBg,
+      starColor: style.starColor,
+      rawPaper: paper,
+    };
+  });
+
+const getErrorMessage = (error, token) => {
+  if (!token) return "Please login first.";
+  return (
+    error?.data?.message ||
+    error?.error ||
+    error?.message ||
+    "Unable to load papers."
+  );
+};
+
+const StateBox = ({ loading, title, message, onRetry }) => (
+  <TouchableOpacity
+    activeOpacity={onRetry ? 0.85 : 1}
+    onPress={onRetry}
+    disabled={!onRetry || loading}
+    style={styles.stateBox}
+  >
+    {loading && <ActivityIndicator size="small" />}
+    <Text style={styles.stateTitle}>{title}</Text>
+    {!!message && <Text style={styles.stateText}>{message}</Text>}
+    {!!onRetry && !loading && <Text style={styles.retryText}>Tap to retry</Text>}
+  </TouchableOpacity>
+);
 
 const SparkDot = ({ style, delay = 0, color = "#E0D8FF" }) => {
   const scaleAnim = useRef(new Animated.Value(0.4)).current;
@@ -149,7 +211,7 @@ const DecoStar = ({
   );
 };
 
-const PaperCard = ({ item, index, navigation, playClickSound, paperLabel, startLabel }) => {
+const PaperCard = ({ item, index, navigation, playClickSound, startLabel }) => {
   const slideAnim = useRef(new Animated.Value(40)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const btnScale = useRef(new Animated.Value(1)).current;
@@ -175,8 +237,11 @@ const PaperCard = ({ item, index, navigation, playClickSound, paperLabel, startL
     await playClickSound();
 
     navigation.navigate("paperpage", {
-      paperId: item.id,
-      paperTitle: `${paperLabel} - ${item.number}`,
+      paperId: item.paperId,
+      paperTitle: item.title,
+      paperType: "daily paper",
+      hidePaperTitle: true,
+      paper: item.rawPaper,
     });
   };
 
@@ -200,7 +265,21 @@ const PaperCard = ({ item, index, navigation, playClickSound, paperLabel, startL
       </LinearGradient>
 
       <View style={styles.cardTextBlock}>
-        <Text style={styles.cardTitle}>{`${paperLabel} - ${item.number}`}</Text>
+        <Text
+          style={[
+            styles.cardTitle,
+            !item.subtitle && styles.cardTitleNoSubtitle,
+          ]}
+          numberOfLines={2}
+        >
+          {item.title}
+        </Text>
+
+        {!!item.subtitle && (
+          <Text style={styles.cardSubtitle} numberOfLines={2}>
+            {item.subtitle}
+          </Text>
+        )}
 
         <Animated.View style={{ transform: [{ scale: btnScale }] }}>
           <TouchableOpacity
@@ -240,6 +319,25 @@ const PaperCard = ({ item, index, navigation, playClickSound, paperLabel, startL
 export default function DailyQuizzmenu({ navigation }) {
   const soundRef = useRef(null);
   const { t } = useT();
+  const token = useSelector((state) => state?.auth?.token);
+
+  const {
+    data,
+    isLoading,
+    isFetching,
+    error,
+    refetch,
+  } = useGetMyGradePapersByTypeQuery(
+    { paperType: "daily paper" },
+    { skip: !token }
+  );
+
+  const backendPapers = getPapersFromResponse(data);
+
+  const papers = useMemo(
+    () => mapBackendPapersToCards(backendPapers),
+    [backendPapers]
+  );
 
   useEffect(() => {
     const loadSound = async () => {
@@ -265,6 +363,9 @@ export default function DailyQuizzmenu({ navigation }) {
       console.log("Sound play error:", error);
     }
   };
+
+  const isBusy = isLoading || isFetching;
+  const errorMessage = error || !token ? getErrorMessage(error, token) : "";
 
   return (
     <View style={styles.container}>
@@ -303,17 +404,24 @@ export default function DailyQuizzmenu({ navigation }) {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {PAPERS.map((item, index) => (
-          <PaperCard
-            key={item.id}
-            item={item}
-            index={index}
-            navigation={navigation}
-            playClickSound={playClickSound}
-            paperLabel={t("paper")}
-            startLabel={t("start")}
-          />
-        ))}
+        {isBusy ? (
+          <StateBox loading title="Loading daily quiz papers..." />
+        ) : errorMessage ? (
+          <StateBox title="Cannot load papers" message={errorMessage} onRetry={token ? refetch : undefined} />
+        ) : papers.length === 0 ? (
+          <StateBox title="No daily quiz papers" message="No published daily quiz papers are available for your login grade yet." />
+        ) : (
+          papers.map((item, index) => (
+            <PaperCard
+              key={item.id}
+              item={item}
+              index={index}
+              navigation={navigation}
+              playClickSound={playClickSound}
+              startLabel={t("start") || "Start"}
+            />
+          ))
+        )}
       </ScrollView>
     </View>
   );
@@ -329,6 +437,40 @@ const styles = StyleSheet.create({
     paddingTop: 28,
     paddingBottom: 36,
     gap: 16,
+  },
+  stateBox: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 22,
+    paddingVertical: 26,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 130,
+    shadowColor: "#7B6FCC",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 18,
+    elevation: 5,
+  },
+  stateTitle: {
+    marginTop: 8,
+    color: "#1A1A2E",
+    fontSize: 16,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  stateText: {
+    marginTop: 6,
+    color: "#7D76A8",
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: "center",
+  },
+  retryText: {
+    marginTop: 10,
+    color: "#4F3FE8",
+    fontSize: 13,
+    fontWeight: "700",
   },
   sparkDot: {
     position: "absolute",
@@ -374,6 +516,15 @@ const styles = StyleSheet.create({
     fontSize: 19,
     fontWeight: "800",
     color: "#1A1A2E",
+    marginBottom: 4,
+  },
+  cardTitleNoSubtitle: {
+    marginBottom: 10,
+  },
+  cardSubtitle: {
+    fontSize: 12.5,
+    color: "#7D76A8",
+    lineHeight: 18,
     marginBottom: 10,
   },
   startBtn: {
@@ -408,3 +559,5 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
 });
+
+

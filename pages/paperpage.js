@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -8,22 +8,307 @@ import {
   StatusBar,
   Dimensions,
   Platform,
+  ScrollView,
+  ActivityIndicator,
+  Image,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { useGetPaperFullDetailsQuery } from "../app/features/paperApi";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width * 0.9;
 
-export default function Paperpage({ navigation }) {
-  const options = [
-    { id: "i.", answer: "8" },
-    { id: "ii.", answer: "6" },
-    { id: "iii.", answer: "9" },
-    { id: "iv.", answer: "10" },
-  ];
+const OPTION_LABELS = ["i.", "ii.", "iii.", "iv.", "v.", "vi."];
+
+const getPaperId = (value) =>
+  value?.id || value?._id || value?.paperId || value?.paper?._id || value?.paper?.id || "";
+
+const getPaperFromResponse = (response, fallbackPaper) => {
+  if (response?.data?.paper) return response.data.paper;
+  if (response?.data?.data?.paper) return response.data.data.paper;
+  if (response?.paper) return response.paper;
+  return fallbackPaper || null;
+};
+
+const getQuestionsFromResponse = (response) => {
+  if (Array.isArray(response?.data?.questions)) return response.data.questions;
+  if (Array.isArray(response?.data?.data?.questions)) return response.data.data.questions;
+  if (Array.isArray(response?.questions)) return response.questions;
+  if (Array.isArray(response?.data)) return response.data;
+  return [];
+};
+
+const getPaperTitle = (paper, paramsTitle) =>
+  String(
+    paramsTitle ||
+      paper?.paperTitle ||
+      paper?.paperName ||
+      paper?.title ||
+      paper?.name ||
+      "Paper"
+  ).trim();
+
+const getQuestionText = (question) =>
+  String(question?.question || question?.questionText || question?.title || "").trim();
+
+const getAnswers = (question) => {
+  if (Array.isArray(question?.answers)) return question.answers.map((answer) => String(answer || ""));
+  if (Array.isArray(question?.options)) return question.options.map((answer) => String(answer || ""));
+  return [];
+};
+
+const toSortedNumberArray = (value) =>
+  [...new Set((Array.isArray(value) ? value : []).map(Number).filter(Number.isInteger))].sort(
+    (a, b) => a - b
+  );
+
+const areSameIndexes = (a, b) => {
+  const first = toSortedNumberArray(a);
+  const second = toSortedNumberArray(b);
+
+  if (first.length !== second.length) return false;
+  return first.every((value, index) => value === second[index]);
+};
+
+const buildAnswerResult = (question, selectedIndexes) => {
+  const answers = getAnswers(question);
+  const correctAnswerIndexes = toSortedNumberArray(question?.correctAnswerIndexes);
+  const normalizedSelectedIndexes = toSortedNumberArray(selectedIndexes);
+
+  return {
+    questionId: question?.id || question?._id || String(question?.questionNumber || ""),
+    questionNumber: Number(question?.questionNumber || 0),
+    lessonName: question?.lessonName || "",
+    question: getQuestionText(question),
+    answers,
+    selectedIndexes: normalizedSelectedIndexes,
+    selectedAnswers: normalizedSelectedIndexes.map((index) => answers[index]).filter(Boolean),
+    correctAnswerIndexes,
+    correctAnswers: correctAnswerIndexes.map((index) => answers[index]).filter(Boolean),
+    isCorrect: areSameIndexes(normalizedSelectedIndexes, correctAnswerIndexes),
+    point: Number(question?.point || 0),
+    explanationText: question?.explanationText || "",
+    explanationVideoUrl: question?.explanationVideoUrl || "",
+    imageUrl: question?.imageUrl || "",
+  };
+};
+
+const StateCard = ({ loading, title, message, onRetry }) => (
+  <View style={styles.centerContent}>
+    <View style={styles.card}>
+      {loading && <ActivityIndicator size="small" color="#6E46F2" />}
+      <Text style={styles.stateTitle}>{title}</Text>
+      {!!message && <Text style={styles.stateMessage}>{message}</Text>}
+      {!!onRetry && (
+        <TouchableOpacity activeOpacity={0.85} style={styles.retryButton} onPress={onRetry}>
+          <Text style={styles.retryText}>Try again</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  </View>
+);
+
+export default function Paperpage({ navigation, route }) {
+  const params = route?.params || {};
+  const paramsPaper = params.paper || null;
+  const paperId = params.paperId || getPaperId(paramsPaper);
+
+  const {
+    data,
+    isLoading,
+    isFetching,
+    error,
+    refetch,
+  } = useGetPaperFullDetailsQuery(paperId, { skip: !paperId });
+
+  const paper = useMemo(
+    () => getPaperFromResponse(data, paramsPaper),
+    [data, paramsPaper]
+  );
+
+  const questions = useMemo(
+    () => getQuestionsFromResponse(data).filter((question) => question?.isActive !== false),
+    [data]
+  );
+
+  const paperTitle = getPaperTitle(paper, params.paperTitle || params.lessonTitle || params.pastPaperYear);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [selectedIndexes, setSelectedIndexes] = useState([]);
+  const [submittedAnswers, setSubmittedAnswers] = useState([]);
+
+  useEffect(() => {
+    setCurrentIndex(0);
+    setSelectedIndexes([]);
+    setSubmittedAnswers([]);
+  }, [paperId]);
+
+  const currentQuestion = questions[currentIndex];
+  const currentAnswers = getAnswers(currentQuestion);
+  const correctAnswerIndexes = toSortedNumberArray(currentQuestion?.correctAnswerIndexes);
+  const isMultipleAnswerQuestion = correctAnswerIndexes.length > 1;
+  const isBusy = isLoading || isFetching;
+  const canSubmit = !!currentQuestion && selectedIndexes.length > 0;
+
+  const handleSelectAnswer = (index) => {
+    if (isMultipleAnswerQuestion) {
+      setSelectedIndexes((prev) =>
+        prev.includes(index)
+          ? prev.filter((item) => item !== index)
+          : [...prev, index].sort((a, b) => a - b)
+      );
+      return;
+    }
+
+    setSelectedIndexes([index]);
+  };
 
   const handleSubmit = () => {
-    navigation.navigate("reviewpage");
+    if (!canSubmit) return;
+
+    const answerResult = buildAnswerResult(currentQuestion, selectedIndexes);
+    const nextAnswers = [...submittedAnswers, answerResult];
+    const isLastQuestion = currentIndex >= questions.length - 1;
+
+    if (!isLastQuestion) {
+      setSubmittedAnswers(nextAnswers);
+      setCurrentIndex((prev) => prev + 1);
+      setSelectedIndexes([]);
+      return;
+    }
+
+    const correctCount = nextAnswers.filter((item) => item.isCorrect).length;
+    const totalQuestions = questions.length;
+    const percentage = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
+
+    navigation.navigate("reviewpage", {
+      paperId,
+      paperTitle,
+      paper,
+      questions,
+      answers: nextAnswers,
+      totalQuestions,
+      correctCount,
+      percentage,
+    });
+  };
+
+  const renderContent = () => {
+    if (!paperId) {
+      return (
+        <StateCard
+          title="Paper not selected"
+          message="Please select a paper from the paper menu again."
+        />
+      );
+    }
+
+    if (isBusy && questions.length === 0) {
+      return <StateCard loading title="Loading questions..." />;
+    }
+
+    if (error) {
+      return (
+        <StateCard
+          title="Cannot load this paper"
+          message={error?.data?.message || error?.error || "Please try again."}
+          onRetry={refetch}
+        />
+      );
+    }
+
+    if (questions.length === 0) {
+      return (
+        <StateCard
+          title="No questions found"
+          message="This paper has no active questions yet."
+          onRetry={refetch}
+        />
+      );
+    }
+
+    return (
+      <View style={styles.centerContent}>
+        <View style={styles.progressRow}>
+          <Text style={styles.progressText}>
+            {currentIndex + 1} / {questions.length}
+          </Text>
+        </View>
+
+        <ScrollView
+          style={styles.questionScroll}
+          contentContainerStyle={styles.questionScrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.card}>
+            <View style={styles.questionBadge}>
+              <Text style={styles.questionBadgeText}>
+                Question {currentQuestion?.questionNumber || currentIndex + 1}
+              </Text>
+            </View>
+
+            {!!currentQuestion?.lessonName && (
+              <Text style={styles.lessonNameText} numberOfLines={2}>
+                {currentQuestion.lessonName}
+              </Text>
+            )}
+
+            {!!currentQuestion?.imageUrl && (
+              <Image
+                source={{ uri: currentQuestion.imageUrl }}
+                style={styles.questionImage}
+                resizeMode="contain"
+              />
+            )}
+
+            <Text style={styles.questionText}>{getQuestionText(currentQuestion)}</Text>
+
+            <View style={styles.optionsWrapper}>
+              {currentAnswers.map((answer, index) => {
+                const selected = selectedIndexes.includes(index);
+
+                return (
+                  <TouchableOpacity
+                    key={`${currentQuestion?.id || currentQuestion?._id || currentIndex}-${index}`}
+                    activeOpacity={0.85}
+                    style={[styles.optionBox, selected && styles.optionBoxSelected]}
+                    onPress={() => handleSelectAnswer(index)}
+                  >
+                    <Text style={[styles.optionNumber, selected && styles.optionNumberSelected]}>
+                      {OPTION_LABELS[index] || `${index + 1}.`}
+                    </Text>
+                    <Text style={[styles.optionText, selected && styles.optionTextSelected]}>
+                      {answer}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {isMultipleAnswerQuestion && (
+              <Text style={styles.multiAnswerHint}>Select all correct answers.</Text>
+            )}
+
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={[styles.submitWrapper, !canSubmit && styles.submitWrapperDisabled]}
+              onPress={handleSubmit}
+              disabled={!canSubmit}
+            >
+              <LinearGradient
+                colors={canSubmit ? ["#8D4DFF", "#233BFF"] : ["#C8C8D8", "#AAAABC"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.submitButton}
+              >
+                <Text style={styles.submitText}>
+                  {currentIndex >= questions.length - 1 ? "Finish" : "Next"}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </View>
+    );
   };
 
   return (
@@ -44,45 +329,7 @@ export default function Paperpage({ navigation }) {
         <View style={[styles.dot, styles.dotSix]} />
         <View style={[styles.dot, styles.dotSeven]} />
 
-        <View style={styles.centerContent}>
-          <Text style={styles.title}>Daily Quiz</Text>
-
-          <View style={styles.card}>
-            <View style={styles.questionBadge}>
-              <Text style={styles.questionBadgeText}>Question 1</Text>
-            </View>
-
-            <Text style={styles.questionText}>3 × 2 = ??</Text>
-
-            <View style={styles.optionsWrapper}>
-              {options.map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  activeOpacity={0.85}
-                  style={styles.optionBox}
-                >
-                  <Text style={styles.optionNumber}>{item.id}</Text>
-                  <Text style={styles.optionText}>{item.answer}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <TouchableOpacity
-              activeOpacity={0.85}
-              style={styles.submitWrapper}
-              onPress={handleSubmit}
-            >
-              <LinearGradient
-                colors={["#8D4DFF", "#233BFF"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.submitButton}
-              >
-                <Text style={styles.submitText}>Submit</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        </View>
+        {renderContent()}
 
         <View style={styles.cloudArea}>
           <View style={[styles.cloudCircle, styles.cloudOne]} />
@@ -120,6 +367,36 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     zIndex: 2,
+    flex: 1,
+  },
+
+  progressRow: {
+    marginBottom: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 22,
+    shadowColor: "#C9CAD8",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+
+  progressText: {
+    color: "#4D2DDE",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+
+  questionScroll: {
+    width: "100%",
+    maxHeight: "88%",
+  },
+
+  questionScrollContent: {
+    alignItems: "center",
+    paddingBottom: 30,
   },
 
   title: {
@@ -150,12 +427,43 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
 
+  stateTitle: {
+    color: "#101943",
+    fontSize: 20,
+    fontWeight: "900",
+    marginTop: 12,
+    textAlign: "center",
+  },
+
+  stateMessage: {
+    color: "#6D6E88",
+    fontSize: 14,
+    fontWeight: "600",
+    lineHeight: 20,
+    marginTop: 8,
+    textAlign: "center",
+  },
+
+  retryButton: {
+    backgroundColor: "#4D2DDE",
+    borderRadius: 22,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    marginTop: 18,
+  },
+
+  retryText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+
   questionBadge: {
     backgroundColor: "#F1ECFF",
     paddingHorizontal: 33,
     paddingVertical: 8,
     borderRadius: 18,
-    marginBottom: 18,
+    marginBottom: 14,
   },
 
   questionBadgeText: {
@@ -164,12 +472,30 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 
+  lessonNameText: {
+    color: "#6D62A8",
+    fontSize: 13,
+    fontWeight: "800",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+
+  questionImage: {
+    width: "100%",
+    height: 170,
+    marginBottom: 14,
+    borderRadius: 16,
+    backgroundColor: "#F8F8FF",
+  },
+
   questionText: {
-    fontSize: 31,
+    fontSize: 27,
     color: "#060B36",
     fontWeight: "900",
     marginBottom: 18,
-    letterSpacing: 1,
+    letterSpacing: 0.5,
+    textAlign: "center",
+    lineHeight: 36,
   },
 
   optionsWrapper: {
@@ -179,12 +505,13 @@ const styles = StyleSheet.create({
 
   optionBox: {
     width: "100%",
-    height: 50,
+    minHeight: 50,
     backgroundColor: "#FFFFFF",
     borderRadius: 17,
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 22,
+    paddingVertical: 10,
     borderWidth: 1,
     borderColor: "#EEF0F8",
 
@@ -198,6 +525,11 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
 
+  optionBoxSelected: {
+    backgroundColor: "#F1ECFF",
+    borderColor: "#8D4DFF",
+  },
+
   optionNumber: {
     fontSize: 18,
     fontWeight: "900",
@@ -205,14 +537,36 @@ const styles = StyleSheet.create({
     width: 36,
   },
 
+  optionNumberSelected: {
+    color: "#233BFF",
+  },
+
   optionText: {
-    fontSize: 20,
+    flex: 1,
+    fontSize: 19,
     fontWeight: "900",
     color: "#0C123D",
+    lineHeight: 24,
+  },
+
+  optionTextSelected: {
+    color: "#233BFF",
+  },
+
+  multiAnswerHint: {
+    alignSelf: "flex-start",
+    color: "#6D6E88",
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 10,
   },
 
   submitWrapper: {
     marginTop: 18,
+  },
+
+  submitWrapperDisabled: {
+    opacity: 0.75,
   },
 
   submitButton: {

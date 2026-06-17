@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from "react";
+import React, { useRef, useState, useCallback, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -19,15 +19,107 @@ import useT from "../app/i18n/useT";
 const { height: WINDOW_HEIGHT } = Dimensions.get("window");
 const BOTTOM_BAR_HEIGHT = 82;
 
-const LESSONS = [
-  { id: "1", title: "Chakkre (part - 1) — FREE DEMO", lessonId: "1.1", videoId: "-VJWCNwFN60", activityDone: false, isDemo: true },
-  { id: "2", title: "Chakkre (part - 2)", lessonId: "1.2", videoId: "U_hdOu5L50o", activityDone: false, isDemo: false },
-  { id: "3", title: "Chakkre (part - 3)", lessonId: "1.3", videoId: "HnwwynXxnBg", activityDone: false, isDemo: false },
-  { id: "4", title: "Chakkre (part - 4)", lessonId: "1.4", videoId: "wXE8l4pyJ5E", activityDone: false, isDemo: false },
-  { id: "5", title: "Chakkre (part - 5)", lessonId: "1.5", videoId: "-VJWCNwFN60", activityDone: false, isDemo: false },
-];
+function extractYoutubeVideoId(input = "") {
+  const value = String(input || "").trim();
 
-function buildYoutubeHtml(videoId = "") {
+  if (!value) return "";
+
+  if (/^[a-zA-Z0-9_-]{11}$/.test(value)) {
+    return value;
+  }
+
+  const patterns = [
+    /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/watch\?.*&v=([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
+    /youtube-nocookie\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = value.match(pattern);
+    if (match?.[1]) return match[1];
+  }
+
+  return "";
+}
+
+function isDirectVideoUrl(input = "") {
+  const value = String(input || "").toLowerCase().split("?")[0];
+
+  return (
+    value.endsWith(".mp4") ||
+    value.endsWith(".mov") ||
+    value.endsWith(".m4v") ||
+    value.endsWith(".webm") ||
+    value.endsWith(".ogg")
+  );
+}
+
+function escapeHtml(value = "") {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function buildVideoHtml(source = "") {
+  const cleanSource = String(source || "").trim();
+  const youtubeId = extractYoutubeVideoId(cleanSource);
+
+  if (youtubeId) {
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+          <style>
+            html, body { margin:0; padding:0; width:100%; height:100%; background:#000; overflow:hidden; }
+            .wrap { width:100%; height:100%; background:#000; display:flex; align-items:center; justify-content:center; }
+            iframe { width:100%; height:100%; border:0; background:#000; }
+          </style>
+        </head>
+        <body>
+          <div class="wrap">
+            <iframe
+              src="https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&playsinline=1&controls=1&rel=0&modestbranding=1"
+              allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+              allowfullscreen
+            ></iframe>
+          </div>
+        </body>
+      </html>
+    `;
+  }
+
+  if (isDirectVideoUrl(cleanSource)) {
+    const safeSource = escapeHtml(cleanSource);
+
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+          <style>
+            html, body { margin:0; padding:0; width:100%; height:100%; background:#000; overflow:hidden; }
+            .wrap { width:100%; height:100%; background:#000; display:flex; align-items:center; justify-content:center; }
+            video { width:100%; height:100%; background:#000; object-fit:contain; }
+          </style>
+        </head>
+        <body>
+          <div class="wrap">
+            <video src="${safeSource}" controls autoplay playsinline></video>
+          </div>
+        </body>
+      </html>
+    `;
+  }
+
+  const safeSource = escapeHtml(cleanSource);
+
   return `
     <!DOCTYPE html>
     <html>
@@ -42,7 +134,7 @@ function buildYoutubeHtml(videoId = "") {
       <body>
         <div class="wrap">
           <iframe
-            src="https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&playsinline=1&controls=1&rel=0&modestbranding=1"
+            src="${safeSource}"
             allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
             allowfullscreen
           ></iframe>
@@ -52,17 +144,56 @@ function buildYoutubeHtml(videoId = "") {
   `;
 }
 
+function normalizeLessonsFromRoute(routeParams = {}) {
+  const links = Array.isArray(routeParams?.links)
+    ? routeParams.links.filter((link) => String(link || "").trim())
+    : [];
+
+  const shortLessonId = routeParams?.shortLessonId || routeParams?.lessonId || "";
+  const subLessonTitle = routeParams?.subLessonTitle || "Short Sub Lesson";
+  const subLessonId =
+    routeParams?.shortSubLessonId || routeParams?.subLessonId || "short-sub-lesson";
+  const lessonNumber = routeParams?.lessonNumber || 1;
+
+  if (links.length === 0) {
+    return [];
+  }
+
+  return links.map((link, index) => ({
+    id: `${subLessonId}-${index + 1}`,
+    title:
+      links.length === 1
+        ? subLessonTitle
+        : `${subLessonTitle} - Video ${index + 1}`,
+    lessonId: `${lessonNumber}.${index + 1}`,
+    videoSource: String(link || "").trim(),
+    videoIndex: index,
+    activityDone: false,
+    isDemo: index === 0,
+    shortLessonId,
+    shortSubLessonId: subLessonId,
+  }));
+}
+
 function LockOverlay({ onEnroll, t }) {
   return (
     <View style={ls.container}>
       <Text style={ls.lockEmoji}>🔒</Text>
       <Text style={ls.title}>{t("enrollmentRequired")}</Text>
-      <Text style={ls.sub}>
-        {t("enrollUnlockVideos")}
-      </Text>
+      <Text style={ls.sub}>{t("enrollUnlockVideos")}</Text>
       <TouchableOpacity style={ls.btn} onPress={onEnroll} activeOpacity={0.85}>
         <Text style={ls.btnText}>{t("enrollNow")}</Text>
       </TouchableOpacity>
+    </View>
+  );
+}
+
+function EmptyVideoOverlay({ title }) {
+  return (
+    <View style={vcs.playOverlay}>
+      <Text style={vcs.tapPlayText}>
+        {title || "No video link found for this sub lesson"}
+      </Text>
     </View>
   );
 }
@@ -106,7 +237,7 @@ const VideoCard = React.memo(
           ) : isPlaying ? (
             <CrossWebView
               key={`video-${item.id}`}
-              source={{ html: buildYoutubeHtml(item.videoId) }}
+              source={{ html: buildVideoHtml(item.videoSource) }}
               style={vcs.webview}
             />
           ) : (
@@ -144,7 +275,7 @@ const VideoCard = React.memo(
 
             <TouchableOpacity
               style={[vcs.btnActivity, activityDone && vcs.btnActivityDone]}
-              onPress={() => onActivity(item)}
+              onPress={() => onActivity(item, index)}
               activeOpacity={0.85}
             >
               <Text style={vcs.activityIcon}>📖</Text>
@@ -165,18 +296,77 @@ const VideoCard = React.memo(
   }
 );
 
-export default function ShortVideoScreen({ navigation }) {
+export default function ShortVideoScreen({ navigation, route }) {
   const { t } = useT();
   const flatListRef = useRef(null);
   const { width: screenWidth } = useWindowDimensions();
 
+  const routeKey = useMemo(
+    () =>
+      JSON.stringify({
+        shortLessonId: route?.params?.shortLessonId || route?.params?.lessonId || "",
+        shortSubLessonId: route?.params?.shortSubLessonId || route?.params?.subLessonId || "",
+        links: route?.params?.links || [],
+      }),
+    [
+      route?.params?.shortLessonId,
+      route?.params?.lessonId,
+      route?.params?.shortSubLessonId,
+      route?.params?.subLessonId,
+      route?.params?.links,
+    ]
+  );
+
+  const routeLessons = useMemo(
+    () => normalizeLessonsFromRoute(route?.params || {}),
+    [routeKey]
+  );
+
   const [activeIndex, setActiveIndex] = useState(0);
   const [playingIndex, setPlayingIndex] = useState(null);
-  const [lessons, setLessons] = useState(LESSONS);
+  const [lessons, setLessons] = useState(routeLessons);
   const [pageHeight, setPageHeight] = useState(WINDOW_HEIGHT);
   const [enrollModalVisible, setEnrollModalVisible] = useState(false);
 
   const { isApproved } = useEnrollmentStatus();
+
+  useEffect(() => {
+    setLessons(routeLessons);
+    setActiveIndex(0);
+    setPlayingIndex(null);
+  }, [routeLessons]);
+
+  useEffect(() => {
+    const completedVideoId = route?.params?.completedVideoId;
+
+    if (!completedVideoId) return;
+
+    setLessons((prev) =>
+      prev.map((lesson) =>
+        lesson.id === completedVideoId ? { ...lesson, activityDone: true } : lesson
+      )
+    );
+  }, [route?.params?.completedVideoId]);
+
+  useEffect(() => {
+    const targetIndex = Number(route?.params?.initialVideoIndex);
+
+    if (!Number.isInteger(targetIndex) || targetIndex < 0 || lessons.length === 0) {
+      return;
+    }
+
+    const safeIndex = Math.min(targetIndex, lessons.length - 1);
+
+    setActiveIndex(safeIndex);
+    setPlayingIndex(null);
+
+    requestAnimationFrame(() => {
+      flatListRef.current?.scrollToIndex({
+        index: safeIndex,
+        animated: true,
+      });
+    });
+  }, [route?.params?.initialVideoIndex, lessons.length, pageHeight]);
 
   const stopVideo = useCallback(() => {
     setPlayingIndex(null);
@@ -202,6 +392,7 @@ export default function ShortVideoScreen({ navigation }) {
       stopVideo();
 
       const next = currentIndex + 1;
+
       if (next < lessons.length) {
         setActiveIndex(next);
         flatListRef.current?.scrollToIndex({
@@ -214,23 +405,38 @@ export default function ShortVideoScreen({ navigation }) {
   );
 
   const handleActivity = useCallback(
-    (item) => {
+    (item, index) => {
       stopVideo();
 
-      setLessons((prev) =>
-        prev.map((lesson) =>
-          lesson.id === item.id
-            ? { ...lesson, activityDone: true }
-            : lesson
-        )
-      );
+      const shortLessonId = route?.params?.shortLessonId || route?.params?.lessonId;
+      const shortSubLessonId =
+        route?.params?.shortSubLessonId || route?.params?.subLessonId;
+      const nextVideoIndex = Math.min(index + 1, Math.max(lessons.length - 1, 0));
+      const hasNextVideo = index + 1 < lessons.length;
 
-      navigation.navigate("activitytemplate1", {
+      navigation.navigate("ActivityFlow", {
+        shortLessonId,
+        shortSubLessonId,
         title: item.title,
-        lessonId: item.lessonId,
+        subLessonTitle: route?.params?.subLessonTitle || item.title,
+        videoIndex: index,
+        nextVideoIndex,
+        hasNextVideo,
+        completedVideoId: item.id,
+        returnToVideoParams: {
+          subLessonId: route?.params?.subLessonId,
+          shortSubLessonId,
+          shortLessonId,
+          lessonId: route?.params?.lessonId,
+          lessonTitle: route?.params?.lessonTitle,
+          subLessonTitle: route?.params?.subLessonTitle,
+          lessonNumber: route?.params?.lessonNumber,
+          links: route?.params?.links || [],
+          shortSubLesson: route?.params?.shortSubLesson,
+        },
       });
     },
-    [navigation, stopVideo]
+    [navigation, route?.params, lessons.length, stopVideo]
   );
 
   const renderItem = useCallback(
@@ -288,24 +494,44 @@ export default function ShortVideoScreen({ navigation }) {
     >
       <StatusBar barStyle="light-content" backgroundColor="#5e1cce" />
 
-      <FlatList
-        ref={flatListRef}
-        data={lessons}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        pagingEnabled
-        showsVerticalScrollIndicator={false}
-        snapToInterval={pageHeight}
-        snapToAlignment="start"
-        decelerationRate="fast"
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={viewabilityConfig}
-        getItemLayout={getItemLayout}
-        removeClippedSubviews={false}
-        initialNumToRender={1}
-        maxToRenderPerBatch={2}
-        windowSize={3}
-      />
+      {lessons.length === 0 ? (
+        <View style={[vcs.cardContainer, { width: screenWidth, height: pageHeight }]}>
+          <View
+            style={[
+              vcs.videoArea,
+              {
+                width: screenWidth,
+                height: pageHeight - BOTTOM_BAR_HEIGHT,
+              },
+            ]}
+          >
+            <EmptyVideoOverlay />
+          </View>
+
+          <View style={vcs.lockedBottom}>
+            <Text style={vcs.lockedBottomText}>No videos</Text>
+          </View>
+        </View>
+      ) : (
+        <FlatList
+          ref={flatListRef}
+          data={lessons}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          pagingEnabled
+          showsVerticalScrollIndicator={false}
+          snapToInterval={pageHeight}
+          snapToAlignment="start"
+          decelerationRate="fast"
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
+          getItemLayout={getItemLayout}
+          removeClippedSubviews={false}
+          initialNumToRender={1}
+          maxToRenderPerBatch={2}
+          windowSize={3}
+        />
+      )}
 
       <EnrollmentModal
         visible={enrollModalVisible}
@@ -383,6 +609,7 @@ const vcs = StyleSheet.create({
     backgroundColor: "#1a0a3c",
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 24,
   },
 
   bigPlayCircle: {
@@ -411,6 +638,7 @@ const vcs = StyleSheet.create({
     color: "#EDE9FE",
     fontSize: 15,
     fontWeight: "800",
+    textAlign: "center",
   },
 
   titleBar: {

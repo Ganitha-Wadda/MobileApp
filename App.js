@@ -28,10 +28,8 @@ import ParentPage from "./pages/Parentpage";
 import Result from "./pages/Result";
 import Attendance from "./pages/Attendance";
 import ViewShortLessonsScreen from "./pages/Viewshortlessonsscreen";
-import ShortVideoScreen from "./pages/Shortvideoscreen";
-import ActivityTemplate1 from "./pages/ActivityTemplate1";
-import ActivityTemplate2 from "./pages/Activitytemplate2";
-import ActivityTemplate3 from "./pages/Activitytemplate3";
+import ShortVideoScreen from "./pages/ShortVideoScreen";
+import ActivityFlowScreen from "./pages/ActivityFlowScreen";
 import ViewRecording from "./pages/Viewrecording";
 import Profile from "./pages/Profile";
 import Leaderboard from "./pages/Leaderboard";
@@ -216,26 +214,10 @@ export default function App() {
               )}
             </Stack.Screen>
 
-            <Stack.Screen name="activitytemplate1">
+            <Stack.Screen name="ActivityFlow">
               {(props) => (
                 <SecondLayout navigation={props.navigation}>
-                  <ActivityTemplate1 {...props} />
-                </SecondLayout>
-              )}
-            </Stack.Screen>
-
-            <Stack.Screen name="activitytemplate2">
-              {(props) => (
-                <SecondLayout navigation={props.navigation}>
-                  <ActivityTemplate2 {...props} />
-                </SecondLayout>
-              )}
-            </Stack.Screen>
-
-            <Stack.Screen name="activitytemplate3">
-              {(props) => (
-                <SecondLayout navigation={props.navigation}>
-                  <ActivityTemplate3 {...props} />
+                  <ActivityFlowScreen {...props} />
                 </SecondLayout>
               )}
             </Stack.Screen>
@@ -359,6 +341,7 @@ export default function App() {
                 </SecondLayout>
               )}
             </Stack.Screen>
+
             <Stack.Screen name="battle">
               {(props) => (
                 <SecondLayout navigation={props.navigation}>

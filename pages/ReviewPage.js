@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -14,15 +14,158 @@ import { LinearGradient } from "expo-linear-gradient";
 
 const { width } = Dimensions.get("window");
 
-export default function ReviewPage({ navigation }) {
-  const [showAnswer, setShowAnswer] = useState(true);
+const OPTION_LABELS = ["i.", "ii.", "iii.", "iv.", "v.", "vi."];
+
+const toArrayText = (value) =>
+  Array.isArray(value) && value.length > 0 ? value.join(", ") : "—";
+
+const getBadgeInfo = (percentage) => {
+  if (percentage >= 90) return { icon: "🏅", text: "Gold Badge", subtitle: "Excellent Result" };
+  if (percentage >= 70) return { icon: "🥈", text: "Silver Badge", subtitle: "Great Result" };
+  if (percentage >= 50) return { icon: "🥉", text: "Bronze Badge", subtitle: "Good Result" };
+  return { icon: "⭐", text: "Keep Practicing", subtitle: "Practice Result" };
+};
+
+const normalizeReviewAnswers = (params) => {
+  if (Array.isArray(params?.answers)) return params.answers;
+  if (Array.isArray(params?.reviewAnswers)) return params.reviewAnswers;
+  return [];
+};
+
+const ReviewQuestionCard = ({ item, index, showAnswer, onToggleAnswer }) => {
+  const statusText = item.isCorrect ? "Correct" : "Wrong";
+
+  return (
+    <View style={styles.questionCard}>
+      <View style={styles.questionTopRow}>
+        <Text style={styles.questionTitle}>
+          Question - {item.questionNumber || index + 1}
+        </Text>
+
+        <View
+          style={[
+            styles.completedBadge,
+            item.isCorrect ? styles.correctBadge : styles.wrongBadge,
+          ]}
+        >
+          <View style={styles.completedCircle}>
+            <Text
+              style={[
+                styles.completedTick,
+                item.isCorrect ? styles.correctTick : styles.wrongTick,
+              ]}
+            >
+              {item.isCorrect ? "✓" : "×"}
+            </Text>
+          </View>
+          <Text style={styles.completedText}>{statusText}</Text>
+        </View>
+      </View>
+
+      {!!item.lessonName && <Text style={styles.lessonNameText}>{item.lessonName}</Text>}
+      <Text style={styles.questionText}>{item.question || "—"}</Text>
+
+      <TouchableOpacity
+        activeOpacity={0.8}
+        style={styles.hideAnswerBox}
+        onPress={onToggleAnswer}
+      >
+        <Text style={styles.hideAnswerText}>
+          {showAnswer ? "Hide answer" : "Show answer"}
+        </Text>
+        <Text style={styles.chevron}>{showAnswer ? "⌄" : "›"}</Text>
+      </TouchableOpacity>
+
+      {showAnswer && (
+        <View style={styles.answerBox}>
+          <Text style={styles.yourAnswerLabel}>Your answer</Text>
+          <Text style={styles.yourAnswerText}>{toArrayText(item.selectedAnswers)}</Text>
+
+          <View style={styles.answerDivider} />
+
+          <Text style={styles.correctAnswerLabel}>Correct answer</Text>
+          <Text style={styles.correctAnswerText}>{toArrayText(item.correctAnswers)}</Text>
+
+          {Array.isArray(item.answers) && item.answers.length > 0 && (
+            <>
+              <View style={styles.answerDivider} />
+              <Text style={styles.allAnswersLabel}>All answers</Text>
+              {item.answers.map((answer, answerIndex) => {
+                const isSelected = item.selectedIndexes?.includes(answerIndex);
+                const isCorrect = item.correctAnswerIndexes?.includes(answerIndex);
+
+                return (
+                  <Text
+                    key={`${item.questionId || index}-${answerIndex}`}
+                    style={[
+                      styles.allAnswerText,
+                      isCorrect && styles.allAnswerCorrect,
+                      isSelected && !isCorrect && styles.allAnswerWrong,
+                    ]}
+                  >
+                    {OPTION_LABELS[answerIndex] || `${answerIndex + 1}.`} {answer}
+                  </Text>
+                );
+              })}
+            </>
+          )}
+
+          {!!item.explanationText && (
+            <>
+              <View style={styles.answerDivider} />
+              <Text style={styles.logicLabel}>Explanation</Text>
+              <Text style={styles.logicText}>{item.explanationText}</Text>
+            </>
+          )}
+        </View>
+      )}
+
+      <View style={styles.buttonRow}>
+        <TouchableOpacity activeOpacity={0.85} style={styles.logicButton}>
+          <Text style={styles.logicButtonText}>Explain Logic</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity activeOpacity={0.85} style={styles.videoButtonWrapper}>
+          <LinearGradient
+            colors={["#7B5CFF", "#263CFF"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.videoButton}
+          >
+            <Text style={styles.videoButtonText}>Explain video</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
+
+export default function ReviewPage({ navigation, route }) {
+  const [visibleAnswers, setVisibleAnswers] = useState({});
+  const params = route?.params || {};
+
+  const answers = useMemo(() => normalizeReviewAnswers(params), [params]);
+  const totalQuestions = Number(params.totalQuestions || answers.length || 0);
+  const correctCount = Number(
+    params.correctCount ?? answers.filter((item) => item?.isCorrect).length
+  );
+  const percentage = Number(
+    params.percentage ??
+      (totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0)
+  );
+  const badge = getBadgeInfo(percentage);
+  const paperTitle = params.paperTitle || params.paper?.paperTitle || params.paper?.paperName || "Paper";
+
+  const isAnswerVisible = (index) => visibleAnswers[index] !== false;
+  const toggleAnswer = (index) => {
+    setVisibleAnswers((prev) => ({ ...prev, [index]: !isAnswerVisible(index) }));
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8F7FF" />
 
       <View style={styles.mainContainer}>
-        {/* Background decoration */}
         <View style={[styles.bgDot, styles.bgDotOne]} />
         <View style={[styles.bgDot, styles.bgDotTwo]} />
         <View style={[styles.bgDot, styles.bgDotThree]} />
@@ -37,7 +180,6 @@ export default function ReviewPage({ navigation }) {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-          {/* Top result card */}
           <View style={styles.resultCard}>
             <View style={[styles.smallDot, styles.resultDotOne]} />
             <View style={[styles.smallDot, styles.resultDotTwo]} />
@@ -47,89 +189,59 @@ export default function ReviewPage({ navigation }) {
             <Text style={[styles.resultStar, styles.resultStarLeft]}>✦</Text>
             <Text style={[styles.resultStar, styles.resultStarRight]}>✦</Text>
 
-            <Text style={styles.percentageText}>100%</Text>
-            <Text style={styles.resultSubtitle}>Excellent Result</Text>
+            <Text style={styles.percentageText}>{percentage}%</Text>
+            <Text style={styles.resultSubtitle}>{badge.subtitle}</Text>
+            <Text style={styles.scoreLine}>
+              {correctCount} correct / {totalQuestions} questions
+            </Text>
 
             <View style={styles.badgePill}>
               <View style={styles.badgeCircle}>
-                <Text style={styles.badgeIcon}>🏅</Text>
+                <Text style={styles.badgeIcon}>{badge.icon}</Text>
               </View>
-              <Text style={styles.badgeText}>Gold Badge</Text>
+              <Text style={styles.badgeText}>{badge.text}</Text>
             </View>
           </View>
 
-          {/* Section title */}
           <View style={styles.sectionTitleRow}>
             <Text style={styles.sectionStar}>✦</Text>
-            <Text style={styles.sectionTitle}>Today’s Lesson Result</Text>
+            <Text style={styles.sectionTitle} numberOfLines={2}>
+              {paperTitle} Result
+            </Text>
             <View style={styles.titleDotsWrapper}>
               <View style={styles.titleDotPurple} />
               <View style={styles.titleDotPink} />
             </View>
           </View>
 
-          {/* Question card */}
-          <View style={styles.questionCard}>
-            <View style={styles.questionTopRow}>
-              <Text style={styles.questionTitle}>Question - 1</Text>
-
-              <View style={styles.completedBadge}>
-                <View style={styles.completedCircle}>
-                  <Text style={styles.completedTick}>✓</Text>
-                </View>
-                <Text style={styles.completedText}>Completed</Text>
-              </View>
-            </View>
-
-            <Text style={styles.questionText}>i. 2 x 3 ?</Text>
-
-            {/* Hide answer dropdown */}
-            <TouchableOpacity
-              activeOpacity={0.8}
-              style={styles.hideAnswerBox}
-              onPress={() => setShowAnswer(!showAnswer)}
-            >
-              <Text style={styles.hideAnswerText}>
-                {showAnswer ? "Hide answer" : "Show answer"}
+          {answers.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyTitle}>No review answers</Text>
+              <Text style={styles.emptyText}>
+                Please complete a paper first, then the review will show here.
               </Text>
-              <Text style={styles.chevron}>{showAnswer ? "⌄" : "›"}</Text>
-            </TouchableOpacity>
-
-            {showAnswer && (
-              <View style={styles.answerBox}>
-                <Text style={styles.yourAnswerLabel}>Your answer</Text>
-                <Text style={styles.yourAnswerText}>2</Text>
-
-                <View style={styles.answerDivider} />
-
-                <Text style={styles.correctAnswerLabel}>Correct answer</Text>
-                <Text style={styles.correctAnswerText}>2</Text>
-              </View>
-            )}
-
-            <View style={styles.buttonRow}>
-              <TouchableOpacity activeOpacity={0.85} style={styles.logicButton}>
-                <Text style={styles.logicButtonText}>Explain Logic</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                activeOpacity={0.85}
-                style={styles.videoButtonWrapper}
-              >
-                <LinearGradient
-                  colors={["#7B5CFF", "#263CFF"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.videoButton}
-                >
-                  <Text style={styles.videoButtonText}>Explain video</Text>
-                </LinearGradient>
-              </TouchableOpacity>
             </View>
-          </View>
+          ) : (
+            answers.map((item, index) => (
+              <ReviewQuestionCard
+                key={`${item.questionId || index}`}
+                item={item}
+                index={index}
+                showAnswer={isAnswerVisible(index)}
+                onToggleAnswer={() => toggleAnswer(index)}
+              />
+            ))
+          )}
+
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={styles.doneButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.doneButtonText}>Done</Text>
+          </TouchableOpacity>
         </ScrollView>
 
-        {/* Bottom flowers / cloud style decoration */}
         <View style={styles.bottomDecoration}>
           <View style={[styles.cloud, styles.cloudOne]} />
           <View style={[styles.cloud, styles.cloudTwo]} />
@@ -165,12 +277,12 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 14,
     paddingTop: Platform.OS === "android" ? 12 : 8,
-    paddingBottom: 100,
+    paddingBottom: 120,
   },
 
   resultCard: {
     width: "100%",
-    minHeight: 180,
+    minHeight: 190,
     backgroundColor: "#FFFFFF",
     borderRadius: 18,
     alignItems: "center",
@@ -200,7 +312,14 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#5F6174",
     marginTop: 8,
-    marginBottom: 16,
+  },
+
+  scoreLine: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#8A8DA5",
+    marginTop: 5,
+    marginBottom: 14,
   },
 
   badgePill: {
@@ -306,6 +425,7 @@ const styles = StyleSheet.create({
   },
 
   sectionTitle: {
+    flex: 1,
     fontSize: 18,
     fontWeight: "900",
     color: "#101943",
@@ -333,6 +453,36 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 
+  emptyCard: {
+    width: "100%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    alignItems: "center",
+
+    shadowColor: "#C8C7DE",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.24,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#101943",
+  },
+
+  emptyText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#8A8DA5",
+    textAlign: "center",
+    marginTop: 8,
+    lineHeight: 19,
+  },
+
   questionCard: {
     width: "100%",
     backgroundColor: "#FFFFFF",
@@ -340,6 +490,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 18,
+    marginBottom: 16,
 
     shadowColor: "#C8C7DE",
     shadowOffset: { width: 0, height: 6 },
@@ -352,11 +503,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 42,
+    marginBottom: 20,
+    gap: 10,
   },
 
   questionTitle: {
-    fontSize: 23,
+    flex: 1,
+    fontSize: 22,
     fontWeight: "900",
     color: "#09091A",
     letterSpacing: 0.3,
@@ -365,10 +518,17 @@ const styles = StyleSheet.create({
   completedBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#18AF4B",
     borderRadius: 20,
     paddingVertical: 8,
     paddingHorizontal: 12,
+  },
+
+  correctBadge: {
+    backgroundColor: "#18AF4B",
+  },
+
+  wrongBadge: {
+    backgroundColor: "#D62637",
   },
 
   completedCircle: {
@@ -384,8 +544,15 @@ const styles = StyleSheet.create({
   completedTick: {
     fontSize: 12,
     fontWeight: "900",
-    color: "#18AF4B",
     lineHeight: 14,
+  },
+
+  correctTick: {
+    color: "#18AF4B",
+  },
+
+  wrongTick: {
+    color: "#D62637",
   },
 
   completedText: {
@@ -394,12 +561,20 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 
+  lessonNameText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#5F6174",
+    marginBottom: 8,
+  },
+
   questionText: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "900",
     color: "#050505",
-    marginBottom: 24,
-    letterSpacing: 0.5,
+    marginBottom: 20,
+    letterSpacing: 0.3,
+    lineHeight: 30,
   },
 
   hideAnswerBox: {
@@ -475,6 +650,46 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "900",
     color: "#166B1B",
+    marginBottom: 14,
+  },
+
+  allAnswersLabel: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#0E1742",
+    letterSpacing: 0.4,
+    marginBottom: 8,
+  },
+
+  allAnswerText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#5F6174",
+    marginBottom: 5,
+    lineHeight: 20,
+  },
+
+  allAnswerCorrect: {
+    color: "#166B1B",
+  },
+
+  allAnswerWrong: {
+    color: "#C92333",
+  },
+
+  logicLabel: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#0E1742",
+    letterSpacing: 0.4,
+    marginBottom: 4,
+  },
+
+  logicText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#5F6174",
+    lineHeight: 21,
   },
 
   buttonRow: {
@@ -514,6 +729,27 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "900",
     letterSpacing: 0.5,
+  },
+
+  doneButton: {
+    backgroundColor: "#3151F5",
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 4,
+    marginBottom: 8,
+    shadowColor: "#3151F5",
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+
+  doneButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "900",
   },
 
   bgDot: {

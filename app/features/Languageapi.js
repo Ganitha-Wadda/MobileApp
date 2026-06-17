@@ -1,7 +1,5 @@
-// app/features/languageApi.js
-
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import { BASE_URL } from "../api/api"; // adjust path if needed
+import { BASE_URL } from "../api/api";
 
 export const languageApi = createApi({
   reducerPath: "languageApi",
@@ -27,13 +25,14 @@ export const languageApi = createApi({
   tagTypes: ["Language"],
 
   endpoints: (builder) => ({
-    // GET /api/language
     getLanguage: builder.query({
-      query: () => "/language",
+      query: () => ({
+        url: "/language",
+        method: "GET",
+      }),
       providesTags: ["Language"],
     }),
 
-    // PUT /api/language
     updateLanguage: builder.mutation({
       query: (language) => ({
         url: "/language",
@@ -45,7 +44,4 @@ export const languageApi = createApi({
   }),
 });
 
-export const {
-  useGetLanguageQuery,
-  useUpdateLanguageMutation,
-} = languageApi;
+export const { useGetLanguageQuery, useUpdateLanguageMutation } = languageApi;

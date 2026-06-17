@@ -19,7 +19,10 @@ import { authApi } from "./authApi";
 import { liveApi } from "./Liveapi";
 import { enrollmentApi } from "./enrollmentApi";
 import { languageApi } from "./Languageapi";
+import { gradeApi } from "./gradeApi";
 import { recordingApi } from "./recordingApi";
+import { shortzApi } from "./Shortzapi";
+import { paperApi } from "./paperApi";
 
 const authTransform = createTransform(
   (inboundState) => ({
@@ -56,13 +59,17 @@ const rootReducer = combineReducers({
   [liveApi.reducerPath]: liveApi.reducer,
   [enrollmentApi.reducerPath]: enrollmentApi.reducer,
   [languageApi.reducerPath]: languageApi.reducer,
+  [gradeApi.reducerPath]: gradeApi.reducer,
   [recordingApi.reducerPath]: recordingApi.reducer,
+  [shortzApi.reducerPath]: shortzApi.reducer,
+  [paperApi.reducerPath]: paperApi.reducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
 
 const store = configureStore({
   reducer: persistedReducer,
+
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
@@ -73,7 +80,10 @@ const store = configureStore({
       .concat(liveApi.middleware)
       .concat(enrollmentApi.middleware)
       .concat(languageApi.middleware)
-      .concat(recordingApi.middleware),
+      .concat(gradeApi.middleware)
+      .concat(recordingApi.middleware)
+      .concat(shortzApi.middleware)
+      .concat(paperApi.middleware),
 });
 
 export const persistor = persistStore(store);

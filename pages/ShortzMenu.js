@@ -11,15 +11,9 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import useT from "../app/i18n/useT";
+import { useGetMyShortLessonsQuery } from "../app/features/Shortzapi";
 
 const { width } = Dimensions.get("window");
-
-const lessons = [
-  { id: 1, title: "1. Chakkre" },
-  { id: 2, title: "2. Ganaka ramu" },
-  { id: 3, title: "3. Mulika ganitha sankalapa" },
-  { id: 4, title: "4. Walakulu sankalpa" },
-];
 
 function AnimatedCloud({ style, scale = 1, delay = 0, distance = 18 }) {
   const move = useRef(new Animated.Value(0)).current;
@@ -65,11 +59,7 @@ function AnimatedCloud({ style, scale = 1, delay = 0, distance = 18 }) {
         styles.cloud,
         style,
         {
-          transform: [
-            { translateX: move },
-            { translateY: float },
-            { scale },
-          ],
+          transform: [{ translateX: move }, { translateY: float }, { scale }],
         },
       ]}
     >
@@ -101,10 +91,73 @@ function LeafDecor({ side = "left" }) {
 export default function ShortzMenu({ navigation }) {
   const { t } = useT();
 
+  const {
+    data: shortLessons = [],
+    isLoading,
+    isFetching,
+    isError,
+  } = useGetMyShortLessonsQuery();
+
+  const lessons = Array.isArray(shortLessons) ? shortLessons : [];
+
   const handleViewPress = (lesson) => {
+    const lessonId = lesson?._id || lesson?.id;
+
     navigation.navigate("ViewShortLessons", {
-      lessonId: lesson.id,
-      lessonTitle: lesson.title,
+      lessonId,
+      shortLessonId: lessonId,
+      lessonTitle: lesson?.title || "",
+    });
+  };
+
+  const renderContent = () => {
+    if (isLoading || (isFetching && lessons.length === 0)) {
+      return (
+        <View style={styles.card}>
+          <Text style={styles.lessonLabel}>Loading...</Text>
+        </View>
+      );
+    }
+
+    if (isError) {
+      return (
+        <View style={styles.card}>
+          <Text style={styles.lessonLabel}>Failed to load short lessons</Text>
+        </View>
+      );
+    }
+
+    if (lessons.length === 0) {
+      return (
+        <View style={styles.card}>
+          <Text style={styles.lessonLabel}>
+            No short lessons found for your grade
+          </Text>
+        </View>
+      );
+    }
+
+    return lessons.map((lesson, index) => {
+      const lessonId = lesson?._id || lesson?.id;
+      const title = lesson?.title || "";
+
+      return (
+        <View key={lessonId || index} style={styles.card}>
+          <View style={styles.numberBox}>
+            <Text style={styles.numberText}>{index + 1}</Text>
+          </View>
+
+          <Text style={styles.lessonLabel}>{title}</Text>
+
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={styles.viewButton}
+            onPress={() => handleViewPress(lesson)}
+          >
+            <Text style={styles.viewButtonText}>{t("viewLesson")}</Text>
+          </TouchableOpacity>
+        </View>
+      );
     });
   };
 
@@ -122,39 +175,57 @@ export default function ShortzMenu({ navigation }) {
           <Text style={[styles.spark, { top: 34, right: "21%" }]}>✦</Text>
           <Text style={[styles.sparkSmall, { top: 31, right: "16%" }]}>•</Text>
 
-          <AnimatedCloud style={{ top: 85, left: -18 }} scale={0.85} delay={0} />
-          <AnimatedCloud style={{ top: 130, right: 20 }} scale={0.65} delay={300} />
-          <AnimatedCloud style={{ top: 210, left: 35 }} scale={0.5} delay={600} />
-          <AnimatedCloud style={{ top: 285, right: -8 }} scale={0.72} delay={900} />
-          <AnimatedCloud style={{ bottom: 130, left: 32 }} scale={0.78} delay={1200} />
-          <AnimatedCloud style={{ bottom: 105, right: 32 }} scale={0.68} delay={1500} />
-          <AnimatedCloud style={{ bottom: 65, left: -8 }} scale={0.5} delay={1800} />
-          <AnimatedCloud style={{ bottom: 42, right: -2 }} scale={0.55} delay={2100} />
-          <AnimatedCloud style={{ top: 360, left: "38%" }} scale={0.42} delay={2400} />
+          <AnimatedCloud
+            style={{ top: 85, left: -18 }}
+            scale={0.85}
+            delay={0}
+          />
+          <AnimatedCloud
+            style={{ top: 130, right: 20 }}
+            scale={0.65}
+            delay={300}
+          />
+          <AnimatedCloud
+            style={{ top: 210, left: 35 }}
+            scale={0.5}
+            delay={600}
+          />
+          <AnimatedCloud
+            style={{ top: 285, right: -8 }}
+            scale={0.72}
+            delay={900}
+          />
+          <AnimatedCloud
+            style={{ bottom: 130, left: 32 }}
+            scale={0.78}
+            delay={1200}
+          />
+          <AnimatedCloud
+            style={{ bottom: 105, right: 32 }}
+            scale={0.68}
+            delay={1500}
+          />
+          <AnimatedCloud
+            style={{ bottom: 65, left: -8 }}
+            scale={0.5}
+            delay={1800}
+          />
+          <AnimatedCloud
+            style={{ bottom: 42, right: -2 }}
+            scale={0.55}
+            delay={2100}
+          />
+          <AnimatedCloud
+            style={{ top: 360, left: "38%" }}
+            scale={0.42}
+            delay={2400}
+          />
 
           <View style={styles.titleRow}>
             <Text style={styles.title}>{t("shortLessons")}</Text>
           </View>
 
-          <View style={styles.list}>
-            {lessons.map((lesson) => (
-              <View key={lesson.id} style={styles.card}>
-                <View style={styles.numberBox}>
-                  <Text style={styles.numberText}>{lesson.id}</Text>
-                </View>
-
-                <Text style={styles.lessonLabel}>{lesson.title}</Text>
-
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  style={styles.viewButton}
-                  onPress={() => handleViewPress(lesson)}
-                >
-                  <Text style={styles.viewButtonText}>{t("viewLesson")}</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
-          </View>
+          <View style={styles.list}>{renderContent()}</View>
 
           <View style={[styles.bgCircle, styles.bgCircleLeft]} />
           <View style={[styles.bgCircle, styles.bgCircleRight]} />

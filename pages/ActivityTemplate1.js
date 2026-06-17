@@ -1,51 +1,67 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  Platform,
+  SafeAreaView,
 } from "react-native";
 
 export default function ActivityTemplate1({
-  navigation,
-  route,
   title = "Chakkre (part - 1)",
   activityLabel = "Activity - 1",
-  question = "2 × 3",
-  options = [
-    { id: 1, value: "6" },
-    { id: 2, value: "8" },
-    { id: 3, value: "9" },
-    { id: 4, value: "10" },
-  ],
-  correctAnswer = "6",
+  question = "",
+  options = [],
+  correctAnswer = "",
+  onNext,
+  nextLabel = "Next activity",
 }) {
-  const resolvedTitle = route?.params?.title ?? title;
-  const resolvedLabel = route?.params?.activityLabel ?? activityLabel;
+  const [selectedId, setSelectedId] = useState(null);
+  const [submitted, setSubmitted] = useState(false);
+  const [isCorrectSelected, setIsCorrectSelected] = useState(null);
 
-  const [selected, setSelected] = useState(null);
+  useEffect(() => {
+    setSelectedId(null);
+    setSubmitted(false);
+    setIsCorrectSelected(null);
+  }, [question]);
 
-  const handleNextVideo = () => {
-    navigation?.navigate("ShortVideo");
+  const selectedOption = useMemo(
+    () => options.find((opt, index) => String(opt?.id ?? index) === String(selectedId)),
+    [options, selectedId]
+  );
+
+  const isOptionCorrect = (opt) =>
+    Boolean(opt?.correct) || String(opt?.value) === String(correctAnswer);
+
+  const handleSelect = (opt, index) => {
+    if (submitted) return;
+    setSelectedId(opt?.id ?? index);
   };
 
-  const handleNextActivity = () => {
-    navigation?.navigate("activitytemplate2", {
-      title: resolvedTitle,
-      activityLabel: resolvedLabel,
-    });
+  const handleSubmitOrNext = () => {
+    if (!submitted) {
+      if (!selectedOption) return;
+      setIsCorrectSelected(isOptionCorrect(selectedOption));
+      setSubmitted(true);
+      return;
+    }
+
+    onNext?.();
   };
+
+  const buttonDisabled = !submitted && !selectedOption;
+  const buttonLabel = submitted ? nextLabel : "Submit";
 
   return (
-    <View style={styles.page}>
+    <SafeAreaView style={styles.page}>
       <View style={styles.card}>
         <View style={styles.header}>
-          <Text style={styles.title}>{resolvedTitle}</Text>
+          <Text style={styles.title}>{title}</Text>
 
           <View style={styles.activityRow}>
             <Text style={styles.star}>✦</Text>
-            <Text style={styles.activityLabel}>{resolvedLabel}</Text>
+            <Text style={styles.activityLabel}>{activityLabel}</Text>
             <Text style={styles.star}>✦</Text>
           </View>
         </View>
@@ -58,19 +74,22 @@ export default function ActivityTemplate1({
         </View>
 
         <View style={styles.optionsList}>
-          {options.map((opt) => {
-            const isSelected = selected === opt.value;
-            const isCorrect = opt.value === correctAnswer;
+          {options.map((opt, index) => {
+            const optionId = opt?.id ?? index;
+            const isSelected = String(selectedId) === String(optionId);
+            const isCorrect = isOptionCorrect(opt);
 
             return (
               <TouchableOpacity
-                key={opt.id}
+                key={optionId}
                 activeOpacity={0.85}
+                disabled={submitted}
                 style={[
                   styles.optionBtn,
                   isSelected ? styles.optionSelected : styles.optionDefault,
+                  submitted && isSelected && !isCorrect && styles.optionWrong,
                 ]}
-                onPress={() => setSelected(opt.value)}
+                onPress={() => handleSelect(opt, index)}
               >
                 <Text
                   style={[
@@ -80,7 +99,7 @@ export default function ActivityTemplate1({
                       : styles.optionNumberDefault,
                   ]}
                 >
-                  {opt.id}
+                  {index + 1}
                 </Text>
 
                 <Text
@@ -92,27 +111,41 @@ export default function ActivityTemplate1({
                   {opt.value}
                 </Text>
 
-                {isSelected && isCorrect && (
+                {submitted && isSelected && isCorrect && (
                   <Text style={styles.checkmark}>✓</Text>
+                )}
+                {submitted && isSelected && !isCorrect && (
+                  <Text style={styles.wrongMark}>✕</Text>
                 )}
               </TouchableOpacity>
             );
           })}
         </View>
 
-        <View style={styles.bottomRow}>
-          <TouchableOpacity style={styles.btn} onPress={handleNextVideo}>
-            <Text style={styles.btnIcon}>🎬</Text>
-            <Text style={styles.btnLabel}>Next Video</Text>
-          </TouchableOpacity>
+        {submitted && (
+          <Text
+            style={[
+              styles.feedback,
+              isCorrectSelected ? styles.feedbackCorrect : styles.feedbackWrong,
+            ]}
+          >
+            {isCorrectSelected ? "✓ Correct!" : "✗ Wrong answer"}
+          </Text>
+        )}
 
-          <TouchableOpacity style={styles.btn} onPress={handleNextActivity}>
-            <Text style={styles.btnIcon}>📖</Text>
-            <Text style={styles.btnLabel}>Next activity</Text>
+        <View style={styles.bottomRow}>
+          <TouchableOpacity
+            style={[styles.btn, buttonDisabled && styles.btnDisabled]}
+            onPress={handleSubmitOrNext}
+            activeOpacity={buttonDisabled ? 1 : 0.85}
+            disabled={buttonDisabled}
+          >
+            <Text style={styles.btnIcon}>{submitted ? "📖" : "✓"}</Text>
+            <Text style={styles.btnLabel}>{buttonLabel}</Text>
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -150,6 +183,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "800",
     color: "#1A1A3E",
+    textAlign: "center",
   },
 
   activityRow: {
@@ -217,12 +251,13 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: "#1A1A3E",
     lineHeight: 58,
+    textAlign: "center",
   },
 
   optionsList: {
     gap: 10,
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingBottom: 10,
   },
 
   optionBtn: {
@@ -240,6 +275,10 @@ const styles = StyleSheet.create({
 
   optionSelected: {
     backgroundColor: "#6C5CE7",
+  },
+
+  optionWrong: {
+    backgroundColor: "#E74C3C",
   },
 
   optionNumber: {
@@ -280,6 +319,27 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
 
+  wrongMark: {
+    fontSize: 18,
+    color: "#FFFFFF",
+    fontWeight: "900",
+  },
+
+  feedback: {
+    textAlign: "center",
+    fontSize: 15,
+    fontWeight: "900",
+    marginBottom: 2,
+  },
+
+  feedbackCorrect: {
+    color: "#3A8C3F",
+  },
+
+  feedbackWrong: {
+    color: "#E74C3C",
+  },
+
   bottomRow: {
     flexDirection: "row",
     gap: 12,
@@ -299,8 +359,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 
+  btnDisabled: {
+    opacity: 0.45,
+  },
+
   btnIcon: {
+    color: "#FFFFFF",
     fontSize: 18,
+    fontWeight: "900",
   },
 
   btnLabel: {

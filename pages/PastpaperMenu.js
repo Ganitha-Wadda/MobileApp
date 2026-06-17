@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useMemo } from "react";
 import {
   View,
   Text,
@@ -8,44 +8,123 @@ import {
   SafeAreaView,
   Dimensions,
   StatusBar,
+  ActivityIndicator,
 } from "react-native";
+import { useSelector } from "react-redux";
 import { Audio } from "expo-av";
 import useT from "../app/i18n/useT";
+import { useGetMyGradePapersByTypeQuery } from "../app/features/paperApi";
 
 const { width } = Dimensions.get("window");
 
 const clickSound = require("../assets/clip5.mp3");
 
-const years = [
+const CARD_STYLES = [
   {
-    year: "2015",
-    subtitle: "Build your skills step by step!",
     emoji: "📋",
     starColor: "#A78BFA",
     starSize: 18,
   },
   {
-    year: "2016",
-    subtitle: "Challenge yourself and learn!",
     emoji: "📚",
     starColor: "#FBBF24",
     starSize: 20,
   },
   {
-    year: "2017",
-    subtitle: "Think smart, score better!",
     emoji: "💡",
     starColor: "#A78BFA",
     starSize: 18,
   },
   {
-    year: "2018",
-    subtitle: "You've got this! Keep going!",
     emoji: "🏆",
     starColor: "#F472B6",
     starSize: 20,
   },
 ];
+
+const getPapersFromResponse = (response) => {
+  if (Array.isArray(response?.data)) return response.data;
+  if (Array.isArray(response?.data?.data)) return response.data.data;
+  if (Array.isArray(response?.papers)) return response.papers;
+  if (Array.isArray(response)) return response;
+  return [];
+};
+
+const getPaperId = (paper) => paper?.id || paper?._id || "";
+
+const getPaperTitle = (paper) =>
+  String(
+    paper?.paperTitle ||
+      paper?.paperName ||
+      paper?.year ||
+      paper?.title ||
+      paper?.name ||
+      "Past Paper"
+  ).trim();
+
+const getPaperYear = (paper, title) => {
+  const directYear = String(
+    paper?.pastPaperYear ||
+      paper?.paperYear ||
+      paper?.year ||
+      ""
+  ).trim();
+
+  if (directYear) return directYear;
+
+  const matchedYear = String(title || "").match(/\b(19|20)\d{2}\b/);
+  return matchedYear?.[0] || title;
+};
+
+const getPaperSubtitle = (paper) =>
+  String(
+    paper?.paperSubtitle ||
+      paper?.subtitle ||
+      paper?.description ||
+      ""
+  ).trim();
+
+const mapBackendPapersToYears = (papers) =>
+  papers.map((paper, index) => {
+    const style = CARD_STYLES[index % CARD_STYLES.length];
+    const title = getPaperTitle(paper);
+
+    return {
+      id: getPaperId(paper) || String(index + 1),
+      paperId: getPaperId(paper),
+      year: getPaperYear(paper, title),
+      title,
+      subtitle: getPaperSubtitle(paper),
+      emoji: style.emoji,
+      starColor: style.starColor,
+      starSize: style.starSize,
+      rawPaper: paper,
+    };
+  });
+
+const getErrorMessage = (error, token) => {
+  if (!token) return "Please login first.";
+  return (
+    error?.data?.message ||
+    error?.error ||
+    error?.message ||
+    "Unable to load papers."
+  );
+};
+
+const StateBox = ({ loading, title, message, onRetry }) => (
+  <TouchableOpacity
+    activeOpacity={onRetry ? 0.85 : 1}
+    onPress={onRetry}
+    disabled={!onRetry || loading}
+    style={styles.stateBox}
+  >
+    {loading && <ActivityIndicator size="small" />}
+    <Text style={styles.stateTitle}>{title}</Text>
+    {!!message && <Text style={styles.stateText}>{message}</Text>}
+    {!!onRetry && !loading && <Text style={styles.retryText}>Tap to retry</Text>}
+  </TouchableOpacity>
+);
 
 const FloatingDots = () => (
   <>
@@ -75,7 +154,15 @@ const PastPaperCard = ({ item, onPress, startButtonText }) => (
     <View style={styles.divider} />
 
     <View style={styles.cardContent}>
-      <Text style={styles.yearText}>{item.year}</Text>
+      <Text style={styles.yearText} numberOfLines={1}>
+        {item.year}
+      </Text>
+
+      {!!item.subtitle && (
+        <Text style={styles.subtitleText} numberOfLines={2}>
+          {item.subtitle}
+        </Text>
+      )}
 
       <TouchableOpacity
         style={styles.startButton}
@@ -95,6 +182,25 @@ const PastPaperCard = ({ item, onPress, startButtonText }) => (
 export default function PastPaperMenu({ navigation, onSelectYear }) {
   const { t } = useT();
   const soundRef = useRef(null);
+  const token = useSelector((state) => state?.auth?.token);
+
+  const {
+    data,
+    isLoading,
+    isFetching,
+    error,
+    refetch,
+  } = useGetMyGradePapersByTypeQuery(
+    { paperType: "pastpapers" },
+    { skip: !token }
+  );
+
+  const backendPapers = getPapersFromResponse(data);
+
+  const paperYears = useMemo(
+    () => mapBackendPapersToYears(backendPapers),
+    [backendPapers]
+  );
 
   useEffect(() => {
     const loadSound = async () => {
@@ -126,8 +232,11 @@ export default function PastPaperMenu({ navigation, onSelectYear }) {
 
     if (navigation) {
       navigation.navigate("paperpage", {
+        paperId: item.paperId,
         pastPaperYear: item.year,
-        paperTitle: `Past Paper - ${item.year}`,
+        paperTitle: item.title,
+        paperType: "pastpapers",
+        paper: item.rawPaper,
       });
     }
 
@@ -135,6 +244,10 @@ export default function PastPaperMenu({ navigation, onSelectYear }) {
       onSelectYear(item.year);
     }
   };
+
+  const isBusy = isLoading || isFetching;
+  const errorMessage = error || !token ? getErrorMessage(error, token) : "";
+  const startButtonText = t("startPaper") || t("start") || "Start";
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -147,14 +260,22 @@ export default function PastPaperMenu({ navigation, onSelectYear }) {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {years.map((item) => (
-            <PastPaperCard
-              key={item.year}
-              item={item}
-              onPress={handleStart}
-              startButtonText={t("startPaper")}
-            />
-          ))}
+          {isBusy ? (
+            <StateBox loading title="Loading past papers..." />
+          ) : errorMessage ? (
+            <StateBox title="Cannot load papers" message={errorMessage} onRetry={token ? refetch : undefined} />
+          ) : paperYears.length === 0 ? (
+            <StateBox title="No past papers" message="No published past papers are available for your login grade yet." />
+          ) : (
+            paperYears.map((item) => (
+              <PastPaperCard
+                key={item.id}
+                item={item}
+                onPress={handleStart}
+                startButtonText={startButtonText}
+              />
+            ))
+          )}
         </ScrollView>
       </View>
     </SafeAreaView>
@@ -176,6 +297,40 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingBottom: 32,
     gap: 16,
+  },
+  stateBox: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    paddingVertical: 26,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 130,
+    shadowColor: "#C4C9F5",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 14,
+    elevation: 5,
+  },
+  stateTitle: {
+    marginTop: 8,
+    color: "#1E1B4B",
+    fontSize: 16,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  stateText: {
+    marginTop: 6,
+    color: "#8B8FAD",
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: "center",
+  },
+  retryText: {
+    marginTop: 10,
+    color: "#5B4FCF",
+    fontSize: 13,
+    fontWeight: "700",
   },
   dot: {
     position: "absolute",
@@ -262,3 +417,5 @@ const styles = StyleSheet.create({
     right: 16,
   },
 });
+
+

@@ -1,102 +1,114 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
+  Animated,
+} from "react-native";
 
-const Balloon = ({ option, isFloating, isWrong, onTap }) => {
-  const colors = {
-    green: { body: "#4caf50", shine: "#81c784", shadow: "#2e7d32", string: "#555" },
-    yellow: { body: "#ffc107", shine: "#ffd54f", shadow: "#f57f17", string: "#555" },
-    red: { body: "#f44336", shine: "#ef9a9a", shadow: "#b71c1c", string: "#555" },
-    blue: { body: "#29b6f6", shine: "#81d4fa", shadow: "#0277bd", string: "#555" },
-  };
-
-  const c = colors[option.color] || colors.green;
-
-  return (
-    <div
-      onClick={() => onTap(option)}
-      style={{
-        ...styles.balloonWrap,
-        animation: isFloating ? "floatUp 1.2s ease forwards" : "none",
-        transform: isWrong ? "scale(0.9)" : "scale(1)",
-        filter: isWrong ? "brightness(0.7)" : "none",
-        cursor: "pointer",
-      }}
-    >
-      <svg width="120" height="145" viewBox="0 0 120 145">
-        <ellipse cx="60" cy="58" rx="52" ry="58" fill={c.body} />
-        <ellipse cx="42" cy="30" rx="14" ry="18" fill={c.shine} opacity="0.55" />
-        <polygon points="57,112 63,112 61,122 59,122" fill={c.shadow} />
-        <path
-          d="M60 122 Q55 132 60 140 Q65 148 60 155"
-          stroke={c.string}
-          strokeWidth="1.5"
-          fill="none"
-          strokeLinecap="round"
-        />
-        <text
-          x="60"
-          y="68"
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fontSize="30"
-          fontWeight="900"
-          fontFamily="Nunito, Poppins, sans-serif"
-          fill="#1a1a1a"
-        >
-          {option.value}
-        </text>
-      </svg>
-    </div>
-  );
+const BALLOON_COLORS = {
+  green: { body: "#4caf50", shine: "#81c784", shadow: "#2e7d32" },
+  yellow: { body: "#ffc107", shine: "#ffd54f", shadow: "#f57f17" },
+  red: { body: "#f44336", shine: "#ef9a9a", shadow: "#b71c1c" },
+  blue: { body: "#29b6f6", shine: "#81d4fa", shadow: "#0277bd" },
 };
 
-const Confetti = ({ active }) => {
-  const pieces = Array.from({ length: 18 });
-  const confettiColors = [
-    "#f6c90e",
-    "#6c5ce7",
-    "#4caf50",
-    "#f44336",
-    "#29b6f6",
-    "#ff7043",
-  ];
+function Balloon({ option, isSelected, isFloating, isWrong, disabled, onTap }) {
+  const move = useRef(new Animated.Value(0)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
+  const colorKey = option.balloonColor || option.color || "green";
+  const c = BALLOON_COLORS[colorKey] || BALLOON_COLORS.green;
 
+  useEffect(() => {
+    if (!isFloating) return;
+
+    Animated.parallel([
+      Animated.timing(move, {
+        toValue: -150,
+        duration: 1200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: 1200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [isFloating, move, opacity]);
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.9}
+      disabled={disabled}
+      onPress={() => onTap(option)}
+    >
+      <Animated.View
+        style={[
+          styles.balloonWrap,
+          {
+            opacity,
+            transform: [
+              { translateY: move },
+              { scale: isWrong ? 0.9 : isSelected ? 1.06 : 1 },
+            ],
+          },
+          isWrong && styles.balloonWrong,
+        ]}
+      >
+        <View style={[styles.balloonBody, { backgroundColor: c.body }]}>
+          <View style={[styles.balloonShine, { backgroundColor: c.shine }]} />
+          <Text style={styles.balloonText}>{option.value}</Text>
+        </View>
+        <View style={[styles.balloonKnot, { borderTopColor: c.shadow }]} />
+        <View style={styles.balloonString} />
+      </Animated.View>
+    </TouchableOpacity>
+  );
+}
+
+function Confetti({ active }) {
   if (!active) return null;
 
   return (
-    <div style={styles.confettiWrap}>
-      {pieces.map((_, i) => (
-        <div
-          key={i}
-          style={{
-            ...styles.confettiPiece,
-            backgroundColor: confettiColors[i % confettiColors.length],
-            left: `${10 + (i * 5) % 80}%`,
-            animationDelay: `${(i * 0.07).toFixed(2)}s`,
-            animationDuration: `${0.8 + (i % 4) * 0.15}s`,
-          }}
+    <View pointerEvents="none" style={styles.confettiWrap}>
+      {Array.from({ length: 18 }).map((_, index) => (
+        <View
+          key={index}
+          style={[
+            styles.confettiPiece,
+            {
+              left: `${10 + (index * 5) % 80}%`,
+              top: `${20 + (index % 5) * 8}%`,
+              backgroundColor: [
+                "#f6c90e",
+                "#6c5ce7",
+                "#4caf50",
+                "#f44336",
+                "#29b6f6",
+                "#ff7043",
+              ][index % 6],
+            },
+          ]}
         />
       ))}
-    </div>
+    </View>
   );
-};
+}
 
-const ActivityTemplate3 = ({
-  navigation,
-  route,
+export default function ActivityTemplate3({
   title = "Chakkre (part - 1)",
   activityLabel = "Activity - 1",
-  question = "2 × 3",
-  options = [
-    { id: 1, value: "6", color: "green", correct: true },
-    { id: 2, value: "8", color: "yellow", correct: false },
-    { id: 3, value: "9", color: "red", correct: false },
-    { id: 4, value: "10", color: "blue", correct: false },
-  ],
-}) => {
-  const resolvedTitle = route?.params?.title ?? title;
-  const resolvedLabel = route?.params?.activityLabel ?? activityLabel;
-
-  const [selectedAnswer, setSelectedAnswer] = useState(null);
+  question = "",
+  options = [],
+  correctAnswer = "",
+  onNext,
+  nextLabel = "Next activity",
+}) {
+  const [selectedId, setSelectedId] = useState(null);
+  const [submitted, setSubmitted] = useState(false);
+  const [isCorrect, setIsCorrect] = useState(null);
   const [floatingId, setFloatingId] = useState(null);
   const [hiddenId, setHiddenId] = useState(null);
   const [wrongId, setWrongId] = useState(null);
@@ -105,290 +117,356 @@ const ActivityTemplate3 = ({
   const timerRef = useRef(null);
   const hideTimerRef = useRef(null);
 
-  const handleTap = (opt) => {
-    if (selectedAnswer) return;
-
-    setSelectedAnswer(opt.value);
-
-    if (opt.correct) {
-      setFloatingId(opt.id);
-      setShowConfetti(true);
-
-      hideTimerRef.current = setTimeout(() => {
-        setHiddenId(opt.id);
-      }, 1150);
-
-      timerRef.current = setTimeout(() => {
-        setShowConfetti(false);
-      }, 1400);
-    } else {
-      setWrongId(opt.id);
-
-      setTimeout(() => {
-        setWrongId(null);
-        setSelectedAnswer(null);
-      }, 700);
-    }
-  };
-
   useEffect(() => {
+    setSelectedId(null);
+    setSubmitted(false);
+    setIsCorrect(null);
+    setFloatingId(null);
+    setHiddenId(null);
+    setWrongId(null);
+    setShowConfetti(false);
+
     return () => {
       clearTimeout(timerRef.current);
       clearTimeout(hideTimerRef.current);
     };
-  }, []);
+  }, [question]);
+
+  const selectedOption = useMemo(
+    () => options.find((opt, index) => String(opt?.id ?? index) === String(selectedId)),
+    [options, selectedId]
+  );
+
+  const isOptionCorrect = (opt) =>
+    Boolean(opt?.correct) || String(opt?.value) === String(correctAnswer);
+
+  const handleTap = (opt, index) => {
+    if (submitted) return;
+    setSelectedId(opt?.id ?? index);
+  };
+
+  const handleSubmitOrNext = () => {
+    if (!submitted) {
+      if (!selectedOption) return;
+
+      const correct = isOptionCorrect(selectedOption);
+      setIsCorrect(correct);
+      setSubmitted(true);
+
+      if (correct) {
+        setFloatingId(selectedOption.id);
+        setShowConfetti(true);
+
+        hideTimerRef.current = setTimeout(() => {
+          setHiddenId(selectedOption.id);
+        }, 1150);
+
+        timerRef.current = setTimeout(() => {
+          setShowConfetti(false);
+        }, 1400);
+      } else {
+        setWrongId(selectedOption.id);
+      }
+
+      return;
+    }
+
+    onNext?.();
+  };
 
   const topRow = options.slice(0, 2);
   const bottomRow = options.slice(2, 4);
+  const buttonDisabled = !submitted && !selectedOption;
+  const buttonLabel = submitted ? nextLabel : "Submit";
 
-  const handleNextVideo = () => {
-    navigation?.navigate("ShortVideo");
-  };
+  const renderBalloon = (opt, index) => {
+    const optionId = opt?.id ?? index;
 
-  const handleFinish = () => {
-    navigation?.navigate("ShortVideo");
-  };
-
-  const renderBalloon = (opt) => {
-    if (hiddenId === opt.id) return <div key={opt.id} style={styles.emptyBalloonSpace} />;
+    if (hiddenId === optionId) {
+      return <View key={optionId} style={styles.emptyBalloonSpace} />;
+    }
 
     return (
       <Balloon
-        key={opt.id}
-        option={opt}
-        isFloating={floatingId === opt.id}
-        isWrong={wrongId === opt.id}
-        onTap={handleTap}
+        key={optionId}
+        option={{ ...opt, id: optionId }}
+        isSelected={String(selectedId) === String(optionId)}
+        isFloating={floatingId === optionId}
+        isWrong={wrongId === optionId}
+        disabled={submitted}
+        onTap={(option) => handleTap(option, index)}
       />
     );
   };
 
   return (
-    <div style={styles.wrapper}>
-      <div style={styles.card}>
+    <SafeAreaView style={styles.wrapper}>
+      <View style={styles.card}>
         <Confetti active={showConfetti} />
 
-        <div style={styles.header}>
-          <p style={styles.title}>{resolvedTitle}</p>
+        <View style={styles.header}>
+          <Text style={styles.title}>{title}</Text>
 
-          <div style={styles.activityRow}>
-            <span style={styles.starGold}>★</span>
-            <span style={styles.dash}>· · ·</span>
-            <p style={styles.activityLabel}>{resolvedLabel}</p>
-            <span style={styles.dash}>· · ·</span>
-            <span style={styles.starGold}>★</span>
-          </div>
-        </div>
+          <View style={styles.activityRow}>
+            <Text style={styles.starGold}>★</Text>
+            <Text style={styles.dash}>· · ·</Text>
+            <Text style={styles.activityLabel}>{activityLabel}</Text>
+            <Text style={styles.dash}>· · ·</Text>
+            <Text style={styles.starGold}>★</Text>
+          </View>
+        </View>
 
-        <div style={styles.balloonArea}>
-          <p style={styles.instruction}>
-            Tap the balloons with<br />the correct answer
-          </p>
+        <View style={styles.balloonArea}>
+          <Text style={styles.instruction}>
+            Tap the balloons with{"\n"}the correct answer
+          </Text>
 
-          <p style={styles.question}>{question}</p>
+          <Text style={styles.question}>{question}</Text>
 
-          <div style={styles.answerBox}>
-            {selectedAnswer ? (
+          <View style={styles.answerBox}>
+            {selectedOption ? (
               <>
-                <span style={styles.answerLabel}>Selected Answer</span>
-                <span style={styles.answerValue}>{selectedAnswer}</span>
+                <Text style={styles.answerLabel}>Selected Answer</Text>
+                <Text style={styles.answerValue}>{selectedOption.value}</Text>
               </>
             ) : (
-              <span style={styles.answerPlaceholder}>Tap correct balloon</span>
+              <Text style={styles.answerPlaceholder}>Tap answer balloon</Text>
             )}
-          </div>
+          </View>
 
-          <div style={styles.balloonRow}>{topRow.map(renderBalloon)}</div>
+          {submitted && isCorrect === true && (
+            <Text style={styles.feedbackCorrect}>✓ Correct!</Text>
+          )}
+          {submitted && isCorrect === false && (
+            <Text style={styles.feedbackWrong}>✗ Wrong answer</Text>
+          )}
 
-          <div style={{ ...styles.balloonRow, marginTop: "8px", paddingLeft: "10px" }}>
-            {bottomRow.map(renderBalloon)}
-          </div>
-        </div>
+          <View style={styles.balloonRow}>{topRow.map(renderBalloon)}</View>
 
-        <div style={styles.bottomRow}>
-          <button style={styles.btnVideo} onClick={handleNextVideo}>
-            <span style={styles.btnIcon}>🎬</span>
-            <span style={styles.btnLabel}>Next Video</span>
-          </button>
+          <View style={[styles.balloonRow, { marginTop: 8, paddingLeft: 10 }]}> 
+            {bottomRow.map((opt, index) => renderBalloon(opt, index + 2))}
+          </View>
+        </View>
 
-          <button style={styles.btnFinish} onClick={handleFinish}>
-            <span style={styles.btnLabel}>Finish</span>
-          </button>
-        </div>
-      </div>
-
-      <style>{`
-        @keyframes floatUp {
-          0% {
-            transform: translateY(0) scale(1);
-            opacity: 1;
-          }
-          50% {
-            transform: translateY(-65px) scale(1.06);
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(-150px) scale(0.9);
-            opacity: 0;
-          }
-        }
-
-        @keyframes confettiFall {
-          0% {
-            transform: translateY(-10px) rotate(0deg);
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(160px) rotate(360deg);
-            opacity: 0;
-          }
-        }
-      `}</style>
-    </div>
+        <View style={styles.bottomRow}>
+          <TouchableOpacity
+            style={[styles.btnFinish, buttonDisabled && styles.btnDisabled]}
+            onPress={handleSubmitOrNext}
+            activeOpacity={buttonDisabled ? 1 : 0.85}
+            disabled={buttonDisabled}
+          >
+            <Text style={styles.btnLabel}>{buttonLabel}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </SafeAreaView>
   );
-};
+}
 
-const styles = {
+const styles = StyleSheet.create({
   wrapper: {
-    width: "100%",
-    height: "100%",
-    minHeight: "100%",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
+    flex: 1,
     backgroundColor: "#EDE9FE",
-    fontFamily: "'Nunito', 'Poppins', sans-serif",
-    padding: "16px",
-    boxSizing: "border-box",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
     overflow: "hidden",
   },
 
   card: {
     backgroundColor: "#fff",
-    borderRadius: "24px",
+    borderRadius: 24,
     width: "100%",
-    maxWidth: "380px",
+    maxWidth: 380,
     overflow: "hidden",
-    boxShadow: "0 8px 32px rgba(100, 80, 200, 0.12)",
-    display: "flex",
-    flexDirection: "column",
+    shadowColor: "#6450C8",
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
     position: "relative",
   },
 
   header: {
-    paddingTop: "20px",
-    paddingBottom: "0px",
-    textAlign: "center",
-    paddingLeft: "16px",
-    paddingRight: "16px",
+    paddingTop: 20,
+    paddingBottom: 0,
+    alignItems: "center",
+    paddingLeft: 16,
+    paddingRight: 16,
   },
 
   title: {
-    margin: "0 0 4px 0",
-    fontSize: "18px",
+    marginBottom: 4,
+    fontSize: 18,
     fontWeight: "800",
     color: "#1a1a3e",
+    textAlign: "center",
   },
 
   activityRow: {
-    display: "flex",
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: "6px",
-    marginBottom: "0px",
+    gap: 6,
+    marginBottom: 0,
   },
 
   activityLabel: {
-    margin: 0,
-    fontSize: "14px",
+    fontSize: 14,
     fontWeight: "700",
     color: "#6c5ce7",
   },
 
   dash: {
     color: "#c4b8f8",
-    fontSize: "10px",
-    letterSpacing: "2px",
+    fontSize: 10,
+    letterSpacing: 2,
   },
 
   starGold: {
     color: "#f6c90e",
-    fontSize: "16px",
+    fontSize: 16,
   },
 
   balloonArea: {
     backgroundColor: "#f7f7fb",
-    margin: "12px 12px 0 12px",
-    borderRadius: "20px",
-    padding: "16px 8px 8px 8px",
-    textAlign: "center",
+    marginHorizontal: 12,
+    marginTop: 12,
+    borderRadius: 20,
+    paddingTop: 16,
+    paddingHorizontal: 8,
+    paddingBottom: 8,
+    alignItems: "center",
     overflow: "hidden",
   },
 
   instruction: {
-    margin: "0 0 4px 0",
-    fontSize: "15px",
+    marginBottom: 4,
+    fontSize: 15,
     fontWeight: "600",
     color: "#333",
-    lineHeight: 1.4,
+    lineHeight: 21,
+    textAlign: "center",
   },
 
   question: {
-    margin: "0 0 10px 0",
-    fontSize: "28px",
+    marginBottom: 10,
+    fontSize: 28,
     fontWeight: "900",
     color: "#1a1a3e",
+    textAlign: "center",
   },
 
   answerBox: {
     width: "82%",
-    minHeight: "48px",
-    margin: "0 auto 10px auto",
-    borderRadius: "16px",
+    minHeight: 48,
+    marginBottom: 10,
+    borderRadius: 16,
     backgroundColor: "#ede9fc",
-    border: "2px dashed #c9c0f5",
-    display: "flex",
+    borderWidth: 2,
+    borderStyle: "dashed",
+    borderColor: "#c9c0f5",
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: "10px",
+    gap: 10,
   },
 
   answerLabel: {
-    fontSize: "12px",
+    fontSize: 12,
     fontWeight: "800",
     color: "#6c5ce7",
   },
 
   answerValue: {
-    fontSize: "26px",
+    fontSize: 26,
     fontWeight: "900",
     color: "#1a1a3e",
   },
 
   answerPlaceholder: {
-    fontSize: "13px",
+    fontSize: 13,
     fontWeight: "700",
     color: "#9c91d9",
   },
 
+  feedbackCorrect: {
+    marginTop: -2,
+    marginBottom: 6,
+    fontSize: 14,
+    fontWeight: "900",
+    color: "#3a8c3f",
+  },
+
+  feedbackWrong: {
+    marginTop: -2,
+    marginBottom: 6,
+    fontSize: 14,
+    fontWeight: "900",
+    color: "#e74c3c",
+  },
+
   balloonRow: {
-    display: "flex",
+    flexDirection: "row",
     justifyContent: "center",
-    gap: "16px",
+    gap: 16,
   },
 
   balloonWrap: {
-    position: "relative",
-    display: "inline-flex",
-    flexDirection: "column",
+    width: 120,
+    height: 145,
     alignItems: "center",
-    userSelect: "none",
-    WebkitTapHighlightColor: "transparent",
+  },
+
+  balloonWrong: {
+    opacity: 0.65,
+  },
+
+  balloonBody: {
+    width: 104,
+    height: 116,
+    borderRadius: 56,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+
+  balloonShine: {
+    position: "absolute",
+    top: 16,
+    left: 24,
+    width: 26,
+    height: 34,
+    borderRadius: 16,
+    opacity: 0.55,
+  },
+
+  balloonText: {
+    fontSize: 30,
+    fontWeight: "900",
+    color: "#1a1a1a",
+  },
+
+  balloonKnot: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderTopWidth: 12,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+  },
+
+  balloonString: {
+    width: 1.5,
+    height: 28,
+    backgroundColor: "#555",
+    borderRadius: 2,
   },
 
   emptyBalloonSpace: {
-    width: "120px",
-    height: "145px",
+    width: 120,
+    height: 145,
   },
 
   confettiWrap: {
@@ -397,65 +475,41 @@ const styles = {
     left: 0,
     width: "100%",
     height: "100%",
-    pointerEvents: "none",
     zIndex: 10,
     overflow: "hidden",
   },
 
   confettiPiece: {
     position: "absolute",
-    top: "30%",
-    width: "10px",
-    height: "10px",
-    borderRadius: "2px",
-    animation: "confettiFall linear forwards",
+    width: 10,
+    height: 10,
+    borderRadius: 2,
   },
 
   bottomRow: {
-    display: "flex",
-    gap: "12px",
-    padding: "16px",
-  },
-
-  btnVideo: {
-    flex: 1,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "8px",
-    backgroundColor: "#6c5ce7",
-    color: "#fff",
-    border: "none",
-    borderRadius: "16px",
-    padding: "14px 12px",
-    cursor: "pointer",
-    fontSize: "15px",
-    fontWeight: "800",
+    flexDirection: "row",
+    gap: 12,
+    padding: 16,
   },
 
   btnFinish: {
     flex: 1,
-    display: "flex",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#7c6ff0",
-    color: "#fff",
-    border: "none",
-    borderRadius: "16px",
-    padding: "14px 12px",
-    cursor: "pointer",
-    fontSize: "15px",
-    fontWeight: "800",
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
   },
 
-  btnIcon: {
-    fontSize: "20px",
+  btnDisabled: {
+    opacity: 0.45,
   },
 
   btnLabel: {
+    color: "#fff",
+    fontSize: 15,
     fontWeight: "800",
-    letterSpacing: "0.2px",
+    letterSpacing: 0.2,
   },
-};
-
-export default ActivityTemplate3;
+});
