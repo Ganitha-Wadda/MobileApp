@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useRef, useState, useEffect } from "react";
 import {
   Text,
   TouchableOpacity,
@@ -6,9 +6,11 @@ import {
   SafeAreaView,
   StatusBar,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 
 import { useGetActivityPaperQuery } from "../app/features/Shortzapi";
+import { useSubmitShortActivityAttemptMutation } from "../app/features/shortcoinscountApi";
 import ActivityTemplate1 from "./ActivityTemplate1";
 import ActivityTemplate2 from "./ActivityTemplate2";
 import ActivityTemplate3 from "./ActivityTemplate3";
@@ -51,6 +53,7 @@ function normalizeActivity(item, index, templateNo) {
 
   const options = answers.map((answer, optionIndex) => ({
     id: optionIndex + 1,
+    answerIndex: optionIndex,
     value: String(answer),
     correct: correctIndexes.includes(optionIndex),
     color: TEMPLATE2_COLORS[optionIndex % TEMPLATE2_COLORS.length].color,
@@ -62,6 +65,7 @@ function normalizeActivity(item, index, templateNo) {
     id: item?._id || item?.id || `activity-${index}`,
     question: String(item?.question || ""),
     correctAnswer,
+    correctIndexes,
     options,
     templateNo,
   };
@@ -81,15 +85,21 @@ function normalizeActivitiesWithRandomTemplates(rawActivities = []) {
 
 export default function ActivityFlowScreen({ navigation, route }) {
   const shortLessonId = route?.params?.shortLessonId || route?.params?.lessonId;
-  const shortSubLessonId =
-    route?.params?.shortSubLessonId || route?.params?.subLessonId;
+  const shortSubLessonId = route?.params?.shortSubLessonId || route?.params?.subLessonId;
 
   const title = route?.params?.title || route?.params?.subLessonTitle || "Activity";
   const returnToVideoParams = route?.params?.returnToVideoParams || {};
-  const completedVideoId = route?.params?.completedVideoId;
+  const completedVideoId = route?.params?.completedVideoId || route?.params?.completedVideoKey;
+  const completedVideoIndex = Number(route?.params?.completedVideoIndex ?? route?.params?.videoIndex ?? 0);
   const videoIndex = Number(route?.params?.videoIndex || 0);
   const nextVideoIndex = Number(route?.params?.nextVideoIndex || videoIndex);
   const hasNextVideo = Boolean(route?.params?.hasNextVideo);
+
+  const [submitShortActivityAttempt, { isLoading: submittingAnswer }] =
+    useSubmitShortActivityAttemptMutation();
+
+  const attemptedLocalRef = useRef(new Set());
+  const [coinMessages, setCoinMessages] = useState({});
 
   const {
     data: rawActivities = [],
@@ -111,6 +121,8 @@ export default function ActivityFlowScreen({ navigation, route }) {
 
   useEffect(() => {
     setCurrentIndex(0);
+    attemptedLocalRef.current = new Set();
+    setCoinMessages({});
   }, [shortLessonId, shortSubLessonId, rawActivities]);
 
   const finishAndGoNextVideo = () => {
@@ -122,10 +134,51 @@ export default function ActivityFlowScreen({ navigation, route }) {
         ...returnToVideoParams,
         initialVideoIndex: targetVideoIndex,
         completedVideoId,
+        completedVideoKey: completedVideoId,
+        completedVideoIndex,
         completedActivity: true,
+        completedAt: Date.now(),
       },
       merge: true,
     });
+  };
+
+  const handleAnswerSubmit = async ({ activity, selectedOption, isCorrect }) => {
+    const activityId = activity?.id;
+    if (!activityId || attemptedLocalRef.current.has(String(activityId))) return;
+
+    attemptedLocalRef.current.add(String(activityId));
+
+    try {
+      const selectedAnswerIndex = Number(selectedOption?.answerIndex ?? 0);
+      const response = await submitShortActivityAttempt({
+        shortLessonId,
+        shortSubLessonId,
+        activityId,
+        videoId: completedVideoId,
+        videoIndex,
+        selectedAnswerIndexes: [selectedAnswerIndex],
+      }).unwrap();
+
+      const earnedCoins = Number(response?.earnedCoins || 0);
+      const alreadyAttempted = Boolean(response?.alreadyAttempted);
+      const totalShortCoins = Number(response?.totalShortCoins || 0);
+
+      setCoinMessages((prev) => ({
+        ...prev,
+        [String(activityId)]: alreadyAttempted
+          ? `Already attempted • Total coins: ${totalShortCoins}`
+          : isCorrect
+          ? `+${earnedCoins} coins • Total coins: ${totalShortCoins}`
+          : `0 coins • Total coins: ${totalShortCoins}`,
+      }));
+    } catch (error) {
+      attemptedLocalRef.current.delete(String(activityId));
+      Alert.alert(
+        "Activity Save Failed",
+        error?.data?.message || error?.message || "Could not save activity answer. Please try again."
+      );
+    }
   };
 
   const handleNext = () => {
@@ -191,6 +244,7 @@ export default function ActivityFlowScreen({ navigation, route }) {
   const isLast = currentIndex === activities.length - 1;
   const activityLabel = `Activity - ${currentIndex + 1}`;
   const nextLabel = isLast ? (hasNextVideo ? "Next Video" : "Back to Video") : "Next activity";
+  const coinText = coinMessages[String(currentActivity.id)] || "";
 
   const commonProps = {
     title,
@@ -198,8 +252,12 @@ export default function ActivityFlowScreen({ navigation, route }) {
     question: currentActivity.question,
     options: currentActivity.options,
     correctAnswer: currentActivity.correctAnswer,
+    onAnswerSubmit: ({ selectedOption, isCorrect }) =>
+      handleAnswerSubmit({ activity: currentActivity, selectedOption, isCorrect }),
     onNext: handleNext,
     nextLabel,
+    coinText,
+    submittingAnswer,
   };
 
   if (currentActivity.templateNo === 2) {

@@ -20,21 +20,10 @@ import { useDispatch } from "react-redux";
 import Floating from "../pages/Floating.js";
 import { useSignupMutation } from "../app/features/authApi.js";
 import { setPendingIdentity } from "../app/features/authSlice.js";
+import { BASE_URL } from "../app/api/api.js";
 import useT from "../app/i18n/useT.js";
 
 const { width, height } = Dimensions.get("window");
-
-const GRADE_OPTIONS = ["3", "4", "5"];
-
-const BATCH_YEAR_OPTIONS = [
-  "2024",
-  "2025",
-  "2026",
-  "2027",
-  "2028",
-  "2029",
-  "2030",
-];
 
 const DISTRICT_OPTIONS = [
   "Ampara",
@@ -89,13 +78,19 @@ const formatPartsToYMD = (year, monthIndex, day) => {
 
 const parseYMDToDate = (value) => {
   if (!value) return null;
+
   const parts = String(value).split("-");
+
   if (parts.length !== 3) return null;
+
   const year = Number(parts[0]);
   const month = Number(parts[1]);
   const day = Number(parts[2]);
+
   if (!year || !month || !day) return null;
+
   const date = new Date(year, month - 1, day);
+
   if (
     date.getFullYear() !== year ||
     date.getMonth() !== month - 1 ||
@@ -103,6 +98,7 @@ const parseYMDToDate = (value) => {
   ) {
     return null;
   }
+
   return date;
 };
 
@@ -117,6 +113,54 @@ const isFutureDate = (year, monthIndex, day) => {
   return selectedDate > today;
 };
 
+const normalizeText = (value = "") => String(value || "").trim();
+
+const sortTextNumber = (a, b) => {
+  return String(a).localeCompare(String(b), undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
+};
+
+const uniqueSorted = (values = []) => {
+  return [
+    ...new Set(values.map((value) => normalizeText(value)).filter(Boolean)),
+  ].sort(sortTextNumber);
+};
+
+const getTranslation = (t, key, fallback) => {
+  const value = t(key);
+  return !value || value === key ? fallback : value;
+};
+
+const buildClassOptions = (classes = []) => {
+  const gradeSet = new Set();
+  const batchesByGrade = {};
+
+  for (const item of classes) {
+    const grade = normalizeText(item?.grade);
+    const batchnumber = normalizeText(item?.batchnumber);
+
+    if (!grade || !batchnumber) continue;
+
+    gradeSet.add(grade);
+
+    if (!batchesByGrade[grade]) {
+      batchesByGrade[grade] = [];
+    }
+
+    batchesByGrade[grade].push(batchnumber);
+  }
+
+  const grades = [...gradeSet].sort((a, b) => Number(a) - Number(b));
+
+  for (const grade of Object.keys(batchesByGrade)) {
+    batchesByGrade[grade] = uniqueSorted(batchesByGrade[grade]);
+  }
+
+  return { grades, batchesByGrade };
+};
+
 export default function SignupScreen({ navigation }) {
   const dispatch = useDispatch();
   const [signup, { isLoading }] = useSignupMutation();
@@ -127,7 +171,7 @@ export default function SignupScreen({ navigation }) {
     mobile: "",
     birthday: "",
     grade: "",
-    batchYear: "",
+    batchnumber: "",
     district: "",
     address: "",
     password: "",
@@ -138,24 +182,117 @@ export default function SignupScreen({ navigation }) {
   const [error, setError] = useState("");
   const [birthdayVisible, setBirthdayVisible] = useState(false);
   const [dropdownVisible, setDropdownVisible] = useState(null);
+  const [classOptionsLoading, setClassOptionsLoading] = useState(false);
+  const [classOptionsError, setClassOptionsError] = useState("");
+  const [backendClasses, setBackendClasses] = useState([]);
+
+  const { grades: gradeOptions, batchesByGrade } = useMemo(() => {
+    return buildClassOptions(backendClasses);
+  }, [backendClasses]);
+
+  const selectedBatchNumberOptions = useMemo(() => {
+    if (!form.grade) return [];
+    return batchesByGrade[String(form.grade)] || [];
+  }, [batchesByGrade, form.grade]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadClasses = async () => {
+      try {
+        setClassOptionsLoading(true);
+        setClassOptionsError("");
+
+        const response = await fetch(`${BASE_URL}/api/class`);
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(data?.message || "Failed to load class data");
+        }
+
+        const classes = Array.isArray(data?.classes)
+          ? data.classes
+          : Array.isArray(data?.data)
+            ? data.data
+            : Array.isArray(data)
+              ? data
+              : [];
+
+        if (mounted) {
+          setBackendClasses(classes);
+        }
+      } catch (err) {
+        if (mounted) {
+          setBackendClasses([]);
+          setClassOptionsError(
+            err?.message || "Class data failed to load. Please try again."
+          );
+        }
+      } finally {
+        if (mounted) {
+          setClassOptionsLoading(false);
+        }
+      }
+    };
+
+    loadClasses();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!form.grade || !form.batchnumber) return;
+
+    if (!selectedBatchNumberOptions.includes(form.batchnumber)) {
+      setForm((prev) => ({ ...prev, batchnumber: "" }));
+    }
+  }, [form.grade, form.batchnumber, selectedBatchNumberOptions]);
 
   const updateField = (key, value) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [key]: value };
+
+      if (key === "grade" && prev.grade !== value) {
+        next.batchnumber = "";
+      }
+
+      return next;
+    });
+  };
+
+  const openBatchNumberDropdown = () => {
+    setError("");
+
+    if (!form.grade) {
+      setError(t("errorGrade"));
+      return;
+    }
+
+    setDropdownVisible("batchnumber");
   };
 
   const handleSubmit = async () => {
     setError("");
 
-    if (!form.name.trim())         return setError(t("errorName"));
-    if (!form.mobile.trim())       return setError(t("errorMobile"));
-    if (!form.birthday.trim())     return setError(t("errorBirthday"));
-    if (!form.grade.trim())        return setError(t("errorGrade"));
-    if (!form.batchYear.trim())    return setError(t("errorBatchYear"));
-    if (!form.district.trim())     return setError(t("errorDistrict"));
-    if (!form.address.trim())      return setError(t("errorAddress"));
-    if (!gender)                   return setError(t("errorGender"));
-    if (!form.password)            return setError(t("errorPassword"));
-    if (!form.confirmPassword)     return setError(t("errorConfirmPassword"));
+    if (!form.name.trim()) return setError(t("errorName"));
+    if (!form.mobile.trim()) return setError(t("errorMobile"));
+    if (!form.birthday.trim()) return setError(t("errorBirthday"));
+    if (classOptionsError) return setError(classOptionsError);
+    if (!form.grade.trim()) return setError(t("errorGrade"));
+
+    if (!form.batchnumber.trim()) {
+      return setError(
+        getTranslation(t, "errorBatchNumber", "Please select batch number")
+      );
+    }
+
+    if (!form.district.trim()) return setError(t("errorDistrict"));
+    if (!form.address.trim()) return setError(t("errorAddress"));
+    if (!gender) return setError(t("errorGender"));
+    if (!form.password) return setError(t("errorPassword"));
+    if (!form.confirmPassword) return setError(t("errorConfirmPassword"));
 
     if (form.password !== form.confirmPassword) {
       return setError(t("errorPasswordMatch"));
@@ -163,15 +300,15 @@ export default function SignupScreen({ navigation }) {
 
     try {
       const result = await signup({
-        name:            form.name.trim(),
-        phonenumber:     form.mobile.trim(),
-        birthday:        form.birthday.trim(),
-        grade:           Number(form.grade),
-        batchYear:       Number(form.batchYear),
-        district:        form.district.trim(),
-        address:         form.address.trim(),
-        gender:          gender.toLowerCase(),
-        password:        form.password,
+        name: form.name.trim(),
+        phonenumber: form.mobile.trim(),
+        birthday: form.birthday.trim(),
+        grade: Number(form.grade),
+        batchnumber: form.batchnumber.trim(),
+        district: form.district.trim(),
+        address: form.address.trim(),
+        gender: gender.toLowerCase(),
+        password: form.password,
         confirmPassword: form.confirmPassword,
       }).unwrap();
 
@@ -187,6 +324,7 @@ export default function SignupScreen({ navigation }) {
         err?.data?.message ||
         err?.message ||
         "Signup failed. Please try again.";
+
       setError(message);
     }
   };
@@ -281,17 +419,35 @@ export default function SignupScreen({ navigation }) {
 
             <SelectField
               icon="🎓"
-              placeholder={t("selectGrade")}
+              placeholder={
+                classOptionsLoading
+                  ? getTranslation(t, "loadingGrades", "Loading grades...")
+                  : t("selectGrade")
+              }
               value={form.grade ? `${t("grade")} ${form.grade}` : ""}
               onPress={() => setDropdownVisible("grade")}
               sinFont={sinFont()}
             />
 
             <SelectField
-              icon="📅"
-              placeholder={t("selectBatchYear")}
-              value={form.batchYear}
-              onPress={() => setDropdownVisible("batchYear")}
+              icon="🔢"
+              placeholder={
+                !form.grade
+                  ? getTranslation(t, "selectGradeFirst", "Select grade first")
+                  : classOptionsLoading
+                    ? getTranslation(
+                        t,
+                        "loadingBatchNumbers",
+                        "Loading batch numbers..."
+                      )
+                    : getTranslation(
+                        t,
+                        "selectBatchNumber",
+                        "Select Batch Number"
+                      )
+              }
+              value={form.batchnumber}
+              onPress={openBatchNumberDropdown}
               sinFont={sinFont()}
             />
 
@@ -357,7 +513,9 @@ export default function SignupScreen({ navigation }) {
               {isLoading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={[styles.submitText, sinFont()]}>{t("submit")}</Text>
+                <Text style={[styles.submitText, sinFont()]}>
+                  {t("submit")}
+                </Text>
               )}
             </TouchableOpacity>
 
@@ -386,12 +544,17 @@ export default function SignupScreen({ navigation }) {
         sinFont={sinFont()}
       />
 
-      {/* ── FIX: pass closeLabel={t("close")} so the button is translated ── */}
       <DropdownModal
         visible={dropdownVisible === "grade"}
         title={t("selectGrade")}
-        options={GRADE_OPTIONS}
+        options={gradeOptions}
         value={form.grade}
+        isLoading={classOptionsLoading}
+        emptyLabel={getTranslation(
+          t,
+          "noBackendClasses",
+          "No backend classes available"
+        )}
         onClose={() => setDropdownVisible(null)}
         onSelect={(value) => {
           updateField("grade", value);
@@ -403,13 +566,19 @@ export default function SignupScreen({ navigation }) {
       />
 
       <DropdownModal
-        visible={dropdownVisible === "batchYear"}
-        title={t("selectBatchYear")}
-        options={BATCH_YEAR_OPTIONS}
-        value={form.batchYear}
+        visible={dropdownVisible === "batchnumber"}
+        title={getTranslation(t, "selectBatchNumber", "Select Batch Number")}
+        options={selectedBatchNumberOptions}
+        value={form.batchnumber}
+        isLoading={classOptionsLoading}
+        emptyLabel={getTranslation(
+          t,
+          "noBatchNumbersForGrade",
+          "No batch numbers available for this grade"
+        )}
         onClose={() => setDropdownVisible(null)}
         onSelect={(value) => {
-          updateField("batchYear", value);
+          updateField("batchnumber", value);
           setDropdownVisible(null);
         }}
         sinFont={sinFont()}
@@ -504,7 +673,6 @@ const GenderOption = ({ icon, label, selected, onPress, sinFont = {} }) => {
   );
 };
 
-// ── FIX: added closeLabel prop (replaces hardcoded "Close") ────────────────
 const DropdownModal = ({
   visible,
   title,
@@ -514,7 +682,9 @@ const DropdownModal = ({
   onSelect,
   labelPrefix = "",
   sinFont = {},
-  closeLabel = "Close",   // ← NEW: translated close label passed from parent
+  closeLabel = "Close",
+  isLoading = false,
+  emptyLabel = "No options available",
 }) => {
   return (
     <Modal visible={visible} transparent animationType="fade">
@@ -526,34 +696,46 @@ const DropdownModal = ({
             style={styles.dropdownList}
             showsVerticalScrollIndicator={false}
           >
-            {options.map((item) => {
-              const selected = value === item;
+            {isLoading ? (
+              <View style={styles.dropdownEmptyBox}>
+                <ActivityIndicator color="#1B7EEF" />
+              </View>
+            ) : options.length === 0 ? (
+              <View style={styles.dropdownEmptyBox}>
+                <Text style={[styles.dropdownEmptyText, sinFont]}>
+                  {emptyLabel}
+                </Text>
+              </View>
+            ) : (
+              options.map((item) => {
+                const selected = String(value) === String(item);
 
-              return (
-                <TouchableOpacity
-                  key={item}
-                  style={[
-                    styles.dropdownItem,
-                    selected && styles.dropdownItemSelected,
-                  ]}
-                  onPress={() => onSelect(item)}
-                  activeOpacity={0.85}
-                >
-                  <Text
+                return (
+                  <TouchableOpacity
+                    key={String(item)}
                     style={[
-                      styles.dropdownItemText,
-                      selected && styles.dropdownItemTextSelected,
-                      sinFont,
+                      styles.dropdownItem,
+                      selected && styles.dropdownItemSelected,
                     ]}
+                    onPress={() => onSelect(String(item))}
+                    activeOpacity={0.85}
                   >
-                    {labelPrefix}
-                    {item}
-                  </Text>
+                    <Text
+                      style={[
+                        styles.dropdownItemText,
+                        selected && styles.dropdownItemTextSelected,
+                        sinFont,
+                      ]}
+                    >
+                      {labelPrefix}
+                      {item}
+                    </Text>
 
-                  {selected && <Text style={styles.checkText}>✓</Text>}
-                </TouchableOpacity>
-              );
-            })}
+                    {selected && <Text style={styles.checkText}>✓</Text>}
+                  </TouchableOpacity>
+                );
+              })
+            )}
           </ScrollView>
 
           <TouchableOpacity
@@ -561,7 +743,6 @@ const DropdownModal = ({
             onPress={onClose}
             activeOpacity={0.85}
           >
-            {/* ── FIX: use closeLabel prop instead of hardcoded "Close" ── */}
             <Text style={[styles.closeButtonText, sinFont]}>{closeLabel}</Text>
           </TouchableOpacity>
         </View>
@@ -570,7 +751,14 @@ const DropdownModal = ({
   );
 };
 
-const BirthdayPickerModal = ({ visible, value, onClose, onConfirm, t, sinFont = {} }) => {
+const BirthdayPickerModal = ({
+  visible,
+  value,
+  onClose,
+  onConfirm,
+  t,
+  sinFont = {},
+}) => {
   const today = new Date();
   const currentYear = today.getFullYear();
 
@@ -580,14 +768,15 @@ const BirthdayPickerModal = ({ visible, value, onClose, onConfirm, t, sinFont = 
     return new Date(currentYear - 10, 0, 1);
   }, [value, currentYear]);
 
-  const [tempDay, setTempDay]     = useState(defaultDate.getDate());
+  const [tempDay, setTempDay] = useState(defaultDate.getDate());
   const [tempMonth, setTempMonth] = useState(defaultDate.getMonth());
-  const [tempYear, setTempYear]   = useState(defaultDate.getFullYear());
+  const [tempYear, setTempYear] = useState(defaultDate.getFullYear());
 
   useEffect(() => {
     if (visible) {
       const parsed = parseYMDToDate(value);
       const startDate = parsed || new Date(currentYear - 10, 0, 1);
+
       setTempDay(startDate.getDate());
       setTempMonth(startDate.getMonth());
       setTempYear(startDate.getFullYear());
@@ -595,14 +784,16 @@ const BirthdayPickerModal = ({ visible, value, onClose, onConfirm, t, sinFont = 
   }, [visible, value, currentYear]);
 
   const maxDay = getDaysInMonth(tempYear, tempMonth);
-  const selectedDateValue    = formatPartsToYMD(tempYear, tempMonth, tempDay);
+  const selectedDateValue = formatPartsToYMD(tempYear, tempMonth, tempDay);
   const selectedDateIsFuture = isFutureDate(tempYear, tempMonth, tempDay);
 
   const changeDay = (amount) => {
     setTempDay((prev) => {
       const nextDay = prev + amount;
+
       if (nextDay < 1) return 1;
       if (nextDay > maxDay) return maxDay;
+
       return nextDay;
     });
   };
@@ -610,17 +801,33 @@ const BirthdayPickerModal = ({ visible, value, onClose, onConfirm, t, sinFont = 
   const changeMonth = (amount) => {
     setTempMonth((prev) => {
       let nextMonth = prev + amount;
-      let nextYear  = tempYear;
+      let nextYear = tempYear;
 
-      if (nextMonth < 0)  { nextMonth = 11; nextYear = tempYear - 1; }
-      if (nextMonth > 11) { nextMonth = 0;  nextYear = tempYear + 1; }
+      if (nextMonth < 0) {
+        nextMonth = 11;
+        nextYear = tempYear - 1;
+      }
 
-      if (nextYear < MIN_BIRTH_YEAR) { nextYear = MIN_BIRTH_YEAR; nextMonth = 0; }
-      if (nextYear > currentYear)    { nextYear = currentYear; nextMonth = today.getMonth(); }
+      if (nextMonth > 11) {
+        nextMonth = 0;
+        nextYear = tempYear + 1;
+      }
+
+      if (nextYear < MIN_BIRTH_YEAR) {
+        nextYear = MIN_BIRTH_YEAR;
+        nextMonth = 0;
+      }
+
+      if (nextYear > currentYear) {
+        nextYear = currentYear;
+        nextMonth = today.getMonth();
+      }
 
       const nextMaxDay = getDaysInMonth(nextYear, nextMonth);
+
       setTempYear(nextYear);
       setTempDay((oldDay) => Math.min(oldDay, nextMaxDay));
+
       return nextMonth;
     });
   };
@@ -628,17 +835,21 @@ const BirthdayPickerModal = ({ visible, value, onClose, onConfirm, t, sinFont = 
   const changeYear = (amount) => {
     setTempYear((prev) => {
       let nextYear = prev + amount;
+
       if (nextYear < MIN_BIRTH_YEAR) nextYear = MIN_BIRTH_YEAR;
-      if (nextYear > currentYear)    nextYear = currentYear;
+      if (nextYear > currentYear) nextYear = currentYear;
 
       let nextMonth = tempMonth;
+
       if (nextYear === currentYear && nextMonth > today.getMonth()) {
         nextMonth = today.getMonth();
         setTempMonth(nextMonth);
       }
 
       const nextMaxDay = getDaysInMonth(nextYear, nextMonth);
+
       setTempDay((oldDay) => Math.min(oldDay, nextMaxDay));
+
       return nextYear;
     });
   };
@@ -655,7 +866,9 @@ const BirthdayPickerModal = ({ visible, value, onClose, onConfirm, t, sinFont = 
           <Text style={[styles.modalTitle, sinFont]}>{t("selectBirthday")}</Text>
 
           <View style={styles.selectedBirthdayBox}>
-            <Text style={[styles.selectedBirthdayLabel, sinFont]}>{t("birthday")}</Text>
+            <Text style={[styles.selectedBirthdayLabel, sinFont]}>
+              {t("birthday")}
+            </Text>
 
             <Text
               style={[
@@ -716,7 +929,9 @@ const BirthdayPickerModal = ({ visible, value, onClose, onConfirm, t, sinFont = 
             onPress={onClose}
             activeOpacity={0.85}
           >
-            <Text style={[styles.closeButtonLightText, sinFont]}>{t("close")}</Text>
+            <Text style={[styles.closeButtonLightText, sinFont]}>
+              {t("close")}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -993,6 +1208,20 @@ const styles = StyleSheet.create({
 
   dropdownList: {
     maxHeight: height * 0.52,
+  },
+
+  dropdownEmptyBox: {
+    minHeight: 80,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+  },
+
+  dropdownEmptyText: {
+    color: "#64748B",
+    fontSize: 14,
+    fontWeight: "700",
+    textAlign: "center",
   },
 
   dropdownItem: {

@@ -14,8 +14,40 @@ import { useSelector } from "react-redux";
 import { Audio } from "expo-av";
 import useT from "../app/i18n/useT";
 import { useGetMyGradePapersByTypeQuery } from "../app/features/paperApi";
+import { useGetLatestPaperResultByPaperQuery } from "../app/features/paperResultApi";
 
 const { width } = Dimensions.get("window");
+
+
+const getPayloadData = (response) => response?.data?.data || response?.data || response;
+
+const getAttemptId = (attempt) => attempt?.id || attempt?._id || "";
+
+const buildReviewParams = (attempt, paperTitle, paper) => ({
+  attemptId: getAttemptId(attempt),
+  result: attempt,
+  paperTitle:
+    attempt?.paperSnapshot?.paperTitle ||
+    attempt?.paperSnapshot?.paperName ||
+    paperTitle,
+  paper: attempt?.paperSnapshot || paper,
+  totalQuestions: Number(attempt?.totalQuestions || 0),
+  correctCount: Number(attempt?.correctCount || 0),
+  wrongCount: Number(attempt?.wrongCount || 0),
+  notAttemptedCount: Number(attempt?.notAttemptedCount || 0),
+  totalCoins: Number(attempt?.totalCoins || 0),
+  maximumCoins: Number(attempt?.maximumCoins || 0),
+  percentage: Number(attempt?.percentage || 0),
+  status: attempt?.status,
+});
+
+const getAttemptButtonText = (defaultStartText, attempt, isChecking) => {
+  if (isChecking) return "Checking...";
+  if (!attempt?.status) return defaultStartText || "Start";
+  if (attempt.status === "in_progress") return "Continue";
+  return "View Review";
+};
+
 
 const clickSound = require("../assets/clip5.mp3");
 
@@ -143,7 +175,16 @@ const Star = ({ color, size }) => (
   <Text style={{ color, fontSize: size, lineHeight: size + 4 }}>✦</Text>
 );
 
-const PastPaperCard = ({ item, onPress, startButtonText }) => (
+const PastPaperCard = ({ item, onPress, startButtonText, token }) => {
+  const { data: latestResultResponse, isFetching: isCheckingAttempt } =
+    useGetLatestPaperResultByPaperQuery(item.paperId, {
+      skip: !token || !item.paperId,
+    });
+
+  const latestAttempt = getPayloadData(latestResultResponse);
+  const buttonText = getAttemptButtonText(startButtonText, latestAttempt, isCheckingAttempt);
+
+  return (
   <View style={styles.card}>
     <View style={styles.iconWrapper}>
       <View style={styles.iconCircle}>
@@ -166,10 +207,10 @@ const PastPaperCard = ({ item, onPress, startButtonText }) => (
 
       <TouchableOpacity
         style={styles.startButton}
-        onPress={() => onPress(item)}
+        onPress={() => onPress(item, latestAttempt)}
         activeOpacity={0.85}
       >
-        <Text style={styles.startButtonText}>{startButtonText}</Text>
+        <Text style={styles.startButtonText}>{buttonText}</Text>
       </TouchableOpacity>
     </View>
 
@@ -177,7 +218,8 @@ const PastPaperCard = ({ item, onPress, startButtonText }) => (
       <Star color={item.starColor} size={item.starSize} />
     </View>
   </View>
-);
+  );
+};
 
 export default function PastPaperMenu({ navigation, onSelectYear }) {
   const { t } = useT();
@@ -227,8 +269,13 @@ export default function PastPaperMenu({ navigation, onSelectYear }) {
     }
   };
 
-  const handleStart = async (item) => {
+  const handleStart = async (item, latestAttempt = null) => {
     await playClickSound();
+
+    if (latestAttempt?.status && latestAttempt.status !== "in_progress") {
+      navigation.navigate("reviewpage", buildReviewParams(latestAttempt, item.title, item.rawPaper));
+      return;
+    }
 
     if (navigation) {
       navigation.navigate("paperpage", {
@@ -273,6 +320,7 @@ export default function PastPaperMenu({ navigation, onSelectYear }) {
                 item={item}
                 onPress={handleStart}
                 startButtonText={startButtonText}
+                token={token}
               />
             ))
           )}
@@ -417,5 +465,3 @@ const styles = StyleSheet.create({
     right: 16,
   },
 });
-
-

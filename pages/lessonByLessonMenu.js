@@ -15,8 +15,40 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
 import useT from "../app/i18n/useT";
 import { useGetMyGradePapersByTypeQuery } from "../app/features/paperApi";
+import { useGetLatestPaperResultByPaperQuery } from "../app/features/paperResultApi";
 
 const { width, height } = Dimensions.get("window");
+
+
+const getPayloadData = (response) => response?.data?.data || response?.data || response;
+
+const getAttemptId = (attempt) => attempt?.id || attempt?._id || "";
+
+const buildReviewParams = (attempt, paperTitle, paper) => ({
+  attemptId: getAttemptId(attempt),
+  result: attempt,
+  paperTitle:
+    attempt?.paperSnapshot?.paperTitle ||
+    attempt?.paperSnapshot?.paperName ||
+    paperTitle,
+  paper: attempt?.paperSnapshot || paper,
+  totalQuestions: Number(attempt?.totalQuestions || 0),
+  correctCount: Number(attempt?.correctCount || 0),
+  wrongCount: Number(attempt?.wrongCount || 0),
+  notAttemptedCount: Number(attempt?.notAttemptedCount || 0),
+  totalCoins: Number(attempt?.totalCoins || 0),
+  maximumCoins: Number(attempt?.maximumCoins || 0),
+  percentage: Number(attempt?.percentage || 0),
+  status: attempt?.status,
+});
+
+const getAttemptButtonText = (defaultStartText, attempt, isChecking) => {
+  if (isChecking) return "Checking...";
+  if (!attempt?.status) return defaultStartText || "Start";
+  if (attempt.status === "in_progress") return "Continue";
+  return "View Review";
+};
+
 
 const clickSound = require("../assets/clip5.mp3");
 
@@ -226,11 +258,19 @@ const FloatingStar = ({ style, color = "#C8BFFF", size = 18, delay = 0 }) => {
   );
 };
 
-const LessonCard = ({ lesson, index, navigation, playClickSound, startText }) => {
+const LessonCard = ({ lesson, index, navigation, playClickSound, startText, token }) => {
   const slideAnim = useRef(new Animated.Value(45)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const cardScale = useRef(new Animated.Value(1)).current;
   const btnScale = useRef(new Animated.Value(1)).current;
+
+  const { data: latestResultResponse, isFetching: isCheckingAttempt } =
+    useGetLatestPaperResultByPaperQuery(lesson.paperId, {
+      skip: !token || !lesson.paperId,
+    });
+
+  const latestAttempt = getPayloadData(latestResultResponse);
+  const buttonText = getAttemptButtonText(startText, latestAttempt, isCheckingAttempt);
 
   useEffect(() => {
     Animated.parallel([
@@ -251,6 +291,11 @@ const LessonCard = ({ lesson, index, navigation, playClickSound, startText }) =>
 
   const handleStart = async () => {
     await playClickSound();
+
+    if (latestAttempt?.status && latestAttempt.status !== "in_progress") {
+      navigation.navigate("reviewpage", buildReviewParams(latestAttempt, lesson.title, lesson.rawPaper));
+      return;
+    }
 
     navigation.navigate("paperpage", {
       paperId: lesson.paperId,
@@ -334,7 +379,7 @@ const LessonCard = ({ lesson, index, navigation, playClickSound, startText }) =>
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
               >
-                <Text style={styles.startText}>{startText}</Text>
+                <Text style={styles.startText}>{buttonText}</Text>
               </LinearGradient>
             </TouchableOpacity>
           </Animated.View>
@@ -443,6 +488,7 @@ export default function LessonByLessonMenu({ navigation }) {
               navigation={navigation}
               playClickSound={playClickSound}
               startText={t("start") || "Start"}
+              token={token}
             />
           ))
         )}
@@ -584,4 +630,3 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
 });
-

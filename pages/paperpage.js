@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,340 +6,487 @@ import {
   TouchableOpacity,
   SafeAreaView,
   StatusBar,
-  Dimensions,
-  Platform,
-  ScrollView,
   ActivityIndicator,
-  Image,
+  ScrollView,
+  Alert,
+  BackHandler,
 } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
-import { useGetPaperFullDetailsQuery } from "../app/features/paperApi";
 
-const { width } = Dimensions.get("window");
-const CARD_WIDTH = width * 0.9;
+import { useGetPaperFullDetailsQuery } from "../app/features/paperApi";
+import {
+  useStartOrResumePaperAttemptMutation,
+  useSavePaperQuestionAnswerMutation,
+  useFinishPaperAttemptMutation,
+} from "../app/features/paperResultApi";
 
 const OPTION_LABELS = ["i.", "ii.", "iii.", "iv.", "v.", "vi."];
 
-const getPaperId = (value) =>
-  value?.id || value?._id || value?.paperId || value?.paper?._id || value?.paper?.id || "";
+const getPayloadData = (response) => response?.data?.data || response?.data || response;
 
-const getPaperFromResponse = (response, fallbackPaper) => {
-  if (response?.data?.paper) return response.data.paper;
-  if (response?.data?.data?.paper) return response.data.data.paper;
-  if (response?.paper) return response.paper;
-  return fallbackPaper || null;
+const getPaperId = (route) =>
+  route?.params?.paperId ||
+  route?.params?.paper?._id ||
+  route?.params?.paper?.id ||
+  "";
+
+const normalizeAttemptAnswersForReview = (answers = []) =>
+  answers.map((item) => ({
+    questionId: item.questionId,
+    questionNumber: item.questionNumber,
+    lessonName: item.lessonName || "",
+    question: item.question || "",
+    answers: item.answers || item.answerOptions || [],
+    selectedIndexes: item.selectedIndexes || item.selectedAnswerIndexes || [],
+    selectedAnswers: item.selectedAnswers || item.selectedAnswerTexts || [],
+    correctAnswerIndexes: item.correctAnswerIndexes || [],
+    correctAnswers: item.correctAnswers || item.correctAnswerTexts || [],
+    isAttempted: item.isAttempted === true,
+    isCorrect: item.isCorrect === true,
+    status: item.status || "not_attempted",
+    coinsEarned: Number(item.coinsEarned || 0),
+  }));
+
+const formatTime = (totalSeconds) => {
+  const safeSeconds = Math.max(Number(totalSeconds || 0), 0);
+  const minutes = Math.floor(safeSeconds / 60);
+  const seconds = safeSeconds % 60;
+
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 };
 
-const getQuestionsFromResponse = (response) => {
-  if (Array.isArray(response?.data?.questions)) return response.data.questions;
-  if (Array.isArray(response?.data?.data?.questions)) return response.data.data.questions;
-  if (Array.isArray(response?.questions)) return response.questions;
-  if (Array.isArray(response?.data)) return response.data;
-  return [];
-};
-
-const getPaperTitle = (paper, paramsTitle) =>
-  String(
-    paramsTitle ||
-      paper?.paperTitle ||
-      paper?.paperName ||
-      paper?.title ||
-      paper?.name ||
-      "Paper"
-  ).trim();
-
-const getQuestionText = (question) =>
-  String(question?.question || question?.questionText || question?.title || "").trim();
-
-const getAnswers = (question) => {
-  if (Array.isArray(question?.answers)) return question.answers.map((answer) => String(answer || ""));
-  if (Array.isArray(question?.options)) return question.options.map((answer) => String(answer || ""));
-  return [];
-};
-
-const toSortedNumberArray = (value) =>
-  [...new Set((Array.isArray(value) ? value : []).map(Number).filter(Number.isInteger))].sort(
-    (a, b) => a - b
+const getSelectedAnswerIndexFromAttempt = (attempt, questionId) => {
+  const row = (attempt?.answers || []).find(
+    (answer) => String(answer.questionId) === String(questionId)
   );
 
-const areSameIndexes = (a, b) => {
-  const first = toSortedNumberArray(a);
-  const second = toSortedNumberArray(b);
-
-  if (first.length !== second.length) return false;
-  return first.every((value, index) => value === second[index]);
+  const selected = row?.selectedAnswerIndexes || row?.selectedIndexes || [];
+  return selected.length > 0 ? Number(selected[0]) : null;
 };
-
-const buildAnswerResult = (question, selectedIndexes) => {
-  const answers = getAnswers(question);
-  const correctAnswerIndexes = toSortedNumberArray(question?.correctAnswerIndexes);
-  const normalizedSelectedIndexes = toSortedNumberArray(selectedIndexes);
-
-  return {
-    questionId: question?.id || question?._id || String(question?.questionNumber || ""),
-    questionNumber: Number(question?.questionNumber || 0),
-    lessonName: question?.lessonName || "",
-    question: getQuestionText(question),
-    answers,
-    selectedIndexes: normalizedSelectedIndexes,
-    selectedAnswers: normalizedSelectedIndexes.map((index) => answers[index]).filter(Boolean),
-    correctAnswerIndexes,
-    correctAnswers: correctAnswerIndexes.map((index) => answers[index]).filter(Boolean),
-    isCorrect: areSameIndexes(normalizedSelectedIndexes, correctAnswerIndexes),
-    point: Number(question?.point || 0),
-    explanationText: question?.explanationText || "",
-    explanationVideoUrl: question?.explanationVideoUrl || "",
-    imageUrl: question?.imageUrl || "",
-  };
-};
-
-const StateCard = ({ loading, title, message, onRetry }) => (
-  <View style={styles.centerContent}>
-    <View style={styles.card}>
-      {loading && <ActivityIndicator size="small" color="#6E46F2" />}
-      <Text style={styles.stateTitle}>{title}</Text>
-      {!!message && <Text style={styles.stateMessage}>{message}</Text>}
-      {!!onRetry && (
-        <TouchableOpacity activeOpacity={0.85} style={styles.retryButton} onPress={onRetry}>
-          <Text style={styles.retryText}>Try again</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  </View>
-);
 
 export default function Paperpage({ navigation, route }) {
-  const params = route?.params || {};
-  const paramsPaper = params.paper || null;
-  const paperId = params.paperId || getPaperId(paramsPaper);
+  const paperId = getPaperId(route);
+
+  const [attempt, setAttempt] = useState(null);
+  const [remainingSeconds, setRemainingSeconds] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [selectedByQuestionId, setSelectedByQuestionId] = useState({});
+  const [screenError, setScreenError] = useState("");
+
+  const startCalledRef = useRef(false);
+  const finalizingRef = useRef(false);
 
   const {
-    data,
-    isLoading,
-    isFetching,
-    error,
-    refetch,
+    data: paperDetailsResponse,
+    isLoading: isPaperLoading,
+    isFetching: isPaperFetching,
+    error: paperError,
   } = useGetPaperFullDetailsQuery(paperId, { skip: !paperId });
 
-  const paper = useMemo(
-    () => getPaperFromResponse(data, paramsPaper),
-    [data, paramsPaper]
-  );
+  const [startOrResumePaperAttempt, { isLoading: isStarting }] =
+    useStartOrResumePaperAttemptMutation();
 
-  const questions = useMemo(
-    () => getQuestionsFromResponse(data).filter((question) => question?.isActive !== false),
-    [data]
-  );
+  const [savePaperQuestionAnswer, { isLoading: isSavingAnswer }] =
+    useSavePaperQuestionAnswerMutation();
 
-  const paperTitle = getPaperTitle(paper, params.paperTitle || params.lessonTitle || params.pastPaperYear);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedIndexes, setSelectedIndexes] = useState([]);
-  const [submittedAnswers, setSubmittedAnswers] = useState([]);
+  const [finishPaperAttempt, { isLoading: isFinishing }] =
+    useFinishPaperAttemptMutation();
 
-  useEffect(() => {
-    setCurrentIndex(0);
-    setSelectedIndexes([]);
-    setSubmittedAnswers([]);
-  }, [paperId]);
+  const paperDetails = getPayloadData(paperDetailsResponse);
+  const backendPaper = paperDetails?.paper || route?.params?.paper || {};
+  const questions = Array.isArray(paperDetails?.questions) ? paperDetails.questions : [];
+
+  const paperTitle =
+    route?.params?.paperTitle ||
+    route?.params?.lessonTitle ||
+    route?.params?.pastPaperYear ||
+    backendPaper?.paperTitle ||
+    backendPaper?.paperName ||
+    "Paper";
 
   const currentQuestion = questions[currentIndex];
-  const currentAnswers = getAnswers(currentQuestion);
-  const correctAnswerIndexes = toSortedNumberArray(currentQuestion?.correctAnswerIndexes);
-  const isMultipleAnswerQuestion = correctAnswerIndexes.length > 1;
-  const isBusy = isLoading || isFetching;
-  const canSubmit = !!currentQuestion && selectedIndexes.length > 0;
+  const currentQuestionId = currentQuestion?.id || currentQuestion?._id || "";
+  const selectedAnswerIndex = selectedByQuestionId[currentQuestionId] ?? null;
+  const hasSelectedAnswer = selectedAnswerIndex !== null && selectedAnswerIndex !== undefined;
 
-  const handleSelectAnswer = (index) => {
-    if (isMultipleAnswerQuestion) {
-      setSelectedIndexes((prev) =>
-        prev.includes(index)
-          ? prev.filter((item) => item !== index)
-          : [...prev, index].sort((a, b) => a - b)
-      );
+  const navigateToReview = useCallback(
+    (result) => {
+      const completedAttempt = result || attempt;
+      const reviewAnswers = normalizeAttemptAnswersForReview(completedAttempt?.answers || []);
+
+      navigation.replace("reviewpage", {
+        attemptId: completedAttempt?.id || completedAttempt?._id,
+        result: completedAttempt,
+        answers: reviewAnswers,
+        paperTitle:
+          completedAttempt?.paperSnapshot?.paperTitle ||
+          completedAttempt?.paperSnapshot?.paperName ||
+          paperTitle,
+        paper: completedAttempt?.paperSnapshot || backendPaper,
+        totalQuestions: Number(completedAttempt?.totalQuestions || reviewAnswers.length || 0),
+        correctCount: Number(completedAttempt?.correctCount || 0),
+        wrongCount: Number(completedAttempt?.wrongCount || 0),
+        notAttemptedCount: Number(completedAttempt?.notAttemptedCount || 0),
+        totalCoins: Number(completedAttempt?.totalCoins || 0),
+        maximumCoins: Number(completedAttempt?.maximumCoins || 0),
+        percentage: Number(completedAttempt?.percentage || 0),
+        status: completedAttempt?.status,
+      });
+    },
+    [attempt, backendPaper, navigation, paperTitle]
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      const blockBack = () => {
+        Alert.alert(
+          "Paper is running",
+          "You cannot leave the paper while attempting. Finish the paper or wait until time is over."
+        );
+        return true;
+      };
+
+      const subscription = BackHandler.addEventListener("hardwareBackPress", blockBack);
+      return () => subscription.remove();
+    }, [])
+  );
+
+  useEffect(() => {
+    if (!paperId || startCalledRef.current) return;
+
+    startCalledRef.current = true;
+
+    const startAttempt = async () => {
+      try {
+        setScreenError("");
+
+        const response = await startOrResumePaperAttempt({ paperId }).unwrap();
+        const result = getPayloadData(response);
+
+        setAttempt(result);
+        setRemainingSeconds(Number(result?.remainingSeconds || 0));
+
+        const selectedMap = {};
+        (result?.answers || []).forEach((answer) => {
+          const qId = answer.questionId;
+          const selected = answer.selectedAnswerIndexes || answer.selectedIndexes || [];
+          if (qId && selected.length > 0) {
+            selectedMap[String(qId)] = Number(selected[0]);
+          }
+        });
+
+        setSelectedByQuestionId(selectedMap);
+
+        if (result?.status && result.status !== "in_progress") {
+          navigateToReview(result);
+          return;
+        }
+
+        const nextQuestionNumber = Number(result?.currentQuestionNumber || 1);
+        setCurrentIndex(Math.max(nextQuestionNumber - 1, 0));
+      } catch (error) {
+        const message =
+          error?.data?.message ||
+          error?.error ||
+          error?.message ||
+          "Unable to start paper.";
+        setScreenError(message);
+      }
+    };
+
+    startAttempt();
+  }, [navigateToReview, paperId, startOrResumePaperAttempt]);
+
+  const finalizePaper = useCallback(
+    async (expired = false) => {
+      if (!attempt?.id && !attempt?._id) return;
+      if (finalizingRef.current) return;
+
+      finalizingRef.current = true;
+
+      try {
+        const response = await finishPaperAttempt({
+          attemptId: attempt.id || attempt._id,
+          expired,
+        }).unwrap();
+
+        const result = getPayloadData(response);
+        setAttempt(result);
+        navigateToReview(result);
+      } catch (error) {
+        const message =
+          error?.data?.message ||
+          error?.error ||
+          error?.message ||
+          "Unable to finish paper.";
+        setScreenError(message);
+        finalizingRef.current = false;
+      }
+    },
+    [attempt, finishPaperAttempt, navigateToReview]
+  );
+
+  useEffect(() => {
+    if (!attempt || attempt.status !== "in_progress") return;
+
+    const timer = setInterval(() => {
+      setRemainingSeconds((prev) => Math.max(Number(prev || 0) - 1, 0));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [attempt]);
+
+  useEffect(() => {
+    if (!attempt || attempt.status !== "in_progress") return;
+    if (remainingSeconds > 0) return;
+
+    finalizePaper(true);
+  }, [attempt, finalizePaper, remainingSeconds]);
+
+  const handleSelectAnswer = async (answerIndex) => {
+    if (!attempt || attempt.status !== "in_progress") return;
+    if (!currentQuestion) return;
+    if (isSavingAnswer || isFinishing) return;
+
+    const qId = currentQuestion.id || currentQuestion._id;
+
+    setSelectedByQuestionId((prev) => ({
+      ...prev,
+      [String(qId)]: answerIndex,
+    }));
+
+    try {
+      const response = await savePaperQuestionAnswer({
+        attemptId: attempt.id || attempt._id,
+        paperId,
+        questionId: qId,
+        questionNumber: currentQuestion.questionNumber || currentIndex + 1,
+        selectedAnswerIndex: answerIndex,
+      }).unwrap();
+
+      const updatedAttempt = getPayloadData(response);
+      setAttempt(updatedAttempt);
+      setRemainingSeconds(Number(updatedAttempt?.remainingSeconds ?? remainingSeconds));
+    } catch (error) {
+      const message =
+        error?.data?.message ||
+        error?.error ||
+        error?.message ||
+        "Unable to save answer.";
+
+      Alert.alert("Answer not saved", message);
+
+      const previousSelected = getSelectedAnswerIndexFromAttempt(attempt, qId);
+      setSelectedByQuestionId((prev) => ({
+        ...prev,
+        [String(qId)]: previousSelected,
+      }));
+
+      if (error?.data?.data?.status && error.data.data.status !== "in_progress") {
+        navigateToReview(error.data.data);
+      }
+    }
+  };
+
+  const handleNext = () => {
+    if (!hasSelectedAnswer) {
+      Alert.alert("Select answer", "Please select an answer before going next.");
       return;
     }
 
-    setSelectedIndexes([index]);
-  };
-
-  const handleSubmit = () => {
-    if (!canSubmit) return;
-
-    const answerResult = buildAnswerResult(currentQuestion, selectedIndexes);
-    const nextAnswers = [...submittedAnswers, answerResult];
-    const isLastQuestion = currentIndex >= questions.length - 1;
-
-    if (!isLastQuestion) {
-      setSubmittedAnswers(nextAnswers);
-      setCurrentIndex((prev) => prev + 1);
-      setSelectedIndexes([]);
+    if (currentIndex >= questions.length - 1) {
+      finalizePaper(false);
       return;
     }
 
-    const correctCount = nextAnswers.filter((item) => item.isCorrect).length;
-    const totalQuestions = questions.length;
-    const percentage = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
-
-    navigation.navigate("reviewpage", {
-      paperId,
-      paperTitle,
-      paper,
-      questions,
-      answers: nextAnswers,
-      totalQuestions,
-      correctCount,
-      percentage,
-    });
+    setCurrentIndex((prev) => Math.min(prev + 1, questions.length - 1));
   };
 
-  const renderContent = () => {
-    if (!paperId) {
-      return (
-        <StateCard
-          title="Paper not selected"
-          message="Please select a paper from the paper menu again."
-        />
-      );
-    }
+  const isBusy = isPaperLoading || isPaperFetching || isStarting;
+  const errorMessage =
+    screenError ||
+    paperError?.data?.message ||
+    paperError?.error ||
+    paperError?.message ||
+    "";
 
-    if (isBusy && questions.length === 0) {
-      return <StateCard loading title="Loading questions..." />;
-    }
+  const progressText = useMemo(() => {
+    const current = questions.length > 0 ? currentIndex + 1 : 0;
+    return `${current} / ${questions.length}`;
+  }, [currentIndex, questions.length]);
 
-    if (error) {
-      return (
-        <StateCard
-          title="Cannot load this paper"
-          message={error?.data?.message || error?.error || "Please try again."}
-          onRetry={refetch}
-        />
-      );
-    }
-
-    if (questions.length === 0) {
-      return (
-        <StateCard
-          title="No questions found"
-          message="This paper has no active questions yet."
-          onRetry={refetch}
-        />
-      );
-    }
-
+  if (!paperId) {
     return (
-      <View style={styles.centerContent}>
-        <View style={styles.progressRow}>
-          <Text style={styles.progressText}>
-            {currentIndex + 1} / {questions.length}
-          </Text>
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="dark-content" backgroundColor="#F8F7FF" />
+        <View style={styles.centerBox}>
+          <Text style={styles.errorTitle}>Paper not found</Text>
+          <Text style={styles.errorText}>Missing paper id.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (isBusy) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="dark-content" backgroundColor="#F8F7FF" />
+        <View style={styles.centerBox}>
+          <ActivityIndicator size="large" />
+          <Text style={styles.loadingText}>Preparing paper...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (errorMessage) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="dark-content" backgroundColor="#F8F7FF" />
+        <View style={styles.centerBox}>
+          <Text style={styles.errorTitle}>Cannot open paper</Text>
+          <Text style={styles.errorText}>{errorMessage}</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!currentQuestion) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="dark-content" backgroundColor="#F8F7FF" />
+        <View style={styles.centerBox}>
+          <Text style={styles.errorTitle}>No questions</Text>
+          <Text style={styles.errorText}>This paper does not have questions yet.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8F7FF" />
+
+      <View style={styles.mainContainer}>
+        <LinearGradient
+          colors={["#F8F7FF", "#EEF3FF", "#F7F2FF"]}
+          style={StyleSheet.absoluteFill}
+        />
+
+        <View style={styles.topTimerCard}>
+          <View style={styles.titleBlock}>
+            <Text style={styles.paperTitle} numberOfLines={1}>
+              {paperTitle}
+            </Text>
+            <Text style={styles.progressText}>Question {progressText}</Text>
+          </View>
+
+          <View style={styles.timerPill}>
+            <Text style={styles.timerLabel}>Time</Text>
+            <Text style={styles.timerValue}>{formatTime(remainingSeconds)}</Text>
+          </View>
         </View>
 
         <ScrollView
-          style={styles.questionScroll}
-          contentContainerStyle={styles.questionScrollContent}
           showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
         >
-          <View style={styles.card}>
-            <View style={styles.questionBadge}>
-              <Text style={styles.questionBadgeText}>
-                Question {currentQuestion?.questionNumber || currentIndex + 1}
+          <View style={styles.questionCard}>
+            <View style={styles.questionHeaderRow}>
+              <Text style={styles.questionNumber}>
+                Question - {currentQuestion.questionNumber || currentIndex + 1}
               </Text>
+
+              <View style={styles.noSkipBadge}>
+                <Text style={styles.noSkipText}>No Skip</Text>
+              </View>
             </View>
 
-            {!!currentQuestion?.lessonName && (
-              <Text style={styles.lessonNameText} numberOfLines={2}>
-                {currentQuestion.lessonName}
-              </Text>
+            {!!currentQuestion.lessonName && (
+              <Text style={styles.lessonText}>{currentQuestion.lessonName}</Text>
             )}
 
-            {!!currentQuestion?.imageUrl && (
-              <Image
-                source={{ uri: currentQuestion.imageUrl }}
-                style={styles.questionImage}
-                resizeMode="contain"
-              />
-            )}
+            <Text style={styles.questionText}>{currentQuestion.question}</Text>
 
-            <Text style={styles.questionText}>{getQuestionText(currentQuestion)}</Text>
-
-            <View style={styles.optionsWrapper}>
-              {currentAnswers.map((answer, index) => {
-                const selected = selectedIndexes.includes(index);
+            <View style={styles.answerList}>
+              {(currentQuestion.answers || []).map((answer, index) => {
+                const selected = selectedAnswerIndex === index;
 
                 return (
                   <TouchableOpacity
-                    key={`${currentQuestion?.id || currentQuestion?._id || currentIndex}-${index}`}
+                    key={`${currentQuestionId}-${index}`}
                     activeOpacity={0.85}
-                    style={[styles.optionBox, selected && styles.optionBoxSelected]}
                     onPress={() => handleSelectAnswer(index)}
+                    disabled={isSavingAnswer || isFinishing}
+                    style={[
+                      styles.answerButton,
+                      selected && styles.answerButtonSelected,
+                    ]}
                   >
-                    <Text style={[styles.optionNumber, selected && styles.optionNumberSelected]}>
-                      {OPTION_LABELS[index] || `${index + 1}.`}
-                    </Text>
-                    <Text style={[styles.optionText, selected && styles.optionTextSelected]}>
+                    <View
+                      style={[
+                        styles.answerIndexCircle,
+                        selected && styles.answerIndexCircleSelected,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.answerIndexText,
+                          selected && styles.answerIndexTextSelected,
+                        ]}
+                      >
+                        {OPTION_LABELS[index] || `${index + 1}.`}
+                      </Text>
+                    </View>
+
+                    <Text
+                      style={[
+                        styles.answerText,
+                        selected && styles.answerTextSelected,
+                      ]}
+                    >
                       {answer}
                     </Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
-
-            {isMultipleAnswerQuestion && (
-              <Text style={styles.multiAnswerHint}>Select all correct answers.</Text>
-            )}
-
-            <TouchableOpacity
-              activeOpacity={0.85}
-              style={[styles.submitWrapper, !canSubmit && styles.submitWrapperDisabled]}
-              onPress={handleSubmit}
-              disabled={!canSubmit}
-            >
-              <LinearGradient
-                colors={canSubmit ? ["#8D4DFF", "#233BFF"] : ["#C8C8D8", "#AAAABC"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.submitButton}
-              >
-                <Text style={styles.submitText}>
-                  {currentIndex >= questions.length - 1 ? "Finish" : "Next"}
-                </Text>
-              </LinearGradient>
-            </TouchableOpacity>
           </View>
+
+          <TouchableOpacity
+            activeOpacity={0.88}
+            onPress={handleNext}
+            disabled={!hasSelectedAnswer || isSavingAnswer || isFinishing}
+            style={[
+              styles.nextButtonWrapper,
+              (!hasSelectedAnswer || isSavingAnswer || isFinishing) && styles.nextButtonDisabled,
+            ]}
+          >
+            <LinearGradient
+              colors={
+                hasSelectedAnswer
+                  ? ["#7B5CFF", "#263CFF"]
+                  : ["#C9C9D8", "#A7A7B8"]
+              }
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.nextButton}
+            >
+              {isSavingAnswer || isFinishing ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.nextButtonText}>
+                  {currentIndex >= questions.length - 1 ? "Finish Paper" : "Next Question"}
+                </Text>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <Text style={styles.helpText}>
+            You must answer this question before moving to the next question.
+          </Text>
         </ScrollView>
-      </View>
-    );
-  };
-
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8F8FF" />
-
-      <View style={styles.container}>
-        <Text style={[styles.star, styles.starOne]}>★</Text>
-        <Text style={[styles.star, styles.starTwo]}>★</Text>
-        <Text style={[styles.star, styles.starThree]}>★</Text>
-        <Text style={[styles.star, styles.starFour]}>★</Text>
-
-        <View style={[styles.dot, styles.dotOne]} />
-        <View style={[styles.dot, styles.dotTwo]} />
-        <View style={[styles.dot, styles.dotThree]} />
-        <View style={[styles.dot, styles.dotFour]} />
-        <View style={[styles.dot, styles.dotFive]} />
-        <View style={[styles.dot, styles.dotSix]} />
-        <View style={[styles.dot, styles.dotSeven]} />
-
-        {renderContent()}
-
-        <View style={styles.cloudArea}>
-          <View style={[styles.cloudCircle, styles.cloudOne]} />
-          <View style={[styles.cloudCircle, styles.cloudTwo]} />
-          <View style={[styles.cloudCircle, styles.cloudThree]} />
-          <View style={[styles.cloudCircle, styles.cloudFour]} />
-          <View style={[styles.cloudCircle, styles.cloudFive]} />
-          <View style={[styles.cloudCircle, styles.cloudSix]} />
-          <View style={[styles.cloudCircle, styles.cloudSeven]} />
-        </View>
       </View>
     </SafeAreaView>
   );
@@ -348,408 +495,247 @@ export default function Paperpage({ navigation, route }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#F8F8FF",
+    backgroundColor: "#F8F7FF",
   },
 
-  container: {
+  mainContainer: {
     flex: 1,
-    backgroundColor: "#F8F8FF",
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-    overflow: "hidden",
-    paddingTop: Platform.OS === "android" ? 10 : 0,
-    paddingBottom: 25,
+    backgroundColor: "#F8F7FF",
   },
 
-  centerContent: {
-    width: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 2,
-    flex: 1,
-  },
-
-  progressRow: {
-    marginBottom: 12,
+  topTimerCard: {
+    marginHorizontal: 14,
+    marginTop: 10,
+    marginBottom: 8,
     backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 22,
-    shadowColor: "#C9CAD8",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 4,
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+
+    shadowColor: "#C8C7DE",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.24,
+    shadowRadius: 15,
+    elevation: 6,
+  },
+
+  titleBlock: {
+    flex: 1,
+    paddingRight: 12,
+  },
+
+  paperTitle: {
+    color: "#101943",
+    fontSize: 17,
+    fontWeight: "900",
   },
 
   progressText: {
-    color: "#4D2DDE",
-    fontSize: 14,
-    fontWeight: "900",
+    color: "#8A8DA5",
+    fontSize: 12.5,
+    fontWeight: "700",
+    marginTop: 4,
   },
 
-  questionScroll: {
-    width: "100%",
-    maxHeight: "88%",
-  },
-
-  questionScrollContent: {
-    alignItems: "center",
-    paddingBottom: 30,
-  },
-
-  title: {
-    fontSize: 25,
-    fontWeight: "900",
-    color: "#101943",
-    marginBottom: 14,
-    letterSpacing: 0.2,
-  },
-
-  card: {
-    width: CARD_WIDTH,
-    minHeight: 500,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 24,
-
-    shadowColor: "#C9CAD8",
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.32,
-    shadowRadius: 18,
-    elevation: 8,
-  },
-
-  stateTitle: {
-    color: "#101943",
-    fontSize: 20,
-    fontWeight: "900",
-    marginTop: 12,
-    textAlign: "center",
-  },
-
-  stateMessage: {
-    color: "#6D6E88",
-    fontSize: 14,
-    fontWeight: "600",
-    lineHeight: 20,
-    marginTop: 8,
-    textAlign: "center",
-  },
-
-  retryButton: {
-    backgroundColor: "#4D2DDE",
-    borderRadius: 22,
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-    marginTop: 18,
-  },
-
-  retryText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "800",
-  },
-
-  questionBadge: {
-    backgroundColor: "#F1ECFF",
-    paddingHorizontal: 33,
-    paddingVertical: 8,
-    borderRadius: 18,
-    marginBottom: 14,
-  },
-
-  questionBadgeText: {
-    color: "#4D2DDE",
-    fontSize: 13,
-    fontWeight: "800",
-  },
-
-  lessonNameText: {
-    color: "#6D62A8",
-    fontSize: 13,
-    fontWeight: "800",
-    textAlign: "center",
-    marginBottom: 10,
-  },
-
-  questionImage: {
-    width: "100%",
-    height: 170,
-    marginBottom: 14,
+  timerPill: {
+    minWidth: 92,
     borderRadius: 16,
-    backgroundColor: "#F8F8FF",
+    backgroundColor: "#EEF0FF",
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    alignItems: "center",
+  },
+
+  timerLabel: {
+    color: "#7B5CFF",
+    fontSize: 11,
+    fontWeight: "800",
+  },
+
+  timerValue: {
+    color: "#101943",
+    fontSize: 18,
+    fontWeight: "900",
+    marginTop: 1,
+  },
+
+  scrollContent: {
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 40,
+  },
+
+  questionCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 22,
+    padding: 16,
+
+    shadowColor: "#C8C7DE",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
+    elevation: 6,
+  },
+
+  questionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+
+  questionNumber: {
+    color: "#3151F5",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+
+  noSkipBadge: {
+    backgroundColor: "#FFF0C7",
+    borderRadius: 50,
+    paddingVertical: 5,
+    paddingHorizontal: 11,
+  },
+
+  noSkipText: {
+    color: "#A06200",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+
+  lessonText: {
+    color: "#8A8DA5",
+    fontSize: 12.5,
+    fontWeight: "700",
+    marginBottom: 8,
   },
 
   questionText: {
-    fontSize: 27,
-    color: "#060B36",
-    fontWeight: "900",
+    color: "#101943",
+    fontSize: 17,
+    fontWeight: "800",
+    lineHeight: 25,
     marginBottom: 18,
-    letterSpacing: 0.5,
-    textAlign: "center",
-    lineHeight: 36,
   },
 
-  optionsWrapper: {
-    width: "100%",
-    gap: 11,
+  answerList: {
+    gap: 12,
   },
 
-  optionBox: {
-    width: "100%",
-    minHeight: 50,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 17,
+  answerButton: {
+    backgroundColor: "#F8F8FF",
+    borderWidth: 1.5,
+    borderColor: "#ECECF5",
+    borderRadius: 18,
+    paddingVertical: 13,
+    paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 22,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: "#EEF0F8",
-
-    shadowColor: "#C7C9D8",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
   },
 
-  optionBoxSelected: {
-    backgroundColor: "#F1ECFF",
-    borderColor: "#8D4DFF",
+  answerButtonSelected: {
+    backgroundColor: "#EEF0FF",
+    borderColor: "#7B5CFF",
   },
 
-  optionNumber: {
-    fontSize: 18,
+  answerIndexCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+
+  answerIndexCircleSelected: {
+    backgroundColor: "#7B5CFF",
+  },
+
+  answerIndexText: {
+    color: "#7B5CFF",
+    fontSize: 13,
     fontWeight: "900",
-    color: "#6E46F2",
-    width: 36,
   },
 
-  optionNumberSelected: {
-    color: "#233BFF",
+  answerIndexTextSelected: {
+    color: "#FFFFFF",
   },
 
-  optionText: {
+  answerText: {
     flex: 1,
-    fontSize: 19,
-    fontWeight: "900",
-    color: "#0C123D",
-    lineHeight: 24,
-  },
-
-  optionTextSelected: {
-    color: "#233BFF",
-  },
-
-  multiAnswerHint: {
-    alignSelf: "flex-start",
-    color: "#6D6E88",
-    fontSize: 12,
+    color: "#4B4F68",
+    fontSize: 15,
     fontWeight: "700",
-    marginTop: 10,
+    lineHeight: 21,
   },
 
-  submitWrapper: {
-    marginTop: 18,
+  answerTextSelected: {
+    color: "#101943",
   },
 
-  submitWrapperDisabled: {
+  nextButtonWrapper: {
+    marginTop: 22,
+    borderRadius: 50,
+    overflow: "hidden",
+  },
+
+  nextButtonDisabled: {
     opacity: 0.75,
   },
 
-  submitButton: {
-    width: 150,
-    height: 43,
-    borderRadius: 24,
-    justifyContent: "center",
+  nextButton: {
     alignItems: "center",
-
-    shadowColor: "#4338FF",
-    shadowOffset: {
-      width: 0,
-      height: 7,
-    },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 8,
+    justifyContent: "center",
+    paddingVertical: 15,
+    borderRadius: 50,
   },
 
-  submitText: {
+  nextButtonText: {
     color: "#FFFFFF",
-    fontSize: 18,
+    fontSize: 16,
+    fontWeight: "900",
+  },
+
+  helpText: {
+    textAlign: "center",
+    marginTop: 12,
+    color: "#8A8DA5",
+    fontSize: 12.5,
+    fontWeight: "700",
+  },
+
+  centerBox: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    backgroundColor: "#F8F7FF",
+  },
+
+  loadingText: {
+    marginTop: 12,
+    color: "#101943",
+    fontSize: 15,
     fontWeight: "800",
   },
 
-  star: {
-    position: "absolute",
+  errorTitle: {
+    color: "#101943",
+    fontSize: 18,
     fontWeight: "900",
-    zIndex: 1,
+    textAlign: "center",
+    marginBottom: 8,
   },
 
-  starOne: {
-    top: 20,
-    left: 57,
-    fontSize: 23,
-    color: "#FFD35A",
-  },
-
-  starTwo: {
-    top: 18,
-    right: 78,
-    fontSize: 25,
-    color: "#8B5CF6",
-  },
-
-  starThree: {
-    top: 77,
-    left: 84,
-    fontSize: 16,
-    color: "#9B70FF",
-  },
-
-  starFour: {
-    bottom: 35,
-    left: 87,
-    fontSize: 17,
-    color: "#FFC8D2",
-  },
-
-  dot: {
-    position: "absolute",
-    borderRadius: 50,
-    zIndex: 1,
-  },
-
-  dotOne: {
-    top: 25,
-    left: 39,
-    width: 4,
-    height: 4,
-    backgroundColor: "#55B7FF",
-  },
-
-  dotTwo: {
-    top: 31,
-    right: 50,
-    width: 4,
-    height: 4,
-    backgroundColor: "#FFD75D",
-  },
-
-  dotThree: {
-    top: 84,
-    left: 70,
-    width: 4,
-    height: 4,
-    backgroundColor: "#67BFFF",
-  },
-
-  dotFour: {
-    top: 83,
-    right: 62,
-    width: 4,
-    height: 4,
-    backgroundColor: "#67BFFF",
-  },
-
-  dotFive: {
-    right: 9,
-    bottom: 109,
-    width: 6,
-    height: 6,
-    backgroundColor: "#C99BFF",
-  },
-
-  dotSix: {
-    bottom: 27,
-    left: 56,
-    width: 5,
-    height: 5,
-    backgroundColor: "#FFD46A",
-  },
-
-  dotSeven: {
-    bottom: 18,
-    right: 82,
-    width: 5,
-    height: 5,
-    backgroundColor: "#72C4FF",
-  },
-
-  cloudArea: {
-    position: "absolute",
-    width: "100%",
-    height: 85,
-    bottom: -20,
-    left: 0,
-    right: 0,
-    zIndex: 0,
-  },
-
-  cloudCircle: {
-    position: "absolute",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 100,
-  },
-
-  cloudOne: {
-    width: 80,
-    height: 80,
-    left: -28,
-    bottom: -13,
-  },
-
-  cloudTwo: {
-    width: 70,
-    height: 70,
-    left: 22,
-    bottom: -9,
-  },
-
-  cloudThree: {
-    width: 95,
-    height: 95,
-    left: 78,
-    bottom: -35,
-  },
-
-  cloudFour: {
-    width: 75,
-    height: 75,
-    left: 150,
-    bottom: -24,
-  },
-
-  cloudFive: {
-    width: 90,
-    height: 90,
-    right: 52,
-    bottom: -34,
-  },
-
-  cloudSix: {
-    width: 75,
-    height: 75,
-    right: 9,
-    bottom: -16,
-  },
-
-  cloudSeven: {
-    width: 100,
-    height: 100,
-    right: -48,
-    bottom: -18,
+  errorText: {
+    color: "#8A8DA5",
+    fontSize: 14,
+    fontWeight: "700",
+    textAlign: "center",
+    lineHeight: 20,
   },
 });

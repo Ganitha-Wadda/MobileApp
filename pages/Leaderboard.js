@@ -1,17 +1,4 @@
-import { useState } from "react";
-
-const allData = [
-  { rank: 1, name: "Saman Ekanayake", points: 45200, avatar: "👦", isUser: true },
-  { rank: 2, name: "Nethmi Perera", points: 42100, avatar: "👧", isUser: false },
-  { rank: 3, name: "Dinuka Fernando", points: 39800, avatar: "👦", isUser: false },
-  { rank: 4, name: "Hasitha Jayawardena", points: 37500, avatar: "👧", isUser: false },
-  { rank: 5, name: "Vihanga Rathnayake", points: 35200, avatar: "👦", isUser: false },
-  { rank: 6, name: "Ayaan Silva", points: 32900, avatar: "👦", isUser: false },
-  { rank: 7, name: "Imeshi De Silva", points: 30100, avatar: "👧", isUser: false },
-  { rank: 8, name: "Tharusha Madushan", points: 27800, avatar: "👦", isUser: false },
-  { rank: 9, name: "Pasindu Fernando", points: 25400, avatar: "👦", isUser: false },
-  { rank: 10, name: "Sewmini Karunaratne", points: 22100, avatar: "👧", isUser: false },
-];
+import { useGetMyGradeLeaderboardQuery } from "../app/features/rankApi";
 
 const avatarColors = [
   "#FF6B9D", "#A78BFA", "#60A5FA", "#34D399", "#FBBF24",
@@ -79,8 +66,48 @@ const cloudBase = {
   background: "#FFFFFF",
 };
 
+const getNumber = (value, fallback = 0) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+};
+
+const formatCoins = (value) => getNumber(value).toLocaleString();
+
+const getAvatar = (row = {}) => {
+  if (row.avatar) return row.avatar;
+
+  const gender = String(row.gender || "").toLowerCase().trim();
+
+  if (gender === "female") return "👧";
+  if (gender === "male") return "👦";
+
+  return "👤";
+};
+
+const normalizePlayer = (row = {}, forceUser = false) => ({
+  userId: String(row.userId || row._id || ""),
+  rank: getNumber(row.rank),
+  name: row.name || "Student",
+  points: getNumber(row.totalCoins ?? row.points),
+  paperCoins: getNumber(row.paperCoins),
+  activityCoins: getNumber(row.activityCoins),
+  avatar: getAvatar(row),
+  isUser: forceUser || Boolean(row.isLoggedUser || row.isUser),
+});
+
+const emptyPlayer = (rank) => ({
+  userId: `empty-${rank}`,
+  rank,
+  name: "—",
+  points: 0,
+  paperCoins: 0,
+  activityCoins: 0,
+  avatar: "👤",
+  isUser: false,
+});
+
 const AvatarCircle = ({ emoji, size = 44, colorIndex = 0 }) => {
-  const bg = avatarColors[colorIndex % avatarColors.length];
+  const bg = avatarColors[Math.max(0, colorIndex) % avatarColors.length];
 
   return (
     <div
@@ -108,6 +135,8 @@ const CoinIcon = ({ size = 16 }) => (
 );
 
 const PodiumCard = ({ player, position }) => {
+  const safePlayer = player || emptyPlayer(position);
+
   const configs = {
     1: {
       height: 110,
@@ -169,7 +198,7 @@ const PodiumCard = ({ player, position }) => {
           marginBottom: 6,
         }}
       >
-        {player.avatar}
+        {safePlayer.avatar}
       </div>
 
       <div
@@ -183,7 +212,7 @@ const PodiumCard = ({ player, position }) => {
           marginBottom: 4,
         }}
       >
-        {player.name}
+        {safePlayer.name}
       </div>
 
       <div
@@ -200,7 +229,7 @@ const PodiumCard = ({ player, position }) => {
         }}
       >
         <CoinIcon size={14} />
-        {player.points.toLocaleString()}
+        {formatCoins(safePlayer.points)}
       </div>
 
       <div
@@ -232,7 +261,7 @@ const PodiumCard = ({ player, position }) => {
 };
 
 const LeaderboardRow = ({ player, animDelay }) => {
-  const colorIdx = player.rank - 1;
+  const colorIdx = Math.max(0, getNumber(player.rank) - 1);
   const isUser = player.isUser;
 
   return (
@@ -272,7 +301,7 @@ const LeaderboardRow = ({ player, animDelay }) => {
           flexShrink: 0,
         }}
       >
-        {player.rank}
+        {player.rank || "—"}
       </div>
 
       <AvatarCircle emoji={player.avatar} size={42} colorIndex={colorIdx} />
@@ -299,23 +328,62 @@ const LeaderboardRow = ({ player, animDelay }) => {
         }}
       >
         <CoinIcon size={15} />
-        {player.points.toLocaleString()}
+        {formatCoins(player.points)}
       </div>
     </div>
   );
 };
 
 export default function Leaderboard() {
-  const data = allData;
+  const {
+    data: leaderboardResponse,
+    isLoading,
+    isFetching,
+  } = useGetMyGradeLeaderboardQuery(10, {
+    refetchOnMountOrArgChange: true,
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
+  });
+
+  const topRows =
+    leaderboardResponse?.leaderboard ||
+    leaderboardResponse?.data ||
+    [];
+
+  const myRankRow = leaderboardResponse?.myRank || null;
+
+  const data = topRows.map((row) =>
+    normalizePlayer(row, Boolean(row.isLoggedUser || row.isUser))
+  );
+
+  const myRankPlayer = myRankRow ? normalizePlayer(myRankRow, true) : null;
+
+  const topHasLoggedUser = myRankPlayer
+    ? data.some((player) => String(player.userId) === String(myRankPlayer.userId))
+    : false;
+
+  const dataForPodium = data.length > 0 ? data : myRankPlayer ? [myRankPlayer] : [];
 
   const top3 = [
-    data.find((p) => p.rank === 2),
-    data.find((p) => p.rank === 1),
-    data.find((p) => p.rank === 3),
+    dataForPodium.find((p) => p.rank === 2) || null,
+    dataForPodium.find((p) => p.rank === 1) || null,
+    dataForPodium.find((p) => p.rank === 3) || null,
   ];
 
-  const rest = data.filter((p) => p.rank > 3);
-  const userEntry = data.find((p) => p.isUser);
+  const rest = data.filter((p) => p.rank > 3 && p.rank <= 10);
+
+  const userInRest = myRankPlayer
+    ? rest.some((player) => String(player.userId) === String(myRankPlayer.userId))
+    : false;
+
+  const userEntry =
+    myRankPlayer ||
+    data.find((p) => p.isUser) ||
+    null;
+
+  const showSeparateUserEntry = Boolean(userEntry && !userInRest);
+
+  const loadingText = isLoading || isFetching ? "Updating leaderboard..." : "All Time";
 
   return (
     <div
@@ -427,7 +495,7 @@ export default function Leaderboard() {
             fontSize: 14,
           }}
         >
-          All Time
+          {loadingText}
         </div>
 
         <div
@@ -444,13 +512,13 @@ export default function Leaderboard() {
         >
           {rest.map((player, i) => (
             <LeaderboardRow
-              key={player.rank}
+              key={player.userId || player.rank}
               player={player}
               animDelay={i * 0.06}
             />
           ))}
 
-          {userEntry && (
+          {showSeparateUserEntry && (
             <div
               style={{
                 borderTop: "1.5px dashed #a78bfa",

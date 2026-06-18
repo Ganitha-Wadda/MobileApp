@@ -13,8 +13,11 @@ export default function ActivityTemplate1({
   question = "",
   options = [],
   correctAnswer = "",
+  onAnswerSubmit,
   onNext,
   nextLabel = "Next activity",
+  coinText = "",
+  submittingAnswer = false,
 }) {
   const [selectedId, setSelectedId] = useState(null);
   const [submitted, setSubmitted] = useState(false);
@@ -39,19 +42,21 @@ export default function ActivityTemplate1({
     setSelectedId(opt?.id ?? index);
   };
 
-  const handleSubmitOrNext = () => {
+  const handleSubmitOrNext = async () => {
     if (!submitted) {
-      if (!selectedOption) return;
-      setIsCorrectSelected(isOptionCorrect(selectedOption));
+      if (!selectedOption || submittingAnswer) return;
+      const correct = isOptionCorrect(selectedOption);
+      setIsCorrectSelected(correct);
       setSubmitted(true);
+      await onAnswerSubmit?.({ selectedOption, isCorrect: correct });
       return;
     }
 
     onNext?.();
   };
 
-  const buttonDisabled = !submitted && !selectedOption;
-  const buttonLabel = submitted ? nextLabel : "Submit";
+  const buttonDisabled = (!submitted && !selectedOption) || submittingAnswer;
+  const buttonLabel = submitted ? nextLabel : submittingAnswer ? "Saving..." : "Submit";
 
   return (
     <SafeAreaView style={styles.page}>
@@ -94,29 +99,18 @@ export default function ActivityTemplate1({
                 <Text
                   style={[
                     styles.optionNumber,
-                    isSelected
-                      ? styles.optionNumberSelected
-                      : styles.optionNumberDefault,
+                    isSelected ? styles.optionNumberSelected : styles.optionNumberDefault,
                   ]}
                 >
                   {index + 1}
                 </Text>
 
-                <Text
-                  style={[
-                    styles.optionText,
-                    isSelected && styles.optionTextSelected,
-                  ]}
-                >
+                <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
                   {opt.value}
                 </Text>
 
-                {submitted && isSelected && isCorrect && (
-                  <Text style={styles.checkmark}>✓</Text>
-                )}
-                {submitted && isSelected && !isCorrect && (
-                  <Text style={styles.wrongMark}>✕</Text>
-                )}
+                {submitted && isSelected && isCorrect && <Text style={styles.checkmark}>✓</Text>}
+                {submitted && isSelected && !isCorrect && <Text style={styles.wrongMark}>✕</Text>}
               </TouchableOpacity>
             );
           })}
@@ -132,6 +126,8 @@ export default function ActivityTemplate1({
             {isCorrectSelected ? "✓ Correct!" : "✗ Wrong answer"}
           </Text>
         )}
+
+        {submitted && Boolean(coinText) && <Text style={styles.coinText}>{coinText}</Text>}
 
         <View style={styles.bottomRow}>
           <TouchableOpacity
@@ -158,7 +154,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
-
   card: {
     width: "100%",
     maxWidth: 380,
@@ -171,207 +166,66 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     elevation: 8,
   },
-
   header: {
     backgroundColor: "#FFFFFF",
     paddingTop: 20,
     paddingBottom: 4,
     alignItems: "center",
   },
-
   title: {
     fontSize: 18,
     fontWeight: "800",
     color: "#1A1A3E",
     textAlign: "center",
   },
-
   activityRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
     marginTop: 4,
-    marginBottom: 6,
+    gap: 6,
   },
-
-  activityLabel: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#6C5CE7",
-  },
-
-  star: {
-    color: "#A29BFE",
-    fontSize: 11,
-  },
-
+  star: { color: "#f6c90e", fontSize: 15 },
+  activityLabel: { color: "#6c5ce7", fontSize: 13, fontWeight: "800" },
   questionArea: {
-    backgroundColor: "#EDE9FC",
-    marginHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 16,
-    borderRadius: 16,
-    paddingTop: 32,
-    paddingBottom: 28,
-    paddingHorizontal: 24,
+    marginHorizontal: 14,
+    marginTop: 14,
+    padding: 18,
+    borderRadius: 20,
+    backgroundColor: "#F7F7FB",
     alignItems: "center",
-    position: "relative",
-  },
-
-  starIcon: {
-    position: "absolute",
-    top: 12,
-    fontSize: 20,
-    color: "#B2A4F5",
-  },
-
-  dotYellow: {
-    position: "absolute",
-    bottom: 18,
-    left: 20,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#FDCB6E",
-  },
-
-  dotPink: {
-    position: "absolute",
-    bottom: 18,
-    right: 20,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#FD79A8",
-  },
-
-  question: {
-    marginTop: 18,
-    fontSize: 52,
-    fontWeight: "900",
-    color: "#1A1A3E",
-    lineHeight: 58,
-    textAlign: "center",
-  },
-
-  optionsList: {
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-  },
-
-  optionBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-
-  optionDefault: {
-    backgroundColor: "#F5F4FF",
-  },
-
-  optionSelected: {
-    backgroundColor: "#6C5CE7",
-  },
-
-  optionWrong: {
-    backgroundColor: "#E74C3C",
-  },
-
-  optionNumber: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    textAlign: "center",
-    lineHeight: 28,
-    fontSize: 13,
-    fontWeight: "800",
-    overflow: "hidden",
-  },
-
-  optionNumberDefault: {
-    backgroundColor: "#E0DCFF",
-    color: "#6C5CE7",
-  },
-
-  optionNumberSelected: {
-    backgroundColor: "rgba(255,255,255,0.25)",
-    color: "#FFFFFF",
-  },
-
-  optionText: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#1A1A3E",
-  },
-
-  optionTextSelected: {
-    color: "#FFFFFF",
-  },
-
-  checkmark: {
-    fontSize: 18,
-    color: "#FFFFFF",
-    fontWeight: "900",
-  },
-
-  wrongMark: {
-    fontSize: 18,
-    color: "#FFFFFF",
-    fontWeight: "900",
-  },
-
-  feedback: {
-    textAlign: "center",
-    fontSize: 15,
-    fontWeight: "900",
-    marginBottom: 2,
-  },
-
-  feedbackCorrect: {
-    color: "#3A8C3F",
-  },
-
-  feedbackWrong: {
-    color: "#E74C3C",
-  },
-
-  bottomRow: {
-    flexDirection: "row",
-    gap: 12,
-    padding: 16,
-    backgroundColor: "#FFFFFF",
-  },
-
-  btn: {
-    flex: 1,
-    backgroundColor: "#6C5CE7",
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 10,
-    alignItems: "center",
+    minHeight: 128,
     justifyContent: "center",
+  },
+  starIcon: { position: "absolute", top: 8, right: 12, color: "#f6c90e", fontSize: 24 },
+  dotYellow: { position: "absolute", left: 18, top: 18, width: 10, height: 10, borderRadius: 5, backgroundColor: "#f6c90e" },
+  dotPink: { position: "absolute", left: 34, top: 28, width: 8, height: 8, borderRadius: 4, backgroundColor: "#f59ac1" },
+  question: { color: "#1A1A3E", fontSize: 28, fontWeight: "900", textAlign: "center" },
+  optionsList: { paddingHorizontal: 16, paddingTop: 16, gap: 10 },
+  optionBtn: {
+    minHeight: 52,
+    borderRadius: 16,
+    paddingHorizontal: 14,
     flexDirection: "row",
-    gap: 8,
+    alignItems: "center",
+    borderWidth: 2,
   },
-
-  btnDisabled: {
-    opacity: 0.45,
-  },
-
-  btnIcon: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "900",
-  },
-
-  btnLabel: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "800",
-  },
+  optionDefault: { backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" },
+  optionSelected: { backgroundColor: "#6C5CE7", borderColor: "#6C5CE7" },
+  optionWrong: { backgroundColor: "#EF4444", borderColor: "#EF4444" },
+  optionNumber: { width: 28, height: 28, borderRadius: 14, textAlign: "center", textAlignVertical: "center", fontWeight: "900", marginRight: 10, lineHeight: 28 },
+  optionNumberDefault: { color: "#6C5CE7", backgroundColor: "#EDE9FE" },
+  optionNumberSelected: { color: "#6C5CE7", backgroundColor: "#FFFFFF" },
+  optionText: { flex: 1, color: "#1A1A3E", fontSize: 16, fontWeight: "800" },
+  optionTextSelected: { color: "#FFFFFF" },
+  checkmark: { color: "#FFFFFF", fontSize: 22, fontWeight: "900" },
+  wrongMark: { color: "#FFFFFF", fontSize: 22, fontWeight: "900" },
+  feedback: { marginTop: 10, textAlign: "center", fontSize: 15, fontWeight: "900" },
+  feedbackCorrect: { color: "#16A34A" },
+  feedbackWrong: { color: "#EF4444" },
+  coinText: { marginTop: 4, color: "#B45309", textAlign: "center", fontSize: 13, fontWeight: "900" },
+  bottomRow: { padding: 16 },
+  btn: { backgroundColor: "#7C3AED", borderRadius: 16, paddingVertical: 14, alignItems: "center", justifyContent: "center", flexDirection: "row" },
+  btnDisabled: { opacity: 0.45 },
+  btnIcon: { color: "#FFFFFF", fontSize: 16, marginRight: 8 },
+  btnLabel: { color: "#FFFFFF", fontSize: 15, fontWeight: "900" },
 });

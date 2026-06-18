@@ -1,489 +1,485 @@
-import React, { useEffect, useRef } from "react";
+import React, { useMemo, useState } from "react";
 import {
   View,
   Text,
+  ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
-  SafeAreaView,
+  ActivityIndicator,
+  RefreshControl,
   StatusBar,
-  Animated,
+  Alert,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import useT from "../app/i18n/useT";
-import { useGetMyShortLessonsQuery } from "../app/features/Shortzapi";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-const { width } = Dimensions.get("window");
+import { useEnrollmentStatus } from "../app/features/enrollmentApi";
+import { EnrollmentModal } from "../components/EnrollmentGate";
+import {
+  useGetMyTotalShortCoinsQuery,
+  useGetShortLessonOverviewQuery,
+} from "../app/features/shortcoinscountApi";
 
-function AnimatedCloud({ style, scale = 1, delay = 0, distance = 18 }) {
-  const move = useRef(new Animated.Value(0)).current;
-  const float = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(move, {
-          toValue: distance,
-          duration: 2600,
-          delay,
-          useNativeDriver: true,
-        }),
-        Animated.timing(move, {
-          toValue: 0,
-          duration: 2600,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(float, {
-          toValue: -6,
-          duration: 1800,
-          delay,
-          useNativeDriver: true,
-        }),
-        Animated.timing(float, {
-          toValue: 0,
-          duration: 1800,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-  }, [move, float, delay, distance]);
-
-  return (
-    <Animated.View
-      style={[
-        styles.cloud,
-        style,
-        {
-          transform: [{ translateX: move }, { translateY: float }, { scale }],
-        },
-      ]}
-    >
-      <View style={styles.cloudCircle1} />
-      <View style={styles.cloudCircle2} />
-      <View style={styles.cloudCircle3} />
-      <View style={styles.cloudBase} />
-    </Animated.View>
-  );
-}
-
-function LeafDecor({ side = "left" }) {
-  return (
-    <View
-      pointerEvents="none"
-      style={[
-        styles.leafWrapper,
-        side === "left" ? styles.leafLeft : styles.leafRight,
-        side === "right" && styles.leafFlip,
-      ]}
-    >
-      <View style={styles.leafMain} />
-      <View style={styles.leafSecond} />
-      <View style={styles.leafThird} />
-    </View>
-  );
-}
+const getId = (item = {}) => String(item?._id || item?.id || "");
 
 export default function ShortzMenu({ navigation }) {
-  const { t } = useT();
+  const [enrollModalVisible, setEnrollModalVisible] = useState(false);
 
   const {
-    data: shortLessons = [],
+    isApproved,
+    isPending,
+    isRejected,
+    isNotEnrolled,
+    isLoading: enrollmentLoading,
+    refetch: refetchEnrollment,
+  } = useEnrollmentStatus();
+
+  const {
+    data: lessons = [],
     isLoading,
     isFetching,
     isError,
-  } = useGetMyShortLessonsQuery();
+    refetch,
+  } = useGetShortLessonOverviewQuery(undefined, {
+    skip: !isApproved,
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
+  });
 
-  const lessons = Array.isArray(shortLessons) ? shortLessons : [];
+  const { data: totalCoinsData, refetch: refetchCoins } =
+    useGetMyTotalShortCoinsQuery(undefined, { skip: !isApproved });
 
-  const handleViewPress = (lesson) => {
-    const lessonId = lesson?._id || lesson?.id;
+  const totalShortCoins = Number(
+    totalCoinsData?.totalShortCoins || lessons?.[0]?.totalShortCoins || 0
+  );
+
+  const refreshing = Boolean(isFetching);
+
+  const sortedLessons = useMemo(() => {
+    if (!Array.isArray(lessons)) return [];
+    return lessons;
+  }, [lessons]);
+
+  const refreshAll = () => {
+    refetchEnrollment?.();
+    if (isApproved) {
+      refetch?.();
+      refetchCoins?.();
+    }
+  };
+
+  const openLesson = (lesson, index) => {
+    if (!isApproved) {
+      setEnrollModalVisible(true);
+      return;
+    }
+
+    if (lesson?.isLocked || lesson?.isUnlocked === false) {
+      Alert.alert(
+        "Lesson Locked",
+        "Complete the previous short lesson and all its sub lessons first."
+      );
+      return;
+    }
 
     navigation.navigate("ViewShortLessons", {
-      lessonId,
-      shortLessonId: lessonId,
-      lessonTitle: lesson?.title || "",
+      shortLessonId: getId(lesson),
+      lessonId: getId(lesson),
+      lessonTitle: lesson?.title || `Short Lesson ${index + 1}`,
+      lessonNumber: index + 1,
+      shortLesson: lesson,
     });
   };
 
-  const renderContent = () => {
-    if (isLoading || (isFetching && lessons.length === 0)) {
+  const renderActionButton = ({ completed, locked }) => {
+    if (completed) {
       return (
-        <View style={styles.card}>
-          <Text style={styles.lessonLabel}>Loading...</Text>
+        <View style={[styles.actionBtn, styles.viewBtn]}>
+          <Text style={styles.viewBtnText}>✓ View</Text>
         </View>
       );
     }
 
-    if (isError) {
+    if (locked) {
       return (
-        <View style={styles.card}>
-          <Text style={styles.lessonLabel}>Failed to load short lessons</Text>
+        <View style={[styles.actionBtn, styles.lockedBtn]}>
+          <Text style={styles.lockedBtnText}>🔒 Locked</Text>
         </View>
       );
     }
 
-    if (lessons.length === 0) {
-      return (
-        <View style={styles.card}>
-          <Text style={styles.lessonLabel}>
-            No short lessons found for your grade
+    return (
+      <View style={[styles.actionBtn, styles.playBtn]}>
+        <Text style={styles.playBtnText}>▶ Play</Text>
+      </View>
+    );
+  };
+
+  const renderLockState = () => {
+    let title = "Enrollment Required";
+    let sub = "Enroll and wait for admin approval to unlock Shortz lessons.";
+
+    if (isPending) {
+      title = "Request Pending";
+      sub = "Your enrollment request is pending. Shortz will unlock after admin approval.";
+    } else if (isRejected) {
+      title = "Request Rejected";
+      sub =
+        "Your enrollment request was rejected. Please submit again with correct details.";
+    } else if (isNotEnrolled) {
+      title = "Shortz Locked";
+      sub = "Please enroll first to unlock short lessons.";
+    }
+
+    return (
+      <SafeAreaView style={styles.statePage}>
+        <StatusBar barStyle="light-content" backgroundColor="#5e1cce" />
+        <Text style={styles.lockIcon}>🔒</Text>
+        <Text style={styles.stateTitle}>{title}</Text>
+        <Text style={styles.stateSub}>{sub}</Text>
+
+        <TouchableOpacity
+          style={styles.primaryBtn}
+          activeOpacity={0.86}
+          onPress={() => setEnrollModalVisible(true)}
+        >
+          <Text style={styles.primaryBtnText}>
+            {isPending ? "View Request" : "Enroll Now"}
           </Text>
-        </View>
-      );
-    }
+        </TouchableOpacity>
 
-    return lessons.map((lesson, index) => {
-      const lessonId = lesson?._id || lesson?.id;
-      const title = lesson?.title || "";
+        <TouchableOpacity
+          style={styles.secondaryBtn}
+          activeOpacity={0.86}
+          onPress={refreshAll}
+        >
+          <Text style={styles.secondaryBtnText}>Refresh Status</Text>
+        </TouchableOpacity>
 
-      return (
-        <View key={lessonId || index} style={styles.card}>
-          <View style={styles.numberBox}>
-            <Text style={styles.numberText}>{index + 1}</Text>
-          </View>
-
-          <Text style={styles.lessonLabel}>{title}</Text>
-
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={styles.viewButton}
-            onPress={() => handleViewPress(lesson)}
-          >
-            <Text style={styles.viewButtonText}>{t("viewLesson")}</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    });
+        <EnrollmentModal
+          visible={enrollModalVisible}
+          onClose={() => setEnrollModalVisible(false)}
+        />
+      </SafeAreaView>
+    );
   };
+
+  if (enrollmentLoading) {
+    return (
+      <SafeAreaView style={styles.statePage}>
+        <StatusBar barStyle="light-content" backgroundColor="#5e1cce" />
+        <ActivityIndicator size="large" color="#FFFFFF" />
+        <Text style={styles.stateTitle}>Checking enrollment...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (!isApproved) {
+    return renderLockState();
+  }
 
   return (
-    <LinearGradient
-      colors={["#FAF9FF", "#F3F0FF", "#ECE8FF"]}
-      style={styles.gradient}
-    >
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FAF9FF" />
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="light-content" backgroundColor="#5e1cce" />
 
-        <View style={styles.wrapper}>
-          <Text style={[styles.sparkSmall, { top: 36, left: "18%" }]}>•</Text>
-          <Text style={[styles.spark, { top: 34, left: "22%" }]}>✦</Text>
-          <Text style={[styles.spark, { top: 34, right: "21%" }]}>✦</Text>
-          <Text style={[styles.sparkSmall, { top: 31, right: "16%" }]}>•</Text>
-
-          <AnimatedCloud
-            style={{ top: 85, left: -18 }}
-            scale={0.85}
-            delay={0}
-          />
-          <AnimatedCloud
-            style={{ top: 130, right: 20 }}
-            scale={0.65}
-            delay={300}
-          />
-          <AnimatedCloud
-            style={{ top: 210, left: 35 }}
-            scale={0.5}
-            delay={600}
-          />
-          <AnimatedCloud
-            style={{ top: 285, right: -8 }}
-            scale={0.72}
-            delay={900}
-          />
-          <AnimatedCloud
-            style={{ bottom: 130, left: 32 }}
-            scale={0.78}
-            delay={1200}
-          />
-          <AnimatedCloud
-            style={{ bottom: 105, right: 32 }}
-            scale={0.68}
-            delay={1500}
-          />
-          <AnimatedCloud
-            style={{ bottom: 65, left: -8 }}
-            scale={0.5}
-            delay={1800}
-          />
-          <AnimatedCloud
-            style={{ bottom: 42, right: -2 }}
-            scale={0.55}
-            delay={2100}
-          />
-          <AnimatedCloud
-            style={{ top: 360, left: "38%" }}
-            scale={0.42}
-            delay={2400}
-          />
-
-          <View style={styles.titleRow}>
-            <Text style={styles.title}>{t("shortLessons")}</Text>
-          </View>
-
-          <View style={styles.list}>{renderContent()}</View>
-
-          <View style={[styles.bgCircle, styles.bgCircleLeft]} />
-          <View style={[styles.bgCircle, styles.bgCircleRight]} />
-
-          <Text style={[styles.softDot, { bottom: 38, left: "28%" }]}>✦</Text>
-          <Text style={[styles.softDot, { bottom: 46, right: "17%" }]}>✦</Text>
-
-          <LeafDecor side="left" />
-          <LeafDecor side="right" />
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Shortz Lessons</Text>
+        <View style={styles.coinPill}>
+          <Text style={styles.coinText}>🪙 {totalShortCoins}</Text>
         </View>
-      </SafeAreaView>
-    </LinearGradient>
+      </View>
+
+      {isLoading ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color="#7C3AED" />
+          <Text style={styles.loadingText}>Loading short lessons...</Text>
+        </View>
+      ) : isError ? (
+        <View style={styles.loadingWrap}>
+          <Text style={styles.emptyTitle}>Failed to load lessons</Text>
+          <TouchableOpacity style={styles.primaryBtn} onPress={refreshAll}>
+            <Text style={styles.primaryBtnText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.content}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={refreshAll} />
+          }
+          showsVerticalScrollIndicator={false}
+        >
+          {sortedLessons.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyTitle}>No short lessons found</Text>
+              <Text style={styles.emptySub}>
+                Published short lessons will appear here.
+              </Text>
+            </View>
+          ) : (
+            sortedLessons.map((lesson, index) => {
+              const locked = lesson?.isLocked || lesson?.isUnlocked === false;
+              const completed = Boolean(lesson?.isCompleted);
+              const total = Number(lesson?.totalSubLessonsCount || 0);
+              const done = Number(lesson?.completedSubLessonsCount || 0);
+
+              return (
+                <TouchableOpacity
+                  key={getId(lesson) || index}
+                  style={[styles.lessonCard, locked && styles.lessonCardLocked]}
+                  activeOpacity={0.88}
+                  onPress={() => openLesson(lesson, index)}
+                >
+                  <View style={styles.lessonNoWrap}>
+                    <Text style={styles.lessonNo}>{index + 1}</Text>
+                  </View>
+
+                  <View style={styles.lessonInfo}>
+                    <Text style={styles.lessonTitle} numberOfLines={2}>
+                      {lesson?.title || `Short Lesson ${index + 1}`}
+                    </Text>
+
+                    <Text style={styles.lessonSub}>
+                      {completed
+                        ? "Completed"
+                        : locked
+                        ? "Locked - complete previous lesson"
+                        : `${done}/${total} sub lessons completed`}
+                    </Text>
+                  </View>
+
+                  {renderActionButton({ completed, locked })}
+                </TouchableOpacity>
+              );
+            })
+          )}
+        </ScrollView>
+      )}
+
+      <EnrollmentModal
+        visible={enrollModalVisible}
+        onClose={() => setEnrollModalVisible(false)}
+      />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  gradient: {
-    flex: 1,
-  },
+  safeArea: { flex: 1, backgroundColor: "#F4F0FF" },
 
-  safeArea: {
-    flex: 1,
-  },
-
-  wrapper: {
-    flex: 1,
-    alignItems: "center",
-    paddingTop: 26,
-    paddingHorizontal: 8,
-    position: "relative",
-    overflow: "hidden",
-  },
-
-  titleRow: {
-    marginBottom: 26,
-    zIndex: 5,
-  },
-
-  title: {
-    fontSize: 23,
-    fontWeight: "900",
-    color: "#07124A",
-  },
-
-  list: {
-    width: "100%",
-    paddingHorizontal: 7,
-    zIndex: 5,
-  },
-
-  card: {
-    width: "100%",
-    backgroundColor: "rgba(255,255,255,0.92)",
-    borderRadius: 11,
-    paddingVertical: 18,
-    paddingHorizontal: 14,
+  header: {
+    backgroundColor: "#5e1cce",
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 26,
+    borderBottomRightRadius: 26,
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "#ECE8FF",
-    shadowColor: "#A39BF5",
-    shadowOpacity: 0.18,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
-    elevation: 3,
+    justifyContent: "space-between",
   },
 
-  numberBox: {
-    width: 31,
-    height: 31,
-    borderRadius: 9,
-    backgroundColor: "#ECE6FF",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 13,
-  },
-
-  numberText: {
-    fontSize: 18,
+  headerTitle: {
+    color: "#FFFFFF",
+    fontSize: 24,
     fontWeight: "900",
-    color: "#6C4DFF",
   },
 
-  lessonLabel: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: "900",
-    color: "#07124A",
+  coinPill: {
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
 
-  viewButton: {
-    width: 83,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: "#6547F5",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#6547F5",
-    shadowOpacity: 0.35,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 4,
-  },
-
-  viewButtonText: {
+  coinText: {
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "900",
   },
 
-  spark: {
-    position: "absolute",
-    fontSize: 15,
-    color: "#FFC84D",
-    fontWeight: "900",
-    zIndex: 2,
+  content: {
+    padding: 16,
+    paddingBottom: 32,
   },
 
-  sparkSmall: {
-    position: "absolute",
+  lessonCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 22,
+    padding: 16,
+    marginBottom: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    shadowColor: "#5e1cce",
+    shadowOpacity: 0.1,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 7 },
+    elevation: 5,
+  },
+
+  lessonCardLocked: {
+    opacity: 0.58,
+  },
+
+  lessonNoWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#EDE9FE",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+  },
+
+  lessonNo: {
+    color: "#5e1cce",
     fontSize: 18,
-    color: "#B9AFF7",
-    zIndex: 2,
+    fontWeight: "900",
   },
 
-  softDot: {
-    position: "absolute",
-    color: "#D6CDFC",
+  lessonInfo: {
+    flex: 1,
+    paddingRight: 8,
+  },
+
+  lessonTitle: {
+    color: "#1A1A3E",
+    fontSize: 16,
+    fontWeight: "900",
+  },
+
+  lessonSub: {
+    marginTop: 5,
+    color: "#7C3AED",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
+  actionBtn: {
+    minWidth: 78,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 8,
+  },
+
+  playBtn: {
+    backgroundColor: "#7C3AED",
+  },
+
+  playBtnText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  viewBtn: {
+    backgroundColor: "#16A34A",
+  },
+
+  viewBtnText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  lockedBtn: {
+    backgroundColor: "#E5E7EB",
+  },
+
+  lockedBtnText: {
+    color: "#374151",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  statePage: {
+    flex: 1,
+    backgroundColor: "#5e1cce",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 28,
+  },
+
+  lockIcon: {
+    fontSize: 60,
+    marginBottom: 14,
+  },
+
+  stateTitle: {
+    color: "#FFFFFF",
+    fontSize: 22,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+
+  stateSub: {
+    marginTop: 10,
+    color: "#DDD6FE",
     fontSize: 14,
-    zIndex: 2,
+    lineHeight: 21,
+    textAlign: "center",
+    fontWeight: "700",
   },
 
-  cloud: {
-    position: "absolute",
-    width: 58,
-    height: 30,
-    opacity: 0.8,
-    zIndex: 1,
+  primaryBtn: {
+    marginTop: 22,
+    backgroundColor: "#7C3AED",
+    borderRadius: 999,
+    paddingHorizontal: 34,
+    paddingVertical: 14,
   },
 
-  cloudCircle1: {
-    position: "absolute",
-    left: 4,
-    bottom: 4,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+  primaryBtnText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+
+  secondaryBtn: {
+    marginTop: 10,
+    padding: 10,
+  },
+
+  secondaryBtnText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+
+  loadingWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+
+  loadingText: {
+    marginTop: 12,
+    color: "#5e1cce",
+    fontWeight: "800",
+  },
+
+  emptyCard: {
     backgroundColor: "#FFFFFF",
+    borderRadius: 22,
+    padding: 24,
+    alignItems: "center",
   },
 
-  cloudCircle2: {
-    position: "absolute",
-    left: 18,
-    bottom: 8,
-    width: 27,
-    height: 27,
-    borderRadius: 14,
-    backgroundColor: "#FFFFFF",
+  emptyTitle: {
+    color: "#1A1A3E",
+    fontSize: 17,
+    fontWeight: "900",
+    textAlign: "center",
   },
 
-  cloudCircle3: {
-    position: "absolute",
-    right: 4,
-    bottom: 4,
-    width: 21,
-    height: 21,
-    borderRadius: 11,
-    backgroundColor: "#FFFFFF",
-  },
-
-  cloudBase: {
-    position: "absolute",
-    left: 5,
-    right: 4,
-    bottom: 3,
-    height: 13,
-    borderRadius: 8,
-    backgroundColor: "#FFFFFF",
-  },
-
-  bgCircle: {
-    position: "absolute",
-    width: 86,
-    height: 86,
-    borderRadius: 43,
-    backgroundColor: "rgba(214,205,252,0.55)",
-    bottom: -20,
-    zIndex: 0,
-  },
-
-  bgCircleLeft: {
-    left: 39,
-  },
-
-  bgCircleRight: {
-    right: 32,
-  },
-
-  leafWrapper: {
-    position: "absolute",
-    bottom: -8,
-    width: 86,
-    height: 95,
-    zIndex: 2,
-  },
-
-  leafLeft: {
-    left: -4,
-  },
-
-  leafRight: {
-    right: -4,
-  },
-
-  leafFlip: {
-    transform: [{ scaleX: -1 }],
-  },
-
-  leafMain: {
-    position: "absolute",
-    left: 12,
-    bottom: 0,
-    width: 25,
-    height: 65,
-    backgroundColor: "#9E94F4",
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 20,
-    borderBottomLeftRadius: 10,
-    borderBottomRightRadius: 35,
-    transform: [{ rotate: "28deg" }],
-  },
-
-  leafSecond: {
-    position: "absolute",
-    left: 36,
-    bottom: -4,
-    width: 22,
-    height: 58,
-    backgroundColor: "#B7AFFA",
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 18,
-    borderBottomLeftRadius: 10,
-    borderBottomRightRadius: 32,
-    transform: [{ rotate: "10deg" }],
-  },
-
-  leafThird: {
-    position: "absolute",
-    left: 2,
-    bottom: -5,
-    width: 20,
-    height: 50,
-    backgroundColor: "#8175E8",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 15,
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 28,
-    transform: [{ rotate: "50deg" }],
+  emptySub: {
+    marginTop: 6,
+    color: "#7C3AED",
+    fontSize: 13,
+    fontWeight: "700",
+    textAlign: "center",
   },
 });

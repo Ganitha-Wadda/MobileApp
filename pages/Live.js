@@ -18,6 +18,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 
 import { useGetActiveLiveClassesQuery } from "../app/features/Liveapi";
+import { useCreateLiveClassAttemptMutation } from "../app/features/attemptApi";
 import { useEnrollmentStatus } from "../app/features/enrollmentApi";
 import EnrollmentGate from "../components/EnrollmentGate";
 import useT from "../app/i18n/useT";
@@ -174,6 +175,9 @@ const LiveClassCard = ({ liveClass, index, t }) => {
   const cardOpacity = useRef(new Animated.Value(0)).current;
   const btnTranslate = useRef(new Animated.Value(30)).current;
 
+  const [createLiveClassAttempt, { isLoading: isAttemptSaving }] =
+    useCreateLiveClassAttemptMutation();
+
   useEffect(() => {
     Animated.parallel([
       Animated.spring(cardScale, {
@@ -195,7 +199,29 @@ const LiveClassCard = ({ liveClass, index, t }) => {
     ]).start();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleLink = (url) => Linking.openURL(url).catch(() => {});
+  const openZoomLink = (url) => {
+    if (!url) return;
+
+    Linking.openURL(url).catch(() => {});
+  };
+
+  const handleLink = async (url, linkIndex) => {
+    const liveClassId = liveClass?._id ?? liveClass?.id;
+
+    try {
+      if (liveClassId) {
+        await createLiveClassAttempt({
+          liveClassId,
+          linkIndex,
+          zoomLink: url,
+        }).unwrap();
+      }
+    } catch (err) {
+      console.log("Live class attempt save failed:", err);
+    } finally {
+      openZoomLink(url);
+    }
+  };
 
   const formatSchedule = (dateStr) =>
     new Date(dateStr).toLocaleString([], {
@@ -285,8 +311,9 @@ const LiveClassCard = ({ liveClass, index, t }) => {
           <TouchableOpacity
             key={i}
             style={styles.linkBtn}
-            onPress={() => handleLink(link)}
+            onPress={() => handleLink(link, i)}
             activeOpacity={0.82}
+            disabled={isAttemptSaving}
           >
             <LinearGradient
               colors={
@@ -326,9 +353,6 @@ function LiveContent() {
     refetch: refetchEnrollment,
   } = useEnrollmentStatus();
 
-  // FIX:
-  // Do not read batch number from user profile.
-  // Approved enrollment contains the correct grade + batchnumber.
   const userGrade = getGradeNumber(enrollment?.grade);
   const userBatchNumber = normalizeValue(
     enrollment?.batchnumber ??
@@ -394,7 +418,6 @@ function LiveContent() {
           translucent
         />
 
-        {/* Decorative layer */}
         <View pointerEvents="none" style={StyleSheet.absoluteFill}>
           <View style={styles.purpleGlowOne} />
           <View style={styles.purpleGlowTwo} />
@@ -424,7 +447,6 @@ function LiveContent() {
             />
           }
         >
-          {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <View style={styles.liveIconBg}>
@@ -440,7 +462,7 @@ function LiveContent() {
 
                 <Text style={styles.headerSub}>
                   {userGrade
-                    ? `${t("gradeBadge")} ${userGrade} — your classes`
+                    ? `${t("gradeBadge")} ${userGrade} `
                     : "Join your class and learn live!"}
                 </Text>
               </View>
@@ -528,10 +550,6 @@ function LiveContent() {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Main export — gated
-// ─────────────────────────────────────────────────────────────────────────────
-
 export default function Live() {
   return (
     <EnrollmentGate>
@@ -539,10 +557,6 @@ export default function Live() {
     </EnrollmentGate>
   );
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Styles
-// ─────────────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   gradient: { flex: 1 },
@@ -944,5 +958,3 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
 });
-
-

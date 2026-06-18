@@ -39,11 +39,7 @@ function Balloon({ option, isSelected, isFloating, isWrong, disabled, onTap }) {
   }, [isFloating, move, opacity]);
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.9}
-      disabled={disabled}
-      onPress={() => onTap(option)}
-    >
+    <TouchableOpacity activeOpacity={0.9} disabled={disabled} onPress={() => onTap(option)}>
       <Animated.View
         style={[
           styles.balloonWrap,
@@ -57,7 +53,7 @@ function Balloon({ option, isSelected, isFloating, isWrong, disabled, onTap }) {
           isWrong && styles.balloonWrong,
         ]}
       >
-        <View style={[styles.balloonBody, { backgroundColor: c.body }]}>
+        <View style={[styles.balloonBody, { backgroundColor: c.body }]}> 
           <View style={[styles.balloonShine, { backgroundColor: c.shine }]} />
           <Text style={styles.balloonText}>{option.value}</Text>
         </View>
@@ -103,8 +99,11 @@ export default function ActivityTemplate3({
   question = "",
   options = [],
   correctAnswer = "",
+  onAnswerSubmit,
   onNext,
   nextLabel = "Next activity",
+  coinText = "",
+  submittingAnswer = false,
 }) {
   const [selectedId, setSelectedId] = useState(null);
   const [submitted, setSubmitted] = useState(false);
@@ -145,13 +144,14 @@ export default function ActivityTemplate3({
     setSelectedId(opt?.id ?? index);
   };
 
-  const handleSubmitOrNext = () => {
+  const handleSubmitOrNext = async () => {
     if (!submitted) {
-      if (!selectedOption) return;
+      if (!selectedOption || submittingAnswer) return;
 
       const correct = isOptionCorrect(selectedOption);
       setIsCorrect(correct);
       setSubmitted(true);
+      await onAnswerSubmit?.({ selectedOption, isCorrect: correct });
 
       if (correct) {
         setFloatingId(selectedOption.id);
@@ -176,75 +176,76 @@ export default function ActivityTemplate3({
 
   const topRow = options.slice(0, 2);
   const bottomRow = options.slice(2, 4);
-  const buttonDisabled = !submitted && !selectedOption;
-  const buttonLabel = submitted ? nextLabel : "Submit";
-
-  const renderBalloon = (opt, index) => {
-    const optionId = opt?.id ?? index;
-
-    if (hiddenId === optionId) {
-      return <View key={optionId} style={styles.emptyBalloonSpace} />;
-    }
-
-    return (
-      <Balloon
-        key={optionId}
-        option={{ ...opt, id: optionId }}
-        isSelected={String(selectedId) === String(optionId)}
-        isFloating={floatingId === optionId}
-        isWrong={wrongId === optionId}
-        disabled={submitted}
-        onTap={(option) => handleTap(option, index)}
-      />
-    );
-  };
+  const buttonDisabled = (!submitted && !selectedOption) || submittingAnswer;
+  const buttonLabel = submitted ? nextLabel : submittingAnswer ? "Saving..." : "Submit";
 
   return (
-    <SafeAreaView style={styles.wrapper}>
+    <SafeAreaView style={styles.page}>
       <View style={styles.card}>
         <Confetti active={showConfetti} />
 
         <View style={styles.header}>
           <Text style={styles.title}>{title}</Text>
-
           <View style={styles.activityRow}>
-            <Text style={styles.starGold}>★</Text>
-            <Text style={styles.dash}>· · ·</Text>
+            <Text style={styles.starGold}>✦</Text>
             <Text style={styles.activityLabel}>{activityLabel}</Text>
-            <Text style={styles.dash}>· · ·</Text>
-            <Text style={styles.starGold}>★</Text>
+            <Text style={styles.starGold}>✦</Text>
           </View>
         </View>
 
         <View style={styles.balloonArea}>
-          <Text style={styles.instruction}>
-            Tap the balloons with{"\n"}the correct answer
-          </Text>
-
+          <Text style={styles.instruction}>Tap the correct balloon</Text>
           <Text style={styles.question}>{question}</Text>
 
           <View style={styles.answerBox}>
             {selectedOption ? (
               <>
-                <Text style={styles.answerLabel}>Selected Answer</Text>
+                <Text style={styles.answerLabel}>Selected</Text>
                 <Text style={styles.answerValue}>{selectedOption.value}</Text>
               </>
             ) : (
-              <Text style={styles.answerPlaceholder}>Tap answer balloon</Text>
+              <Text style={styles.answerPlaceholder}>Choose your answer</Text>
             )}
           </View>
 
-          {submitted && isCorrect === true && (
-            <Text style={styles.feedbackCorrect}>✓ Correct!</Text>
-          )}
-          {submitted && isCorrect === false && (
-            <Text style={styles.feedbackWrong}>✗ Wrong answer</Text>
-          )}
+          {submitted && isCorrect === true && <Text style={styles.feedbackCorrect}>✓ Correct!</Text>}
+          {submitted && isCorrect === false && <Text style={styles.feedbackWrong}>✗ Wrong answer</Text>}
+          {submitted && Boolean(coinText) && <Text style={styles.coinText}>{coinText}</Text>}
 
-          <View style={styles.balloonRow}>{topRow.map(renderBalloon)}</View>
+          <View style={styles.balloonRow}>
+            {topRow.map((option, index) => (
+              hiddenId === option.id ? (
+                <View key={option.id} style={styles.emptyBalloonSpace} />
+              ) : (
+                <Balloon
+                  key={option.id}
+                  option={option}
+                  isSelected={String(selectedId) === String(option.id)}
+                  isFloating={floatingId === option.id}
+                  isWrong={wrongId === option.id}
+                  disabled={submitted}
+                  onTap={(opt) => handleTap(opt, index)}
+                />
+              )
+            ))}
+          </View>
 
-          <View style={[styles.balloonRow, { marginTop: 8, paddingLeft: 10 }]}> 
-            {bottomRow.map((opt, index) => renderBalloon(opt, index + 2))}
+          <View style={styles.balloonRow}>
+            {bottomRow.map((option, index) => (
+              hiddenId === option.id ? (
+                <View key={option.id} style={styles.emptyBalloonSpace} />
+              ) : (
+                <Balloon
+                  key={option.id}
+                  option={option}
+                  isSelected={String(selectedId) === String(option.id)}
+                  isFloating={floatingId === option.id}
+                  isWrong={wrongId === option.id}
+                  disabled={submitted}
+                  onTap={(opt) => handleTap(opt, index + 2)}
+                />
+              )
+            ))}
           </View>
         </View>
 
@@ -264,252 +265,36 @@ export default function ActivityTemplate3({
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    flex: 1,
-    backgroundColor: "#EDE9FE",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 16,
-    overflow: "hidden",
-  },
-
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 24,
-    width: "100%",
-    maxWidth: 380,
-    overflow: "hidden",
-    shadowColor: "#6450C8",
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
-    position: "relative",
-  },
-
-  header: {
-    paddingTop: 20,
-    paddingBottom: 0,
-    alignItems: "center",
-    paddingLeft: 16,
-    paddingRight: 16,
-  },
-
-  title: {
-    marginBottom: 4,
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#1a1a3e",
-    textAlign: "center",
-  },
-
-  activityRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    marginBottom: 0,
-  },
-
-  activityLabel: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#6c5ce7",
-  },
-
-  dash: {
-    color: "#c4b8f8",
-    fontSize: 10,
-    letterSpacing: 2,
-  },
-
-  starGold: {
-    color: "#f6c90e",
-    fontSize: 16,
-  },
-
-  balloonArea: {
-    backgroundColor: "#f7f7fb",
-    marginHorizontal: 12,
-    marginTop: 12,
-    borderRadius: 20,
-    paddingTop: 16,
-    paddingHorizontal: 8,
-    paddingBottom: 8,
-    alignItems: "center",
-    overflow: "hidden",
-  },
-
-  instruction: {
-    marginBottom: 4,
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#333",
-    lineHeight: 21,
-    textAlign: "center",
-  },
-
-  question: {
-    marginBottom: 10,
-    fontSize: 28,
-    fontWeight: "900",
-    color: "#1a1a3e",
-    textAlign: "center",
-  },
-
-  answerBox: {
-    width: "82%",
-    minHeight: 48,
-    marginBottom: 10,
-    borderRadius: 16,
-    backgroundColor: "#ede9fc",
-    borderWidth: 2,
-    borderStyle: "dashed",
-    borderColor: "#c9c0f5",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-  },
-
-  answerLabel: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#6c5ce7",
-  },
-
-  answerValue: {
-    fontSize: 26,
-    fontWeight: "900",
-    color: "#1a1a3e",
-  },
-
-  answerPlaceholder: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#9c91d9",
-  },
-
-  feedbackCorrect: {
-    marginTop: -2,
-    marginBottom: 6,
-    fontSize: 14,
-    fontWeight: "900",
-    color: "#3a8c3f",
-  },
-
-  feedbackWrong: {
-    marginTop: -2,
-    marginBottom: 6,
-    fontSize: 14,
-    fontWeight: "900",
-    color: "#e74c3c",
-  },
-
-  balloonRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 16,
-  },
-
-  balloonWrap: {
-    width: 120,
-    height: 145,
-    alignItems: "center",
-  },
-
-  balloonWrong: {
-    opacity: 0.65,
-  },
-
-  balloonBody: {
-    width: 104,
-    height: 116,
-    borderRadius: 56,
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-  },
-
-  balloonShine: {
-    position: "absolute",
-    top: 16,
-    left: 24,
-    width: 26,
-    height: 34,
-    borderRadius: 16,
-    opacity: 0.55,
-  },
-
-  balloonText: {
-    fontSize: 30,
-    fontWeight: "900",
-    color: "#1a1a1a",
-  },
-
-  balloonKnot: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 6,
-    borderRightWidth: 6,
-    borderTopWidth: 12,
-    borderLeftColor: "transparent",
-    borderRightColor: "transparent",
-  },
-
-  balloonString: {
-    width: 1.5,
-    height: 28,
-    backgroundColor: "#555",
-    borderRadius: 2,
-  },
-
-  emptyBalloonSpace: {
-    width: 120,
-    height: 145,
-  },
-
-  confettiWrap: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    width: "100%",
-    height: "100%",
-    zIndex: 10,
-    overflow: "hidden",
-  },
-
-  confettiPiece: {
-    position: "absolute",
-    width: 10,
-    height: 10,
-    borderRadius: 2,
-  },
-
-  bottomRow: {
-    flexDirection: "row",
-    gap: 12,
-    padding: 16,
-  },
-
-  btnFinish: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#7c6ff0",
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-  },
-
-  btnDisabled: {
-    opacity: 0.45,
-  },
-
-  btnLabel: {
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: "800",
-    letterSpacing: 0.2,
-  },
+  page: { flex: 1, backgroundColor: "#EDE9FE", alignItems: "center", justifyContent: "center", padding: 16 },
+  card: { width: "100%", maxWidth: 390, backgroundColor: "#fff", borderRadius: 24, overflow: "hidden", shadowColor: "#6450C8", shadowOpacity: 0.14, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
+  header: { paddingTop: 18, paddingBottom: 4, alignItems: "center" },
+  title: { fontSize: 18, fontWeight: "800", color: "#1A1A3E", textAlign: "center" },
+  activityRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 0, marginTop: 4 },
+  activityLabel: { fontSize: 14, fontWeight: "700", color: "#6c5ce7" },
+  starGold: { color: "#f6c90e", fontSize: 16 },
+  balloonArea: { backgroundColor: "#f7f7fb", marginHorizontal: 12, marginTop: 12, borderRadius: 20, paddingTop: 16, paddingHorizontal: 8, paddingBottom: 8, alignItems: "center", overflow: "hidden" },
+  instruction: { marginBottom: 4, fontSize: 15, fontWeight: "600", color: "#333", lineHeight: 21, textAlign: "center" },
+  question: { marginBottom: 10, fontSize: 28, fontWeight: "900", color: "#1a1a3e", textAlign: "center" },
+  answerBox: { width: "82%", minHeight: 48, marginBottom: 10, borderRadius: 16, backgroundColor: "#ede9fc", borderWidth: 2, borderStyle: "dashed", borderColor: "#c9c0f5", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 },
+  answerLabel: { fontSize: 12, fontWeight: "800", color: "#6c5ce7" },
+  answerValue: { fontSize: 26, fontWeight: "900", color: "#1a1a3e" },
+  answerPlaceholder: { fontSize: 13, fontWeight: "700", color: "#9c91d9" },
+  feedbackCorrect: { marginTop: -2, marginBottom: 6, fontSize: 14, fontWeight: "900", color: "#3a8c3f" },
+  feedbackWrong: { marginTop: -2, marginBottom: 6, fontSize: 14, fontWeight: "900", color: "#e74c3c" },
+  coinText: { marginTop: -2, marginBottom: 6, color: "#B45309", fontSize: 13, fontWeight: "900", textAlign: "center" },
+  balloonRow: { flexDirection: "row", justifyContent: "center", gap: 16 },
+  balloonWrap: { width: 120, height: 145, alignItems: "center" },
+  balloonWrong: { opacity: 0.65 },
+  balloonBody: { width: 104, height: 116, borderRadius: 56, alignItems: "center", justifyContent: "center", position: "relative" },
+  balloonShine: { position: "absolute", top: 16, left: 24, width: 26, height: 34, borderRadius: 16, opacity: 0.55 },
+  balloonText: { fontSize: 30, fontWeight: "900", color: "#1a1a1a" },
+  balloonKnot: { width: 0, height: 0, borderLeftWidth: 6, borderRightWidth: 6, borderTopWidth: 12, borderLeftColor: "transparent", borderRightColor: "transparent" },
+  balloonString: { width: 1.5, height: 28, backgroundColor: "#555", borderRadius: 2 },
+  emptyBalloonSpace: { width: 120, height: 145 },
+  confettiWrap: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", zIndex: 10, overflow: "hidden" },
+  confettiPiece: { position: "absolute", width: 10, height: 10, borderRadius: 2 },
+  bottomRow: { flexDirection: "row", gap: 12, padding: 16 },
+  btnFinish: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#7c6ff0", borderRadius: 16, paddingVertical: 14, paddingHorizontal: 12 },
+  btnDisabled: { opacity: 0.45 },
+  btnLabel: { color: "#fff", fontSize: 15, fontWeight: "800", letterSpacing: 0.2 },
 });

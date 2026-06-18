@@ -15,8 +15,40 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
 import useT from "../app/i18n/useT";
 import { useGetMyGradePapersByTypeQuery } from "../app/features/paperApi";
+import { useGetLatestPaperResultByPaperQuery } from "../app/features/paperResultApi";
 
 const { width, height } = Dimensions.get("window");
+
+
+const getPayloadData = (response) => response?.data?.data || response?.data || response;
+
+const getAttemptId = (attempt) => attempt?.id || attempt?._id || "";
+
+const buildReviewParams = (attempt, paperTitle, paper) => ({
+  attemptId: getAttemptId(attempt),
+  result: attempt,
+  paperTitle:
+    attempt?.paperSnapshot?.paperTitle ||
+    attempt?.paperSnapshot?.paperName ||
+    paperTitle,
+  paper: attempt?.paperSnapshot || paper,
+  totalQuestions: Number(attempt?.totalQuestions || 0),
+  correctCount: Number(attempt?.correctCount || 0),
+  wrongCount: Number(attempt?.wrongCount || 0),
+  notAttemptedCount: Number(attempt?.notAttemptedCount || 0),
+  totalCoins: Number(attempt?.totalCoins || 0),
+  maximumCoins: Number(attempt?.maximumCoins || 0),
+  percentage: Number(attempt?.percentage || 0),
+  status: attempt?.status,
+});
+
+const getAttemptButtonText = (defaultStartText, attempt, isChecking) => {
+  if (isChecking) return "Checking...";
+  if (!attempt?.status) return defaultStartText || "Start";
+  if (attempt.status === "in_progress") return "Continue";
+  return "View Review";
+};
+
 
 const clickSound = require("../assets/clip5.mp3");
 
@@ -256,11 +288,19 @@ const NumberBadge = ({ number, color }) => (
   </View>
 );
 
-const PaperCard = ({ item, index, navigation, playClickSound, t }) => {
+const PaperCard = ({ item, index, navigation, playClickSound, t, token }) => {
   const slideAnim = useRef(new Animated.Value(50)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const btnScale = useRef(new Animated.Value(1)).current;
   const cardScale = useRef(new Animated.Value(1)).current;
+
+  const { data: latestResultResponse, isFetching: isCheckingAttempt } =
+    useGetLatestPaperResultByPaperQuery(item.paperId, {
+      skip: !token || !item.paperId,
+    });
+
+  const latestAttempt = getPayloadData(latestResultResponse);
+  const buttonText = getAttemptButtonText(t("start") || "Start", latestAttempt, isCheckingAttempt);
 
   useEffect(() => {
     Animated.parallel([
@@ -281,6 +321,11 @@ const PaperCard = ({ item, index, navigation, playClickSound, t }) => {
 
   const handlePress = async () => {
     await playClickSound();
+
+    if (latestAttempt?.status && latestAttempt.status !== "in_progress") {
+      navigation.navigate("reviewpage", buildReviewParams(latestAttempt, item.title, item.rawPaper));
+      return;
+    }
 
     navigation.navigate(item.route, {
       paperId: item.paperId,
@@ -365,7 +410,7 @@ const PaperCard = ({ item, index, navigation, playClickSound, t }) => {
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
               >
-                <Text style={styles.startBtnText}>{t("start") || "Start"}</Text>
+                <Text style={styles.startBtnText}>{buttonText}</Text>
               </LinearGradient>
             </TouchableOpacity>
           </Animated.View>
@@ -480,6 +525,7 @@ export default function FiveHundredPaperMenu({ navigation }) {
               navigation={navigation}
               playClickSound={playClickSound}
               t={t}
+              token={token}
             />
           ))
         )}
@@ -628,4 +674,3 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
 });
-

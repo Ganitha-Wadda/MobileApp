@@ -8,24 +8,31 @@ import {
   StatusBar,
   SafeAreaView,
   Animated,
+  ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
-const initialPapers = [
-  { id: 1, name: "Daily paper - 1", marks: "20/100" },
-  { id: 2, name: "", marks: "" },
-  { id: 3, name: "", marks: "" },
-  { id: 4, name: "", marks: "" },
-  { id: 5, name: "", marks: "" },
-  { id: 6, name: "", marks: "" },
-];
+import { useGetMyPaperResultsQuery } from "../app/features/paperResultApi";
+
+const PAGE_SIZE = 10;
 
 const paperTypes = [
-  "Daily papers",
-  "Weekly papers",
-  "Monthly papers",
-  "Term papers",
-  "Final papers",
+  {
+    label: "Daily papers",
+    value: "daily paper",
+  },
+  {
+    label: "FiveHundredpapers",
+    value: "500 paper",
+  },
+  {
+    label: "Pastpapers",
+    value: "pastpapers",
+  },
+  {
+    label: "lesson by lesson",
+    value: "lesson by lesson",
+  },
 ];
 
 function AnimatedCloud({ style, scale = 1, delay = 0, distance = 18 }) {
@@ -106,13 +113,95 @@ function LeafDecor({ side = "left" }) {
 }
 
 export default function Result() {
-  const [selectedType, setSelectedType] = useState("Daily papers");
+  const [selectedType, setSelectedType] = useState(paperTypes[0]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [papers] = useState(initialPapers);
+  const [page, setPage] = useState(1);
+
+  const { data, isLoading, isFetching, isError, refetch } =
+    useGetMyPaperResultsQuery({
+      paperType: selectedType.value,
+      page,
+      limit: PAGE_SIZE,
+    });
+
+  const papers = data?.data || data?.results || [];
+  const pagination = data?.pagination || {};
+  const totalPages = Number(pagination?.totalPages || 1);
+  const hasPreviousPage = Boolean(pagination?.hasPreviousPage);
+  const hasNextPage = Boolean(pagination?.hasNextPage);
 
   const handleSelect = (type) => {
     setSelectedType(type);
+    setPage(1);
     setDropdownOpen(false);
+  };
+
+  const handlePrevious = () => {
+    if (!hasPreviousPage || isFetching) return;
+    setPage((current) => Math.max(current - 1, 1));
+  };
+
+  const handleNext = () => {
+    if (!hasNextPage || isFetching) return;
+    setPage((current) => current + 1);
+  };
+
+  const renderTableBody = () => {
+    if (isLoading || isFetching) {
+      return (
+        <View style={styles.emptyRow}>
+          <ActivityIndicator size="small" color="#6D28D9" />
+          <Text style={styles.emptyText}>Loading results...</Text>
+        </View>
+      );
+    }
+
+    if (isError) {
+      return (
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={refetch}
+          style={styles.emptyRow}
+        >
+          <Text style={styles.emptyText}>Result loading failed. Tap to retry.</Text>
+        </TouchableOpacity>
+      );
+    }
+
+    if (!papers.length) {
+      return (
+        <View style={styles.emptyRow}>
+          <Text style={styles.emptyText}>No results found</Text>
+        </View>
+      );
+    }
+
+    return papers.map((paper, index) => {
+      const correctCount = Number(paper.correctCount || 0);
+      const totalQuestions = Number(paper.totalQuestions || 0);
+
+      return (
+        <View
+          key={paper.id || paper._id || paper.attemptId || `${paper.paperId}-${index}`}
+          style={[
+            styles.dataRow,
+            index < papers.length - 1 && styles.dataRowBorder,
+          ]}
+        >
+          <View style={styles.nameCell}>
+            <Text style={styles.cellText} numberOfLines={2}>
+              {paper.name || paper.paperName || "Untitled paper"}
+            </Text>
+          </View>
+
+          <View style={styles.marksCell}>
+            <Text style={styles.cellText}>
+              {paper.marks || `${correctCount}/${totalQuestions}`}
+            </Text>
+          </View>
+        </View>
+      );
+    });
   };
 
   return (
@@ -149,7 +238,7 @@ export default function Result() {
                 onPress={() => setDropdownOpen(!dropdownOpen)}
                 style={styles.dropdownButton}
               >
-                <Text style={styles.dropdownText}>{selectedType}</Text>
+                <Text style={styles.dropdownText}>{selectedType.label}</Text>
                 <Text
                   style={[
                     styles.dropdownArrow,
@@ -164,21 +253,23 @@ export default function Result() {
                 <View style={styles.dropdownMenu}>
                   {paperTypes.map((type) => (
                     <TouchableOpacity
-                      key={type}
+                      key={type.value}
                       activeOpacity={0.8}
                       onPress={() => handleSelect(type)}
                       style={[
                         styles.dropdownItem,
-                        selectedType === type && styles.dropdownItemActive,
+                        selectedType.value === type.value &&
+                          styles.dropdownItemActive,
                       ]}
                     >
                       <Text
                         style={[
                           styles.dropdownItemText,
-                          selectedType === type && styles.dropdownItemTextActive,
+                          selectedType.value === type.value &&
+                            styles.dropdownItemTextActive,
                         ]}
                       >
-                        {type}
+                        {type.label}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -196,22 +287,54 @@ export default function Result() {
                 </View>
               </View>
 
-              {papers.map((paper, index) => (
-                <View
-                  key={paper.id}
+              {renderTableBody()}
+            </View>
+
+            <View style={styles.paginationWrap}>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={handlePrevious}
+                disabled={!hasPreviousPage || isFetching}
+                style={[
+                  styles.paginationButton,
+                  (!hasPreviousPage || isFetching) &&
+                    styles.paginationButtonDisabled,
+                ]}
+              >
+                <Text
                   style={[
-                    styles.dataRow,
-                    index < papers.length - 1 && styles.dataRowBorder,
+                    styles.paginationButtonText,
+                    (!hasPreviousPage || isFetching) &&
+                      styles.paginationButtonTextDisabled,
                   ]}
                 >
-                  <View style={styles.nameCell}>
-                    <Text style={styles.cellText}>{paper.name}</Text>
-                  </View>
-                  <View style={styles.marksCell}>
-                    <Text style={styles.cellText}>{paper.marks}</Text>
-                  </View>
-                </View>
-              ))}
+                  Previous
+                </Text>
+              </TouchableOpacity>
+
+              <Text style={styles.pageText}>
+                {page} / {totalPages}
+              </Text>
+
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={handleNext}
+                disabled={!hasNextPage || isFetching}
+                style={[
+                  styles.paginationButton,
+                  (!hasNextPage || isFetching) && styles.paginationButtonDisabled,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.paginationButtonText,
+                    (!hasNextPage || isFetching) &&
+                      styles.paginationButtonTextDisabled,
+                  ]}
+                >
+                  Next
+                </Text>
+              </TouchableOpacity>
             </View>
           </ScrollView>
 
@@ -405,6 +528,64 @@ const styles = StyleSheet.create({
   cellText: {
     fontWeight: "700",
     fontSize: 16,
+    color: "#07124A",
+  },
+
+  emptyRow: {
+    minHeight: 80,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+  },
+
+  emptyText: {
+    marginTop: 6,
+    fontWeight: "700",
+    fontSize: 15,
+    color: "#07124A",
+    textAlign: "center",
+  },
+
+  paginationWrap: {
+    marginTop: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 14,
+  },
+
+  paginationButton: {
+    backgroundColor: "rgba(255,255,255,0.94)",
+    borderWidth: 1,
+    borderColor: "#ECE8FF",
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    shadowColor: "#A39BF5",
+    shadowOpacity: 0.14,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 10,
+    elevation: 2,
+  },
+
+  paginationButtonDisabled: {
+    opacity: 0.45,
+  },
+
+  paginationButtonText: {
+    fontWeight: "900",
+    fontSize: 14,
+    color: "#6D28D9",
+  },
+
+  paginationButtonTextDisabled: {
+    color: "#9CA3AF",
+  },
+
+  pageText: {
+    fontWeight: "900",
+    fontSize: 15,
     color: "#07124A",
   },
 

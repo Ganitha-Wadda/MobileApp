@@ -9,8 +9,12 @@ import {
   StatusBar,
   Dimensions,
   Platform,
+  ActivityIndicator,
+  Modal,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { useGetPaperResultByAttemptQuery } from "../app/features/paperResultApi";
+import CrossWebView from "../components/CrossWebView";
 
 const { width } = Dimensions.get("window");
 
@@ -19,6 +23,47 @@ const OPTION_LABELS = ["i.", "ii.", "iii.", "iv.", "v.", "vi."];
 const toArrayText = (value) =>
   Array.isArray(value) && value.length > 0 ? value.join(", ") : "—";
 
+const getYouTubeId = (url = "") => {
+  const text = String(url || "").trim();
+  if (!text) return "";
+
+  const shortMatch = text.match(/youtu\.be\/([A-Za-z0-9_-]{6,})/);
+  if (shortMatch?.[1]) return shortMatch[1];
+
+  const watchMatch = text.match(/[?&]v=([A-Za-z0-9_-]{6,})/);
+  if (watchMatch?.[1]) return watchMatch[1];
+
+  const embedMatch = text.match(/youtube\.com\/embed\/([A-Za-z0-9_-]{6,})/);
+  if (embedMatch?.[1]) return embedMatch[1];
+
+  const shortsMatch = text.match(/youtube\.com\/shorts\/([A-Za-z0-9_-]{6,})/);
+  if (shortsMatch?.[1]) return shortsMatch[1];
+
+  return "";
+};
+
+const buildYouTubeHtml = (url = "") => {
+  const videoId = getYouTubeId(url);
+  const src = videoId
+    ? `https://www.youtube.com/embed/${videoId}?autoplay=1&playsinline=1&rel=0`
+    : String(url || "").trim();
+
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+        <style>
+          html, body { margin: 0; padding: 0; background: #000; height: 100%; overflow: hidden; }
+          iframe { width: 100%; height: 100%; border: 0; }
+        </style>
+      </head>
+      <body>
+        <iframe src="${src}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+      </body>
+    </html>`;
+};
+
 const getBadgeInfo = (percentage) => {
   if (percentage >= 90) return { icon: "🏅", text: "Gold Badge", subtitle: "Excellent Result" };
   if (percentage >= 70) return { icon: "🥈", text: "Silver Badge", subtitle: "Great Result" };
@@ -26,14 +71,71 @@ const getBadgeInfo = (percentage) => {
   return { icon: "⭐", text: "Keep Practicing", subtitle: "Practice Result" };
 };
 
-const normalizeReviewAnswers = (params) => {
-  if (Array.isArray(params?.answers)) return params.answers;
-  if (Array.isArray(params?.reviewAnswers)) return params.reviewAnswers;
+const getPayloadData = (response) => response?.data?.data || response?.data || response;
+
+const normalizeAnswer = (item = {}) => ({
+  questionId: item.questionId || item._id,
+  questionNumber: Number(item.questionNumber || 0),
+  lessonName: item.lessonName || "",
+  question: item.question || "",
+  answers: item.answers || item.answerOptions || [],
+  selectedIndexes: item.selectedIndexes || item.selectedAnswerIndexes || [],
+  selectedAnswers: item.selectedAnswers || item.selectedAnswerTexts || [],
+  correctAnswerIndexes: item.correctAnswerIndexes || [],
+  correctAnswers: item.correctAnswers || item.correctAnswerTexts || [],
+  isAttempted: item.isAttempted === true,
+  isCorrect: item.isCorrect === true,
+  status: item.status || (item.isCorrect ? "correct" : "wrong"),
+  coinsEarned: Number(item.coinsEarned || 0),
+  explanationText: item.explanationText || "",
+  explanationVideoUrl: item.explanationVideoUrl || "",
+});
+
+const normalizeReviewAnswers = (params, result) => {
+  if (Array.isArray(params?.answers)) return params.answers.map(normalizeAnswer);
+  if (Array.isArray(params?.reviewAnswers)) return params.reviewAnswers.map(normalizeAnswer);
+  if (Array.isArray(result?.answers)) return result.answers.map(normalizeAnswer);
   return [];
 };
 
-const ReviewQuestionCard = ({ item, index, showAnswer, onToggleAnswer }) => {
-  const statusText = item.isCorrect ? "Correct" : "Wrong";
+const getQuestionStatusInfo = (item) => {
+  if (item.status === "not_attempted" || item.isAttempted === false) {
+    return {
+      text: "Not marked",
+      mark: "!",
+      badgeStyle: styles.notAttemptedBadge,
+      tickStyle: styles.notAttemptedTick,
+    };
+  }
+
+  if (item.isCorrect || item.status === "correct") {
+    return {
+      text: "Correct",
+      mark: "✓",
+      badgeStyle: styles.correctBadge,
+      tickStyle: styles.correctTick,
+    };
+  }
+
+  return {
+    text: "Wrong",
+    mark: "×",
+    badgeStyle: styles.wrongBadge,
+    tickStyle: styles.wrongTick,
+  };
+};
+
+const ReviewQuestionCard = ({
+  item,
+  index,
+  showAnswer,
+  onToggleAnswer,
+  onShowLogic,
+  onShowVideo,
+}) => {
+  const statusInfo = getQuestionStatusInfo(item);
+  const hasLogic = String(item.explanationText || "").trim().length > 0;
+  const hasVideo = String(item.explanationVideoUrl || "").trim().length > 0;
 
   return (
     <View style={styles.questionCard}>
@@ -42,23 +144,13 @@ const ReviewQuestionCard = ({ item, index, showAnswer, onToggleAnswer }) => {
           Question - {item.questionNumber || index + 1}
         </Text>
 
-        <View
-          style={[
-            styles.completedBadge,
-            item.isCorrect ? styles.correctBadge : styles.wrongBadge,
-          ]}
-        >
+        <View style={[styles.completedBadge, statusInfo.badgeStyle]}>
           <View style={styles.completedCircle}>
-            <Text
-              style={[
-                styles.completedTick,
-                item.isCorrect ? styles.correctTick : styles.wrongTick,
-              ]}
-            >
-              {item.isCorrect ? "✓" : "×"}
+            <Text style={[styles.completedTick, statusInfo.tickStyle]}>
+              {statusInfo.mark}
             </Text>
           </View>
-          <Text style={styles.completedText}>{statusText}</Text>
+          <Text style={styles.completedText}>{statusInfo.text}</Text>
         </View>
       </View>
 
@@ -79,87 +171,123 @@ const ReviewQuestionCard = ({ item, index, showAnswer, onToggleAnswer }) => {
       {showAnswer && (
         <View style={styles.answerBox}>
           <Text style={styles.yourAnswerLabel}>Your answer</Text>
-          <Text style={styles.yourAnswerText}>{toArrayText(item.selectedAnswers)}</Text>
+          <Text style={styles.yourAnswerText}>
+            {item.status === "not_attempted" || item.isAttempted === false
+              ? "Not marked"
+              : toArrayText(item.selectedAnswers)}
+          </Text>
 
           <View style={styles.answerDivider} />
 
           <Text style={styles.correctAnswerLabel}>Correct answer</Text>
           <Text style={styles.correctAnswerText}>{toArrayText(item.correctAnswers)}</Text>
 
-          {Array.isArray(item.answers) && item.answers.length > 0 && (
-            <>
-              <View style={styles.answerDivider} />
-              <Text style={styles.allAnswersLabel}>All answers</Text>
-              {item.answers.map((answer, answerIndex) => {
-                const isSelected = item.selectedIndexes?.includes(answerIndex);
-                const isCorrect = item.correctAnswerIndexes?.includes(answerIndex);
+          <View style={styles.answerDivider} />
+          <Text style={styles.coinText}>Coins earned: {Number(item.coinsEarned || 0)}</Text>
 
-                return (
-                  <Text
-                    key={`${item.questionId || index}-${answerIndex}`}
-                    style={[
-                      styles.allAnswerText,
-                      isCorrect && styles.allAnswerCorrect,
-                      isSelected && !isCorrect && styles.allAnswerWrong,
-                    ]}
-                  >
-                    {OPTION_LABELS[answerIndex] || `${answerIndex + 1}.`} {answer}
-                  </Text>
-                );
-              })}
-            </>
-          )}
-
-          {!!item.explanationText && (
-            <>
-              <View style={styles.answerDivider} />
-              <Text style={styles.logicLabel}>Explanation</Text>
-              <Text style={styles.logicText}>{item.explanationText}</Text>
-            </>
-          )}
         </View>
       )}
 
-      <View style={styles.buttonRow}>
-        <TouchableOpacity activeOpacity={0.85} style={styles.logicButton}>
-          <Text style={styles.logicButtonText}>Explain Logic</Text>
-        </TouchableOpacity>
+      {(hasLogic || hasVideo) && (
+        <View style={styles.buttonRow}>
+          {hasLogic && (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={styles.logicButton}
+              onPress={() => onShowLogic(item)}
+            >
+              <Text style={styles.logicButtonText}>Explain Logic</Text>
+            </TouchableOpacity>
+          )}
 
-        <TouchableOpacity activeOpacity={0.85} style={styles.videoButtonWrapper}>
-          <LinearGradient
-            colors={["#7B5CFF", "#263CFF"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.videoButton}
-          >
-            <Text style={styles.videoButtonText}>Explain video</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
+          {hasVideo && (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={styles.videoButtonWrapper}
+              onPress={() => onShowVideo(item)}
+            >
+              <LinearGradient
+                colors={["#7B5CFF", "#263CFF"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.videoButton}
+              >
+                <Text style={styles.videoButtonText}>Explain video</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
     </View>
   );
 };
 
 export default function ReviewPage({ navigation, route }) {
   const [visibleAnswers, setVisibleAnswers] = useState({});
+  const [logicItem, setLogicItem] = useState(null);
+  const [videoItem, setVideoItem] = useState(null);
   const params = route?.params || {};
+  const attemptId = params.attemptId || params.result?.id || params.result?._id || "";
 
-  const answers = useMemo(() => normalizeReviewAnswers(params), [params]);
-  const totalQuestions = Number(params.totalQuestions || answers.length || 0);
+  const {
+    data: fetchedResult,
+    isLoading,
+    isFetching,
+  } = useGetPaperResultByAttemptQuery(attemptId, {
+    skip: !attemptId || Array.isArray(params.answers) || !!params.result,
+  });
+
+  const result = params.result || getPayloadData(fetchedResult) || null;
+
+  const answers = useMemo(() => normalizeReviewAnswers(params, result), [params, result]);
+  const totalQuestions = Number(params.totalQuestions || result?.totalQuestions || answers.length || 0);
   const correctCount = Number(
-    params.correctCount ?? answers.filter((item) => item?.isCorrect).length
+    params.correctCount ??
+      result?.correctCount ??
+      answers.filter((item) => item?.isCorrect || item?.status === "correct").length
   );
+  const wrongCount = Number(
+    params.wrongCount ??
+      result?.wrongCount ??
+      answers.filter((item) => item?.status === "wrong").length
+  );
+  const notAttemptedCount = Number(
+    params.notAttemptedCount ??
+      result?.notAttemptedCount ??
+      answers.filter((item) => item?.status === "not_attempted" || item?.isAttempted === false).length
+  );
+  const totalCoins = Number(params.totalCoins ?? result?.totalCoins ?? 0);
+  const maximumCoins = Number(params.maximumCoins ?? result?.maximumCoins ?? totalQuestions * 5);
   const percentage = Number(
     params.percentage ??
+      result?.percentage ??
       (totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0)
   );
   const badge = getBadgeInfo(percentage);
-  const paperTitle = params.paperTitle || params.paper?.paperTitle || params.paper?.paperName || "Paper";
+  const paperTitle =
+    params.paperTitle ||
+    result?.paperSnapshot?.paperTitle ||
+    result?.paperSnapshot?.paperName ||
+    params.paper?.paperTitle ||
+    params.paper?.paperName ||
+    "Paper";
 
   const isAnswerVisible = (index) => visibleAnswers[index] !== false;
   const toggleAnswer = (index) => {
     setVisibleAnswers((prev) => ({ ...prev, [index]: !isAnswerVisible(index) }));
   };
+
+  if (isLoading || isFetching) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="dark-content" backgroundColor="#F8F7FF" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" />
+          <Text style={styles.loadingText}>Loading result...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -192,7 +320,10 @@ export default function ReviewPage({ navigation, route }) {
             <Text style={styles.percentageText}>{percentage}%</Text>
             <Text style={styles.resultSubtitle}>{badge.subtitle}</Text>
             <Text style={styles.scoreLine}>
-              {correctCount} correct / {totalQuestions} questions
+              {correctCount} correct / {wrongCount} wrong / {notAttemptedCount} not marked
+            </Text>
+            <Text style={styles.coinSummaryText}>
+              Coins: {totalCoins} / {maximumCoins}
             </Text>
 
             <View style={styles.badgePill}>
@@ -229,6 +360,8 @@ export default function ReviewPage({ navigation, route }) {
                 index={index}
                 showAnswer={isAnswerVisible(index)}
                 onToggleAnswer={() => toggleAnswer(index)}
+                onShowLogic={setLogicItem}
+                onShowVideo={setVideoItem}
               />
             ))
           )}
@@ -256,6 +389,58 @@ export default function ReviewPage({ navigation, route }) {
           <View style={[styles.leaf, styles.rightLeafTwo]} />
           <View style={[styles.leaf, styles.rightLeafThree]} />
         </View>
+
+        <Modal
+          visible={!!logicItem}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setLogicItem(null)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.logicModalCard}>
+              <Text style={styles.modalTitle}>Explain Logic</Text>
+              <ScrollView showsVerticalScrollIndicator={false} style={styles.logicScrollBox}>
+                <Text style={styles.modalLogicText}>{logicItem?.explanationText || ""}</Text>
+              </ScrollView>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={styles.modalCloseButton}
+                onPress={() => setLogicItem(null)}
+              >
+                <Text style={styles.modalCloseText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal
+          visible={!!videoItem}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setVideoItem(null)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.videoModalCard}>
+              <View style={styles.videoModalHeader}>
+                <Text style={styles.modalTitle}>Explain Video</Text>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  style={styles.videoCloseRound}
+                  onPress={() => setVideoItem(null)}
+                >
+                  <Text style={styles.videoCloseText}>×</Text>
+                </TouchableOpacity>
+              </View>
+
+              {videoItem?.explanationVideoUrl ? (
+                <CrossWebView
+                  style={styles.videoWebView}
+                  source={{ html: buildYouTubeHtml(videoItem.explanationVideoUrl) }}
+                />
+              ) : null}
+            </View>
+          </View>
+        </Modal>
       </View>
     </SafeAreaView>
   );
@@ -278,6 +463,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingTop: Platform.OS === "android" ? 12 : 8,
     paddingBottom: 120,
+  },
+
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: "#F8F7FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  loadingText: {
+    color: "#101943",
+    fontSize: 15,
+    fontWeight: "800",
+    marginTop: 12,
   },
 
   resultCard: {
@@ -319,7 +518,14 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#8A8DA5",
     marginTop: 5,
-    marginBottom: 14,
+    marginBottom: 4,
+  },
+
+  coinSummaryText: {
+    fontSize: 13,
+    fontWeight: "900",
+    color: "#3151F5",
+    marginBottom: 12,
   },
 
   badgePill: {
@@ -457,84 +663,86 @@ const styles = StyleSheet.create({
     width: "100%",
     backgroundColor: "#FFFFFF",
     borderRadius: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 24,
+    paddingVertical: 28,
+    paddingHorizontal: 18,
+    marginTop: 4,
     alignItems: "center",
-
+    justifyContent: "center",
     shadowColor: "#C8C7DE",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.24,
-    shadowRadius: 16,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    elevation: 4,
   },
 
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: "900",
     color: "#101943",
+    fontSize: 16,
+    fontWeight: "900",
   },
 
   emptyText: {
-    fontSize: 13,
-    fontWeight: "600",
     color: "#8A8DA5",
+    fontSize: 13,
+    fontWeight: "700",
     textAlign: "center",
+    lineHeight: 20,
     marginTop: 8,
-    lineHeight: 19,
   },
 
   questionCard: {
     width: "100%",
     backgroundColor: "#FFFFFF",
     borderRadius: 20,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 18,
+    padding: 14,
     marginBottom: 16,
 
     shadowColor: "#C8C7DE",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.24,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.2,
     shadowRadius: 16,
-    elevation: 6,
+    elevation: 5,
   },
 
   questionTopRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 20,
-    gap: 10,
+    marginBottom: 9,
   },
 
   questionTitle: {
     flex: 1,
-    fontSize: 22,
+    color: "#3151F5",
+    fontSize: 15,
     fontWeight: "900",
-    color: "#09091A",
-    letterSpacing: 0.3,
+    paddingRight: 8,
   },
 
   completedBadge: {
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    borderRadius: 50,
+    paddingVertical: 5,
+    paddingHorizontal: 9,
   },
 
   correctBadge: {
-    backgroundColor: "#18AF4B",
+    backgroundColor: "#E8FFF2",
   },
 
   wrongBadge: {
-    backgroundColor: "#D62637",
+    backgroundColor: "#FFECEC",
+  },
+
+  notAttemptedBadge: {
+    backgroundColor: "#FFF7E5",
   },
 
   completedCircle: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: 19,
+    height: 19,
+    borderRadius: 10,
     backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
@@ -542,208 +750,301 @@ const styles = StyleSheet.create({
   },
 
   completedTick: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "900",
-    lineHeight: 14,
+    lineHeight: 16,
   },
 
   correctTick: {
-    color: "#18AF4B",
+    color: "#16A34A",
   },
 
   wrongTick: {
-    color: "#D62637",
+    color: "#EF4444",
+  },
+
+  notAttemptedTick: {
+    color: "#F59E0B",
   },
 
   completedText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "800",
+    color: "#5F6174",
+    fontSize: 11,
+    fontWeight: "900",
   },
 
   lessonNameText: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: "#5F6174",
+    color: "#8A8DA5",
+    fontSize: 12,
+    fontWeight: "700",
     marginBottom: 8,
   },
 
   questionText: {
-    fontSize: 22,
-    fontWeight: "900",
-    color: "#050505",
-    marginBottom: 20,
-    letterSpacing: 0.3,
-    lineHeight: 30,
+    color: "#101943",
+    fontSize: 15.5,
+    fontWeight: "800",
+    lineHeight: 23,
+    marginBottom: 12,
   },
 
   hideAnswerBox: {
-    height: 42,
-    borderTopLeftRadius: 11,
-    borderTopRightRadius: 11,
-    borderWidth: 1,
-    borderColor: "#E3E5F3",
-    backgroundColor: "#F9FAFF",
-    paddingHorizontal: 20,
+    backgroundColor: "#F7F7FF",
+    borderRadius: 15,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
 
   hideAnswerText: {
-    fontSize: 18,
-    fontWeight: "500",
-    color: "#111111",
+    color: "#3151F5",
+    fontSize: 13,
+    fontWeight: "900",
   },
 
   chevron: {
-    fontSize: 28,
-    fontWeight: "600",
-    color: "#0E1742",
-    marginTop: -5,
+    color: "#3151F5",
+    fontSize: 20,
+    fontWeight: "900",
+    marginTop: -2,
   },
 
   answerBox: {
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: "#ECEEF8",
-    backgroundColor: "#FFFFFF",
-    borderBottomLeftRadius: 11,
-    borderBottomRightRadius: 11,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 14,
-    marginBottom: 16,
+    marginTop: 12,
+    backgroundColor: "#FBFBFF",
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#ECECF5",
   },
 
   yourAnswerLabel: {
-    fontSize: 15,
+    color: "#8A8DA5",
+    fontSize: 12,
     fontWeight: "900",
-    color: "#C92333",
-    letterSpacing: 0.4,
     marginBottom: 4,
   },
 
   yourAnswerText: {
-    fontSize: 15,
-    fontWeight: "900",
-    color: "#C92333",
-    marginBottom: 14,
+    color: "#101943",
+    fontSize: 14,
+    fontWeight: "800",
+    lineHeight: 20,
   },
 
   answerDivider: {
     height: 1,
-    backgroundColor: "#EEF0F8",
-    marginBottom: 14,
+    backgroundColor: "#ECECF5",
+    marginVertical: 10,
   },
 
   correctAnswerLabel: {
-    fontSize: 15,
+    color: "#16A34A",
+    fontSize: 12,
     fontWeight: "900",
-    color: "#166B1B",
-    letterSpacing: 0.4,
     marginBottom: 4,
   },
 
   correctAnswerText: {
-    fontSize: 15,
-    fontWeight: "900",
-    color: "#166B1B",
-    marginBottom: 14,
-  },
-
-  allAnswersLabel: {
-    fontSize: 15,
-    fontWeight: "900",
-    color: "#0E1742",
-    letterSpacing: 0.4,
-    marginBottom: 8,
-  },
-
-  allAnswerText: {
+    color: "#101943",
     fontSize: 14,
-    fontWeight: "700",
-    color: "#5F6174",
-    marginBottom: 5,
+    fontWeight: "800",
     lineHeight: 20,
   },
 
+  coinText: {
+    color: "#3151F5",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+
+  allAnswersLabel: {
+    color: "#8A8DA5",
+    fontSize: 12,
+    fontWeight: "900",
+    marginBottom: 6,
+  },
+
+  allAnswerText: {
+    color: "#5F6174",
+    fontSize: 13.2,
+    fontWeight: "700",
+    lineHeight: 20,
+    marginBottom: 4,
+  },
+
   allAnswerCorrect: {
-    color: "#166B1B",
+    color: "#16A34A",
+    fontWeight: "900",
   },
 
   allAnswerWrong: {
-    color: "#C92333",
+    color: "#EF4444",
+    fontWeight: "900",
   },
 
   logicLabel: {
-    fontSize: 15,
+    color: "#8A8DA5",
+    fontSize: 12,
     fontWeight: "900",
-    color: "#0E1742",
-    letterSpacing: 0.4,
     marginBottom: 4,
   },
 
   logicText: {
-    fontSize: 14,
-    fontWeight: "600",
     color: "#5F6174",
-    lineHeight: 21,
+    fontSize: 13.5,
+    fontWeight: "700",
+    lineHeight: 20,
   },
 
   buttonRow: {
     flexDirection: "row",
+    alignItems: "center",
     gap: 10,
+    marginTop: 12,
   },
 
   logicButton: {
     flex: 1,
-    height: 42,
-    borderRadius: 9,
-    backgroundColor: "#090E39",
+    borderRadius: 50,
+    paddingVertical: 11,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#F7F7FF",
   },
 
   logicButtonText: {
-    color: "#FFFFFF",
-    fontSize: 15,
+    color: "#3151F5",
+    fontSize: 12.5,
     fontWeight: "900",
-    letterSpacing: 0.5,
   },
 
   videoButtonWrapper: {
     flex: 1,
+    borderRadius: 50,
+    overflow: "hidden",
   },
 
   videoButton: {
-    height: 42,
-    borderRadius: 9,
+    borderRadius: 50,
+    paddingVertical: 11,
     alignItems: "center",
     justifyContent: "center",
   },
 
   videoButtonText: {
     color: "#FFFFFF",
-    fontSize: 15,
+    fontSize: 12.5,
     fontWeight: "900",
-    letterSpacing: 0.5,
   },
 
-  doneButton: {
-    backgroundColor: "#3151F5",
-    height: 48,
-    borderRadius: 24,
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(16, 25, 67, 0.55)",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 4,
-    marginBottom: 8,
-    shadowColor: "#3151F5",
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 5,
+    paddingHorizontal: 18,
+  },
+
+  logicModalCard: {
+    width: "100%",
+    maxHeight: "78%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 22,
+    padding: 18,
+    shadowColor: "#101943",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+
+  videoModalCard: {
+    width: "100%",
+    height: width * 0.68,
+    backgroundColor: "#000000",
+    borderRadius: 22,
+    overflow: "hidden",
+    shadowColor: "#101943",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+
+  videoModalHeader: {
+    height: 48,
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+  },
+
+  modalTitle: {
+    color: "#101943",
+    fontSize: 17,
+    fontWeight: "900",
+  },
+
+  logicScrollBox: {
+    marginTop: 12,
+    maxHeight: 360,
+  },
+
+  modalLogicText: {
+    color: "#5F6174",
+    fontSize: 14,
+    fontWeight: "700",
+    lineHeight: 22,
+  },
+
+  modalCloseButton: {
+    marginTop: 16,
+    borderRadius: 50,
+    backgroundColor: "#3151F5",
+    paddingVertical: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  modalCloseText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+
+  videoCloseRound: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#F7F7FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  videoCloseText: {
+    color: "#3151F5",
+    fontSize: 23,
+    fontWeight: "900",
+    marginTop: -2,
+  },
+
+  videoWebView: {
+    flex: 1,
+    backgroundColor: "#000000",
+  },
+  doneButton: {
+    marginTop: 10,
+    marginHorizontal: 20,
+    borderRadius: 50,
+    backgroundColor: "#3151F5",
+    paddingVertical: 15,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   doneButtonText: {

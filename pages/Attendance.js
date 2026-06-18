@@ -8,14 +8,43 @@ import {
   Dimensions,
   ScrollView,
   Animated,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+
+import { useGetMyLiveClassAttemptsQuery } from "../app/features/attemptApi";
 
 const { width, height } = Dimensions.get("window");
 
 const isSmallScreen = width < 380;
 
-const attendanceData = [{ date: "2026.01.30", time: "11.30 a.m" }];
+const pad = (value) => String(value).padStart(2, "0");
+
+const formatDate = (value) => {
+  if (!value) return "-";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "-";
+
+  return `${date.getFullYear()}.${pad(date.getMonth() + 1)}.${pad(
+    date.getDate()
+  )}`;
+};
+
+const formatTime = (value) => {
+  if (!value) return "-";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "-";
+
+  return date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
 
 function AnimatedCloud({ style, scale = 1, delay = 0, distance = 18 }) {
   const move = useRef(new Animated.Value(0)).current;
@@ -91,6 +120,24 @@ function LeafDecor({ side = "left" }) {
 }
 
 export default function Attendance() {
+  const {
+    data,
+    isLoading,
+    isFetching,
+    isError,
+    refetch,
+  } = useGetMyLiveClassAttemptsQuery();
+
+  const attempts = data?.attempts ?? [];
+
+  const attendanceData = attempts.map((attempt) => ({
+    id: attempt?._id,
+    date: formatDate(attempt?.attemptedAt ?? attempt?.lastOpenedAt),
+    time: formatTime(attempt?.attemptedAt ?? attempt?.lastOpenedAt),
+  }));
+
+  const isRefreshing = isFetching && !isLoading;
+
   return (
     <LinearGradient
       colors={["#FAF9FF", "#F3F0FF", "#ECE8FF"]}
@@ -118,6 +165,14 @@ export default function Attendance() {
             style={styles.scrollArea}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={refetch}
+                tintColor="#6C6FC7"
+                colors={["#6C6FC7"]}
+              />
+            }
           >
             <View style={styles.header}>
               <View style={styles.iconWrapper}>
@@ -154,23 +209,61 @@ export default function Attendance() {
                 </View>
               </View>
 
-              {attendanceData.map((item, index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.tableRow,
-                    index === attendanceData.length - 1 && styles.tableRowLast,
-                  ]}
-                >
+              {isLoading && (
+                <View style={styles.tableRow}>
                   <View style={styles.dataCell}>
-                    <Text style={styles.dataCellText}>{item.date}</Text>
+                    <ActivityIndicator size="small" color="#6C6FC7" />
                   </View>
 
                   <View style={[styles.dataCell, styles.dataCellRight]}>
-                    <Text style={styles.dataCellText}>{item.time}</Text>
+                    <Text style={styles.dataCellText}>Loading...</Text>
                   </View>
                 </View>
-              ))}
+              )}
+
+              {!isLoading && isError && (
+                <View style={styles.tableRow}>
+                  <View style={styles.dataCell}>
+                    <Text style={styles.dataCellText}>Failed</Text>
+                  </View>
+
+                  <View style={[styles.dataCell, styles.dataCellRight]}>
+                    <Text style={styles.dataCellText}>Try again</Text>
+                  </View>
+                </View>
+              )}
+
+              {!isLoading && !isError && attendanceData.length === 0 && (
+                <View style={styles.tableRow}>
+                  <View style={styles.dataCell}>
+                    <Text style={styles.dataCellText}>No attendance</Text>
+                  </View>
+
+                  <View style={[styles.dataCell, styles.dataCellRight]}>
+                    <Text style={styles.dataCellText}>-</Text>
+                  </View>
+                </View>
+              )}
+
+              {!isLoading &&
+                !isError &&
+                attendanceData.map((item, index) => (
+                  <View
+                    key={String(item.id ?? index)}
+                    style={[
+                      styles.tableRow,
+                      index === attendanceData.length - 1 && styles.tableRowLast,
+                    ]}
+                  >
+                    <View style={styles.dataCell}>
+                      <Text style={styles.dataCellText}>{item.date}</Text>
+                    </View>
+
+                    <View style={[styles.dataCell, styles.dataCellRight]}>
+                      <Text style={styles.dataCellText}>{item.time}</Text>
+                    </View>
+                  </View>
+                ))}
             </View>
           </ScrollView>
 

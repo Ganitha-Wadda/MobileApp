@@ -1,315 +1,248 @@
-import React from "react";
+import React, { useMemo, useEffect } from "react";
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
+  ActivityIndicator,
+  RefreshControl,
   StatusBar,
+  Alert,
 } from "react-native";
-import { useGetShortSubLessonsByShortLessonIdQuery } from "../app/features/Shortzapi";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-// Lock Icon SVG-like using View/Text (pure RN)
-const LockIcon = () => (
-  <View style={styles.lockIconWrapper}>
-    <View style={styles.lockBody}>
-      <Text style={styles.lockSymbol}>🔒</Text>
-    </View>
-  </View>
-);
+import { useGetShortSubLessonOverviewQuery } from "../app/features/shortcoinscountApi";
 
-// Star/sparkle decorations
-const Sparkle = ({ style }) => <Text style={[styles.sparkle, style]}>✦</Text>;
+const getId = (item = {}) => String(item?._id || item?.id || "");
+
+const getCurrentVideoIndex = (subLesson = {}) => {
+  const progress = subLesson?.progress || {};
+  const value = Number(progress?.currentVideoIndex ?? progress?.lastUnlockedVideoIndex ?? 0);
+  return Number.isInteger(value) && value >= 0 ? value : 0;
+};
+
+const getWatchedCount = (subLesson = {}) => {
+  const progress = subLesson?.progress || {};
+  if (Number.isFinite(Number(progress?.watchedCount))) return Number(progress.watchedCount);
+  if (Array.isArray(progress?.watchedVideoIndexes)) return progress.watchedVideoIndexes.length;
+  if (Array.isArray(progress?.watchedVideoKeys)) return progress.watchedVideoKeys.length;
+  return 0;
+};
 
 export default function ViewShortLessonsScreen({ navigation, route }) {
-  const lessonId = route?.params?.shortLessonId || route?.params?.lessonId;
-  const lessonTitle = route?.params?.lessonTitle || "";
+  const shortLessonId = route?.params?.shortLessonId || route?.params?.lessonId;
+  const lessonTitle = route?.params?.lessonTitle || "Short Lesson";
+  const lessonNumber = Number(route?.params?.lessonNumber || 1);
 
   const {
     data: subLessons = [],
     isLoading,
     isFetching,
     isError,
-  } = useGetShortSubLessonsByShortLessonIdQuery(lessonId, {
-    skip: !lessonId,
+    refetch,
+  } = useGetShortSubLessonOverviewQuery(shortLessonId, {
+    skip: !shortLessonId,
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
   });
 
-  const lessons = Array.isArray(subLessons) ? subLessons : [];
+  useEffect(() => {
+    const unsubscribe = navigation.addListener?.("focus", () => {
+      if (shortLessonId) refetch?.();
+    });
 
-  const handleViewPress = (lesson, index) => {
-    const subLessonId = lesson?._id || lesson?.id;
+    return unsubscribe;
+  }, [navigation, refetch, shortLessonId]);
+
+  const sortedSubLessons = useMemo(() => {
+    if (!Array.isArray(subLessons)) return [];
+    return subLessons;
+  }, [subLessons]);
+
+  const openSubLesson = (subLesson, index) => {
+    const locked = subLesson?.isLocked || subLesson?.isUnlocked === false;
+
+    if (locked) {
+      Alert.alert(
+        "Sub Lesson Locked",
+        "Watch the previous video and complete all activities first."
+      );
+      return;
+    }
 
     navigation.navigate("ShortVideo", {
-      subLessonId,
-      shortSubLessonId: subLessonId,
-      shortLessonId: lessonId,
+      shortLessonId,
+      lessonId: shortLessonId,
       lessonTitle,
-      subLessonTitle: lesson?.title || "",
-      lessonNumber: index + 1,
-      links: Array.isArray(lesson?.links) ? lesson.links : [],
-      shortSubLesson: lesson,
-    });
-  };
-
-  const renderContent = () => {
-    if (!lessonId) {
-      return (
-        <View style={styles.lessonCard}>
-          <Text style={styles.lessonNumber}>Short lesson ID not found</Text>
-        </View>
-      );
-    }
-
-    if (isLoading || (isFetching && lessons.length === 0)) {
-      return (
-        <View style={styles.lessonCard}>
-          <Text style={styles.lessonNumber}>Loading...</Text>
-        </View>
-      );
-    }
-
-    if (isError) {
-      return (
-        <View style={styles.lessonCard}>
-          <Text style={styles.lessonNumber}>Failed to load sub lessons</Text>
-        </View>
-      );
-    }
-
-    if (lessons.length === 0) {
-      return (
-        <View style={styles.lessonCard}>
-          <Text style={styles.lessonNumber}>
-            No sub lessons found for this lesson
-          </Text>
-        </View>
-      );
-    }
-
-    return lessons.map((lesson, index) => {
-      const subLessonId = lesson?._id || lesson?.id;
-      const lessonNumber = index + 1;
-      const badgeNumber = `1.${lessonNumber}`;
-      const title = lesson?.title || `Sub Lesson ${lessonNumber}`;
-      const unlocked = lesson?.status === "published";
-
-      return (
-        <View key={subLessonId || index} style={styles.lessonCard}>
-          <View style={styles.lessonIdBadge}>
-            <Text style={styles.lessonIdText}>{badgeNumber}</Text>
-          </View>
-
-          <Text style={styles.lessonNumber}>{title}</Text>
-
-          {unlocked ? (
-            <TouchableOpacity
-              style={styles.viewButton}
-              onPress={() => handleViewPress(lesson, index)}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.viewButtonText}>View</Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.lockCircle}>
-              <Text style={styles.lockEmoji}>🔒</Text>
-            </View>
-          )}
-        </View>
-      );
+      lessonNumber,
+      shortSubLessonId: getId(subLesson),
+      subLessonId: getId(subLesson),
+      subLessonTitle: subLesson?.title || `Sub Lesson ${index + 1}`,
+      links: Array.isArray(subLesson?.links) ? subLesson.links : [],
+      shortSubLesson: subLesson,
+      allSubLessons: sortedSubLessons,
+      currentSubLessonIndex: index,
+      initialVideoIndex: getCurrentVideoIndex(subLesson),
     });
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f5f5ff" />
+      <StatusBar barStyle="light-content" backgroundColor="#5e1cce" />
 
       <View style={styles.header}>
-        <Sparkle style={styles.sparklLeft} />
-
-        <View style={styles.headerPill}>
-          <View style={styles.clockCircle}>
-            <Text style={styles.clockEmoji}>🕐</Text>
-          </View>
-          <Text style={styles.headerText}>10 Min lesson</Text>
+        <TouchableOpacity style={styles.backBtn} activeOpacity={0.85} onPress={() => navigation.goBack()}>
+          <Text style={styles.backText}>‹</Text>
+        </TouchableOpacity>
+        <View style={styles.headerTextWrap}>
+          <Text style={styles.headerKicker}>Short Lesson {lessonNumber}</Text>
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            {lessonTitle}
+          </Text>
         </View>
-
-        <Sparkle style={styles.sparklRight} />
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.sectionLabel}>Sub lessons</Text>
+      {isLoading ? (
+        <View style={styles.stateWrap}>
+          <ActivityIndicator size="large" color="#7C3AED" />
+          <Text style={styles.stateTitle}>Loading sub lessons...</Text>
+        </View>
+      ) : isError ? (
+        <View style={styles.stateWrap}>
+          <Text style={styles.stateTitle}>Failed to load sub lessons</Text>
+          <TouchableOpacity style={styles.primaryBtn} onPress={refetch}>
+            <Text style={styles.primaryBtnText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.content}
+          refreshControl={<RefreshControl refreshing={Boolean(isFetching)} onRefresh={refetch} />}
+          showsVerticalScrollIndicator={false}
+        >
+          {sortedSubLessons.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyTitle}>No sub lessons found</Text>
+              <Text style={styles.emptySub}>Published short sub lessons will appear here.</Text>
+            </View>
+          ) : (
+            sortedSubLessons.map((subLesson, index) => {
+              const locked = subLesson?.isLocked || subLesson?.isUnlocked === false;
+              const progress = subLesson?.progress || {};
+              const completed = Boolean(subLesson?.isCompleted || progress?.isCompleted);
+              const watchedCount = getWatchedCount(subLesson);
+              const videoCount = Array.isArray(subLesson?.links) ? subLesson.links.length : 0;
+              const needsActivities = Boolean(progress?.needsActivitiesBeforeNext);
 
-        {renderContent()}
-      </ScrollView>
+              return (
+                <TouchableOpacity
+                  key={getId(subLesson) || index}
+                  style={[styles.card, locked && styles.cardLocked]}
+                  activeOpacity={0.88}
+                  onPress={() => openSubLesson(subLesson, index)}
+                >
+                  <View style={styles.timelineWrap}>
+                    <View style={[styles.dot, completed && styles.dotDone, locked && styles.dotLocked]}>
+                      <Text style={styles.dotText}>{completed ? "✓" : index + 1}</Text>
+                    </View>
+                    {index < sortedSubLessons.length - 1 && <View style={styles.line} />}
+                  </View>
+
+                  <View style={styles.cardContent}>
+                    <Text style={styles.cardTitle} numberOfLines={2}>
+                      {subLesson?.title || `Sub Lesson ${index + 1}`}
+                    </Text>
+                    <Text style={styles.cardSub}>
+                      {completed
+                        ? "Completed - next lesson unlocked"
+                        : locked
+                        ? "Locked - finish previous sub lesson"
+                        : needsActivities
+                        ? "Please complete all activities, then you can watch the next video"
+                        : `Unlocked • ${watchedCount}/${videoCount} videos watched`}
+                    </Text>
+                  </View>
+
+                  <Text style={styles.statusIcon}>{completed ? "✅" : locked ? "🔒" : needsActivities ? "📖" : "▶"}</Text>
+                </TouchableOpacity>
+              );
+            })
+          )}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
 
-const PURPLE = "#6C4EF6";
-const LIGHT_PURPLE = "#EDE9FF";
-const CARD_BG = "#FFFFFF";
-const BG = "#F7F6FF";
-
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: BG,
-  },
-
+  safeArea: { flex: 1, backgroundColor: "#F4F0FF" },
   header: {
+    backgroundColor: "#5e1cce",
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 18,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
     flexDirection: "row",
+    alignItems: "center",
+  },
+  backBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "rgba(255,255,255,0.18)",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    backgroundColor: BG,
+    marginRight: 12,
   },
-
-  headerPill: {
+  backText: { color: "#FFFFFF", fontSize: 34, fontWeight: "600", marginTop: -3 },
+  headerTextWrap: { flex: 1 },
+  headerKicker: { color: "#DDD6FE", fontSize: 12, fontWeight: "900" },
+  headerTitle: { color: "#FFFFFF", fontSize: 21, fontWeight: "900", marginTop: 3 },
+  content: { padding: 16, paddingBottom: 36 },
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 22,
+    padding: 16,
+    marginBottom: 14,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: CARD_BG,
-    borderRadius: 50,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    shadowColor: "#a090e0",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 3,
-    gap: 8,
-  },
-
-  clockCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: LIGHT_PURPLE,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  clockEmoji: {
-    fontSize: 14,
-  },
-
-  headerText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#1a1a2e",
-    letterSpacing: 0.2,
-  },
-
-  sparkle: {
-    fontSize: 14,
-    color: "#b8a8f8",
-    marginHorizontal: 6,
-  },
-
-  sparklLeft: {},
-
-  sparklRight: {},
-
-  scrollView: {
-    flex: 1,
-  },
-
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 32,
-    paddingTop: 4,
-  },
-
-  sectionLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#1a1a2e",
-    marginBottom: 12,
-    marginTop: 4,
-    marginLeft: 2,
-  },
-
-  lessonCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: CARD_BG,
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    marginBottom: 10,
-    shadowColor: "#c0b8e8",
-    shadowOffset: { width: 0, height: 1 },
+    shadowColor: "#5e1cce",
     shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 7 },
+    elevation: 5,
   },
-
-  lessonIdBadge: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: LIGHT_PURPLE,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 14,
-  },
-
-  lessonIdText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: PURPLE,
-  },
-
-  lessonNumber: {
-    flex: 1,
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#1a1a2e",
-  },
-
-  viewButton: {
-    backgroundColor: PURPLE,
-    borderRadius: 50,
-    paddingVertical: 10,
-    paddingHorizontal: 28,
-  },
-
-  viewButtonText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "700",
-    letterSpacing: 0.3,
-  },
-
-  lockCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: PURPLE,
+  cardLocked: { opacity: 0.58 },
+  timelineWrap: { alignItems: "center", marginRight: 14 },
+  dot: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: "#7C3AED",
     alignItems: "center",
     justifyContent: "center",
   },
-
-  lockEmoji: {
-    fontSize: 17,
+  dotDone: { backgroundColor: "#2ECC71" },
+  dotLocked: { backgroundColor: "#9CA3AF" },
+  dotText: { color: "#FFFFFF", fontSize: 16, fontWeight: "900" },
+  line: { width: 2, height: 10, backgroundColor: "#DDD6FE", marginTop: 8 },
+  cardContent: { flex: 1 },
+  cardTitle: { color: "#1A1A3E", fontSize: 16, fontWeight: "900" },
+  cardSub: { marginTop: 5, color: "#7C3AED", fontSize: 12, fontWeight: "700" },
+  statusIcon: { fontSize: 22, marginLeft: 10 },
+  stateWrap: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
+  stateTitle: { marginTop: 12, color: "#1A1A3E", fontSize: 17, fontWeight: "900", textAlign: "center" },
+  primaryBtn: {
+    marginTop: 18,
+    backgroundColor: "#7C3AED",
+    borderRadius: 999,
+    paddingHorizontal: 30,
+    paddingVertical: 13,
   },
-
-  lockIconWrapper: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  lockBody: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  lockSymbol: {
-    fontSize: 17,
-  },
+  primaryBtnText: { color: "#FFFFFF", fontSize: 14, fontWeight: "900" },
+  emptyCard: { backgroundColor: "#FFFFFF", borderRadius: 22, padding: 24, alignItems: "center" },
+  emptyTitle: { color: "#1A1A3E", fontSize: 17, fontWeight: "900" },
+  emptySub: { marginTop: 6, color: "#7C3AED", fontSize: 13, fontWeight: "700", textAlign: "center" },
 });

@@ -13,8 +13,11 @@ export default function ActivityTemplate2({
   question = "",
   options = [],
   correctAnswer = "",
+  onAnswerSubmit,
   onNext,
   nextLabel = "Next activity",
+  coinText = "",
+  submittingAnswer = false,
 }) {
   const [selectedId, setSelectedId] = useState(null);
   const [submitted, setSubmitted] = useState(false);
@@ -39,39 +42,37 @@ export default function ActivityTemplate2({
     setSelectedId(opt?.id ?? index);
   };
 
-  const handleSubmitOrNext = () => {
+  const handleSubmitOrNext = async () => {
     if (!submitted) {
-      if (!selectedOption) return;
-      setIsCorrect(isOptionCorrect(selectedOption));
+      if (!selectedOption || submittingAnswer) return;
+      const correct = isOptionCorrect(selectedOption);
+      setIsCorrect(correct);
       setSubmitted(true);
+      await onAnswerSubmit?.({ selectedOption, isCorrect: correct });
       return;
     }
 
     onNext?.();
   };
 
-  const buttonDisabled = !submitted && !selectedOption;
-  const buttonLabel = submitted ? nextLabel : "Submit";
+  const buttonDisabled = (!submitted && !selectedOption) || submittingAnswer;
+  const buttonLabel = submitted ? nextLabel : submittingAnswer ? "Saving..." : "Submit";
 
   return (
     <SafeAreaView style={styles.wrapper}>
       <View style={styles.card}>
         <View style={styles.header}>
           <Text style={styles.title}>{title}</Text>
-
           <View style={styles.activityRow}>
-            <Text style={styles.starGold}>★</Text>
-            <Text style={styles.activityDash}>· · ·</Text>
+            <Text style={styles.starGold}>✦</Text>
             <Text style={styles.activityLabel}>{activityLabel}</Text>
-            <Text style={styles.activityDash}>· · ·</Text>
-            <Text style={styles.starGold}>★</Text>
+            <Text style={styles.starGold}>✦</Text>
           </View>
-
-          <Text style={styles.question}>{question}</Text>
         </View>
 
-        <View style={styles.instructionBox}>
-          <Text style={styles.instructionText}>Tap the answer to the box</Text>
+        <View style={styles.questionBox}>
+          <Text style={styles.instruction}>Drag / Select the correct answer</Text>
+          <Text style={styles.question}>{question}</Text>
         </View>
 
         <View
@@ -95,12 +96,9 @@ export default function ActivityTemplate2({
                 {selectedOption.value}
               </Text>
 
-              {submitted && isCorrect === true && (
-                <Text style={styles.feedbackCorrect}>✓ Correct!</Text>
-              )}
-              {submitted && isCorrect === false && (
-                <Text style={styles.feedbackWrong}>✗ Wrong answer</Text>
-              )}
+              {submitted && isCorrect === true && <Text style={styles.feedbackCorrect}>✓ Correct!</Text>}
+              {submitted && isCorrect === false && <Text style={styles.feedbackWrong}>✗ Wrong answer</Text>}
+              {submitted && Boolean(coinText) && <Text style={styles.coinText}>{coinText}</Text>}
             </View>
           ) : (
             <Text style={styles.questionMark}>?</Text>
@@ -157,205 +155,30 @@ export default function ActivityTemplate2({
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    flex: 1,
-    backgroundColor: "#EDE9FE",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 16,
-  },
-
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 24,
-    width: "100%",
-    maxWidth: 380,
-    overflow: "hidden",
-    shadowColor: "#6450C8",
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
-  },
-
-  header: {
-    backgroundColor: "#fff",
-    paddingTop: 20,
-    paddingBottom: 6,
-    alignItems: "center",
-    paddingLeft: 16,
-    paddingRight: 16,
-  },
-
-  title: {
-    marginBottom: 4,
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#1a1a3e",
-    textAlign: "center",
-  },
-
-  activityRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    marginBottom: 6,
-  },
-
-  activityLabel: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#6c5ce7",
-  },
-
-  activityDash: {
-    color: "#c4b8f8",
-    fontSize: 10,
-    letterSpacing: 2,
-  },
-
-  starGold: {
-    color: "#f6c90e",
-    fontSize: 16,
-  },
-
-  question: {
-    marginTop: 4,
-    marginBottom: 8,
-    fontSize: 40,
-    fontWeight: "900",
-    color: "#1a1a3e",
-    letterSpacing: -0.5,
-    textAlign: "center",
-  },
-
-  instructionBox: {
-    marginHorizontal: 16,
-    marginBottom: 12,
-    backgroundColor: "#f5f3ff",
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    alignItems: "center",
-  },
-
-  instructionText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#555",
-  },
-
-  dropZone: {
-    marginHorizontal: 16,
-    marginBottom: 20,
-    borderRadius: 18,
-    borderWidth: 2,
-    borderStyle: "dashed",
-    borderColor: "#c9c0f5",
-    minHeight: 130,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#f5f3ff",
-  },
-
-  dropZoneCorrect: {
-    borderColor: "#3a8c3f",
-  },
-
-  dropZoneWrong: {
-    borderColor: "#e74c3c",
-  },
-
-  questionMark: {
-    fontSize: 64,
-    fontWeight: "900",
-    color: "#c9c0f5",
-    lineHeight: 70,
-  },
-
-  droppedAnswer: {
-    fontSize: 52,
-    fontWeight: "900",
-    borderRadius: 18,
-    paddingVertical: 10,
-    paddingHorizontal: 30,
-    overflow: "hidden",
-    lineHeight: 62,
-  },
-
-  feedbackCorrect: {
-    marginTop: 8,
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#3a8c3f",
-  },
-
-  feedbackWrong: {
-    marginTop: 8,
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#e74c3c",
-  },
-
-  optionsRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingBottom: 20,
-  },
-
-  optionTile: {
-    width: 72,
-    height: 72,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-    elevation: 4,
-  },
-
-  optionText: {
-    fontSize: 28,
-    fontWeight: "900",
-  },
-
-  bottomRow: {
-    flexDirection: "row",
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingBottom: 20,
-  },
-
-  btnActivity: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: "#6c5ce7",
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-  },
-
-  btnDisabled: {
-    opacity: 0.45,
-  },
-
-  btnIcon: {
-    color: "#fff",
-    fontSize: 20,
-    fontWeight: "900",
-  },
-
-  btnLabel: {
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: "800",
-    letterSpacing: 0.2,
-  },
+  wrapper: { flex: 1, backgroundColor: "#EDE9FE", alignItems: "center", justifyContent: "center", padding: 16 },
+  card: { backgroundColor: "#fff", borderRadius: 24, width: "100%", maxWidth: 380, overflow: "hidden", shadowColor: "#6450C8", shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
+  header: { paddingTop: 20, paddingBottom: 8, alignItems: "center" },
+  title: { fontSize: 18, fontWeight: "800", color: "#1A1A3E", textAlign: "center" },
+  activityRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 4 },
+  activityLabel: { fontSize: 14, fontWeight: "700", color: "#6c5ce7" },
+  starGold: { color: "#f6c90e", fontSize: 16 },
+  questionBox: { backgroundColor: "#f7f7fb", marginHorizontal: 12, marginTop: 12, borderRadius: 20, padding: 16, alignItems: "center" },
+  instruction: { marginBottom: 4, fontSize: 15, fontWeight: "600", color: "#333", lineHeight: 21, textAlign: "center" },
+  question: { marginBottom: 4, fontSize: 28, fontWeight: "900", color: "#1a1a3e", textAlign: "center" },
+  dropZone: { marginHorizontal: 18, marginTop: 14, minHeight: 88, borderRadius: 18, borderWidth: 2, borderStyle: "dashed", borderColor: "#c9c0f5", backgroundColor: "#ede9fc", alignItems: "center", justifyContent: "center" },
+  dropZoneCorrect: { borderColor: "#3a8c3f", backgroundColor: "#dcfce7" },
+  dropZoneWrong: { borderColor: "#e74c3c", backgroundColor: "#fee2e2" },
+  questionMark: { fontSize: 38, fontWeight: "900", color: "#9c91d9" },
+  droppedAnswer: { minWidth: 80, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 14, fontSize: 24, fontWeight: "900", textAlign: "center", overflow: "hidden" },
+  feedbackCorrect: { marginTop: 6, fontSize: 14, fontWeight: "900", color: "#3a8c3f" },
+  feedbackWrong: { marginTop: 6, fontSize: 14, fontWeight: "900", color: "#e74c3c" },
+  coinText: { marginTop: 4, color: "#B45309", fontSize: 13, fontWeight: "900", textAlign: "center" },
+  optionsRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 10, paddingHorizontal: 16, paddingTop: 16 },
+  optionTile: { minWidth: 72, minHeight: 52, borderRadius: 16, alignItems: "center", justifyContent: "center", paddingHorizontal: 12, shadowColor: "#000", shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
+  optionText: { fontSize: 20, fontWeight: "900" },
+  bottomRow: { flexDirection: "row", gap: 12, padding: 16 },
+  btnActivity: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#7c6ff0", borderRadius: 16, paddingVertical: 14, paddingHorizontal: 12, flexDirection: "row" },
+  btnDisabled: { opacity: 0.45 },
+  btnIcon: { color: "#fff", fontSize: 16, marginRight: 8 },
+  btnLabel: { color: "#fff", fontSize: 15, fontWeight: "800", letterSpacing: 0.2 },
 });

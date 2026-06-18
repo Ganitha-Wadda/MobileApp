@@ -9,6 +9,8 @@ import Svg, {
   G,
 } from "react-native-svg";
 import useT from "../app/i18n/useT";
+import { useGetMyUserTotalCoinsCountQuery } from "../app/features/userTotalcoinscountApi";
+import { useGetMyRankQuery } from "../app/features/rankApi";
 
 function CoinIcon() {
   const bounce = useRef(new Animated.Value(0)).current;
@@ -325,14 +327,85 @@ function StatCard({ label, value, icon, sparkleColor, delay = 0 }) {
   );
 }
 
+const getNumber = (...values) => {
+  for (const value of values) {
+    const number = Number(value);
+
+    if (Number.isFinite(number)) {
+      return number;
+    }
+  }
+
+  return 0;
+};
+
+const formatStatValue = (value) => {
+  const number = getNumber(value);
+
+  if (number >= 1000000) {
+    return `${Math.floor(number / 1000000)}M+`;
+  }
+
+  if (number >= 10000) {
+    return `${Math.floor(number / 1000)}K+`;
+  }
+
+  return String(Math.trunc(number));
+};
+
 export default function Hero() {
   const { t } = useT();
+
+  const { data: totalCountData } = useGetMyUserTotalCoinsCountQuery(undefined, {
+    refetchOnMountOrArgChange: true,
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
+  });
+
+  const { data: rankData } = useGetMyRankQuery(undefined, {
+    refetchOnMountOrArgChange: true,
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
+  });
+
+  const payload = totalCountData?.data || totalCountData || {};
+  const rankPayload = rankData?.data || rankData || {};
+
+  const totalCoins = getNumber(
+    payload.totalCoins,
+    totalCountData?.totalCoins,
+    rankPayload.totalCoins,
+    rankData?.totalCoins,
+    0
+  );
+
+  const loggedUserRank = getNumber(
+    rankPayload.rank,
+    rankData?.rank,
+    0
+  );
+
+  const rankValue =
+    loggedUserRank > 0 ? `#${formatStatValue(loggedUserRank)}` : "-";
+
+  const completedPapersCount = getNumber(
+    payload.completedPapersCount,
+    payload.totalCompletedPapersCount,
+    totalCountData?.completedPapersCount,
+    totalCountData?.totalCompletedPapersCount,
+    0
+  );
+
+  const safeT = (key, fallback) => {
+    const translated = t(key);
+    return translated && translated !== key ? translated : fallback;
+  };
 
   return (
     <View style={styles.container}>
       <StatCard
-        label={t("coins")}
-        value={20}
+        label={safeT("totalCoins", "Total coins")}
+        value={formatStatValue(totalCoins)}
         icon={<CoinIcon />}
         sparkleColor="#FFD700"
         delay={60}
@@ -340,15 +413,15 @@ export default function Hero() {
 
       <StatCard
         label={t("rank")}
-        value={1}
+        value={rankValue}
         icon={<MedalIcon />}
         sparkleColor="#FFB020"
         delay={180}
       />
 
       <StatCard
-        label={t("completedPapers")}
-        value={1}
+        label={safeT("completedPapers", "Completed papers")}
+        value={formatStatValue(completedPapersCount)}
         icon={<PapersIcon />}
         sparkleColor="#B8A0FF"
         delay={300}
