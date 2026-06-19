@@ -185,7 +185,7 @@ export const translations = {
     recordingTitle:            "පටිගත කිරීම",
 
     // ── Game Screen ────────────────────────────────────────────────────────
-    chakkraWaddaRacingDesc:    "තරඟ කරන්න, විසඳන්න, දිනන්න ගුණ කරමින් අවසාන රේඛාව වෙත පිවිසෙන්න",
+    chakkraWaddaRacingDesc:    " ගුණ කරමින් අවසාන රේඛාව වෙත පිවිසෙන්න",
     bossBattleDesc:            "ගණිත අභියෝග විසඳා වීරයෙකු වන්න",
     play:                      "ක්‍රීඩා කරන්න",
 
@@ -211,16 +211,15 @@ export const translations = {
     // ── Daily Quiz Menu ────────────────────────────────────────────────────
     paper:                 "ප්‍රශ්න පත්‍රය",
 
-
-        enrollmentRequired:        "ලියාපදිංචිය අවශ්‍ය",
+    enrollmentRequired:        "ලියාපදිංචිය අවශ්‍ය",
     enrollUnlockVideos:        "ලියාපදිංචි වී සියලුම වීඩියෝ පාඩම් අගුළු හරින්න.",
     enrollNow:                 "දැන්ම ලියාපදිංචි වන්න ✦",
     nextVideo:                 "ඊලග වීඩියෝව",
     activity:                  "ක්‍රියාකාරකම්",
-    done:                       "අවසන්",
+    done:                      "අවසන්",
     locked:                    "ඉතිරි වීඩීයෝ බැලීමට දැන්ම ලියාපදිංචි වන්න",
 
-      // ── Parent Page / Dashboard ────────────────────────────────────────────
+    // ── Parent Page / Dashboard ────────────────────────────────────────────
     parentDashboard:           "දෙමාපියන්ගේ පුවරුව",
     result:                    "ප්‍රතිඵල",
     viewAcademicResults:       "සියලු ප්‍රතිඵල නරඹන්න",
@@ -228,6 +227,20 @@ export const translations = {
     attendance:                "පැම්ණීම",
     trackSchoolAttendance:     "දරුවාගේ පැමිණීමේ වාර්ථාව",
     viewAttendance:            "පිවිසෙන්න",
+
+    // ── Result Page ────────────────────────────────────────────────────────
+    resultPaperName:              "ප්‍රශ්න පත්‍රයේ නම",
+    resultPercentage:             "ප්‍රතිශතය",
+    resultDailyPapers:            "දිනපතා ප්‍රශ්න පත්‍ර",
+    resultFiveHundredPapers:      "ප්‍රශ්න පත්‍ර 500",
+    resultPastPapers:             "පසුගිය විභාග ප්‍රශ්න පත්‍ර",
+    resultLessonByLessonPapers:   "පාඩමින් පාඩම ප්‍රශ්න පත්‍ර",
+    resultLoadingResults:         "පූරණය වෙමින්......",
+    resultLoadingFailedTapRetry:  "කරුණාකර පසුව උත්සහ කරන්න",
+    resultNoResultsFound:         "මෙම මොහොතේ ප්‍රතිඵල ලබා ගත නොහැක",
+    resultUntitledPaper:          "නම් නොකළ ප්‍රශ්න පත්‍රය",
+    previous:                     "පෙර",
+    next:                         "පසු",
     
     // ── Districts ──────────────────────────────────────────────────────────
     districts: {
@@ -477,10 +490,9 @@ export const translations = {
     enrollNow:                 "Enroll Now ✦",
     nextVideo:                 "Next Video",
     activity:                  "Activity",
-    done:                       "Done ✓",
+    done:                      "Done ✓",
     locked:                    "🔒 Locked — enroll to access",
 
-    
     // ── Parent Page / Dashboard ────────────────────────────────────────────
     parentDashboard:           "Parent Dashboard",
     result:                    "Result",
@@ -489,6 +501,20 @@ export const translations = {
     attendance:                "Attendance",
     trackSchoolAttendance:     "Track school attendance",
     viewAttendance:            "View Attendance",
+
+    // ── Result Page ────────────────────────────────────────────────────────
+    resultPaperName:              "paper name",
+    resultPercentage:             "Percentage",
+    resultDailyPapers:            "Daily papers",
+    resultFiveHundredPapers:      "FiveHundredpapers",
+    resultPastPapers:             "Pastpapers",
+    resultLessonByLessonPapers:   "lesson by lesson",
+    resultLoadingResults:         "Loading results...",
+    resultLoadingFailedTapRetry:  "Result loading failed. Tap to retry.",
+    resultNoResultsFound:         "No results found",
+    resultUntitledPaper:          "Untitled paper",
+    previous:                     "Previous",
+    next:                         "Next",
 
     // ── Districts ──────────────────────────────────────────────────────────
     districts: {

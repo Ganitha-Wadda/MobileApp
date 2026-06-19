@@ -13,12 +13,10 @@ import {
   Modal,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { useGetPaperResultByAttemptQuery } from "../app/features/paperResultApi";
+import { useGetPaperAttemptResultQuery } from "../app/features/paperResultApi";
 import CrossWebView from "../components/CrossWebView";
 
 const { width } = Dimensions.get("window");
-
-const OPTION_LABELS = ["i.", "ii.", "iii.", "iv.", "v.", "vi."];
 
 const toArrayText = (value) =>
   Array.isArray(value) && value.length > 0 ? value.join(", ") : "—";
@@ -65,36 +63,67 @@ const buildYouTubeHtml = (url = "") => {
 };
 
 const getBadgeInfo = (percentage) => {
-  if (percentage >= 90) return { icon: "🏅", text: "Gold Badge", subtitle: "Excellent Result" };
-  if (percentage >= 70) return { icon: "🥈", text: "Silver Badge", subtitle: "Great Result" };
-  if (percentage >= 50) return { icon: "🥉", text: "Bronze Badge", subtitle: "Good Result" };
+  if (percentage >= 90) {
+    return { icon: "🏅", text: "Gold Badge", subtitle: "Excellent Result" };
+  }
+
+  if (percentage >= 70) {
+    return { icon: "🥈", text: "Silver Badge", subtitle: "Great Result" };
+  }
+
+  if (percentage >= 50) {
+    return { icon: "🥉", text: "Bronze Badge", subtitle: "Good Result" };
+  }
+
   return { icon: "⭐", text: "Keep Practicing", subtitle: "Practice Result" };
 };
 
-const getPayloadData = (response) => response?.data?.data || response?.data || response;
+const getPayloadData = (response) =>
+  response?.data?.data || response?.data || response?.result || response;
 
-const normalizeAnswer = (item = {}) => ({
-  questionId: item.questionId || item._id,
-  questionNumber: Number(item.questionNumber || 0),
-  lessonName: item.lessonName || "",
-  question: item.question || "",
-  answers: item.answers || item.answerOptions || [],
-  selectedIndexes: item.selectedIndexes || item.selectedAnswerIndexes || [],
-  selectedAnswers: item.selectedAnswers || item.selectedAnswerTexts || [],
-  correctAnswerIndexes: item.correctAnswerIndexes || [],
-  correctAnswers: item.correctAnswers || item.correctAnswerTexts || [],
-  isAttempted: item.isAttempted === true,
-  isCorrect: item.isCorrect === true,
-  status: item.status || (item.isCorrect ? "correct" : "wrong"),
-  coinsEarned: Number(item.coinsEarned || 0),
-  explanationText: item.explanationText || "",
-  explanationVideoUrl: item.explanationVideoUrl || "",
-});
+const normalizeAnswer = (item = {}) => {
+  const isAttempted =
+    item.isAttempted === true ||
+    item.status === "correct" ||
+    item.status === "wrong";
+
+  const isCorrect = item.isCorrect === true || item.status === "correct";
+
+  const status =
+    item.status ||
+    (!isAttempted ? "not_attempted" : isCorrect ? "correct" : "wrong");
+
+  return {
+    questionId: item.questionId || item._id || item.id,
+    questionNumber: Number(item.questionNumber || 0),
+    lessonName: item.lessonName || "",
+    question: item.question || "",
+    answers: item.answers || item.answerOptions || [],
+    selectedIndexes: item.selectedIndexes || item.selectedAnswerIndexes || [],
+    selectedAnswers: item.selectedAnswers || item.selectedAnswerTexts || [],
+    correctAnswerIndexes: item.correctAnswerIndexes || [],
+    correctAnswers: item.correctAnswers || item.correctAnswerTexts || [],
+    isAttempted,
+    isCorrect,
+    status,
+    coinsEarned: Number(item.coinsEarned || 0),
+    explanationText: item.explanationText || item.explainLogic || item.explanation || "",
+    explanationVideoUrl:
+      item.explanationVideoUrl || item.explainVideoUrl || item.videoUrl || "",
+  };
+};
 
 const normalizeReviewAnswers = (params, result) => {
   if (Array.isArray(params?.answers)) return params.answers.map(normalizeAnswer);
-  if (Array.isArray(params?.reviewAnswers)) return params.reviewAnswers.map(normalizeAnswer);
+  if (Array.isArray(params?.reviewAnswers)) {
+    return params.reviewAnswers.map(normalizeAnswer);
+  }
+
   if (Array.isArray(result?.answers)) return result.answers.map(normalizeAnswer);
+  if (Array.isArray(result?.reviewAnswers)) {
+    return result.reviewAnswers.map(normalizeAnswer);
+  }
+
   return [];
 };
 
@@ -154,7 +183,10 @@ const ReviewQuestionCard = ({
         </View>
       </View>
 
-      {!!item.lessonName && <Text style={styles.lessonNameText}>{item.lessonName}</Text>}
+      {!!item.lessonName && (
+        <Text style={styles.lessonNameText}>{item.lessonName}</Text>
+      )}
+
       <Text style={styles.questionText}>{item.question || "—"}</Text>
 
       <TouchableOpacity
@@ -180,11 +212,15 @@ const ReviewQuestionCard = ({
           <View style={styles.answerDivider} />
 
           <Text style={styles.correctAnswerLabel}>Correct answer</Text>
-          <Text style={styles.correctAnswerText}>{toArrayText(item.correctAnswers)}</Text>
+          <Text style={styles.correctAnswerText}>
+            {toArrayText(item.correctAnswers)}
+          </Text>
 
           <View style={styles.answerDivider} />
-          <Text style={styles.coinText}>Coins earned: {Number(item.coinsEarned || 0)}</Text>
 
+          <Text style={styles.coinText}>
+            Coins earned: {Number(item.coinsEarned || 0)}
+          </Text>
         </View>
       )}
 
@@ -226,44 +262,68 @@ export default function ReviewPage({ navigation, route }) {
   const [visibleAnswers, setVisibleAnswers] = useState({});
   const [logicItem, setLogicItem] = useState(null);
   const [videoItem, setVideoItem] = useState(null);
+
   const params = route?.params || {};
-  const attemptId = params.attemptId || params.result?.id || params.result?._id || "";
+  const attemptId =
+    params.attemptId ||
+    params.result?.attemptId ||
+    params.result?.id ||
+    params.result?._id ||
+    "";
 
   const {
     data: fetchedResult,
     isLoading,
     isFetching,
-  } = useGetPaperResultByAttemptQuery(attemptId, {
+    isError,
+  } = useGetPaperAttemptResultQuery(attemptId, {
     skip: !attemptId || Array.isArray(params.answers) || !!params.result,
   });
 
   const result = params.result || getPayloadData(fetchedResult) || null;
 
-  const answers = useMemo(() => normalizeReviewAnswers(params, result), [params, result]);
-  const totalQuestions = Number(params.totalQuestions || result?.totalQuestions || answers.length || 0);
+  const answers = useMemo(
+    () => normalizeReviewAnswers(params, result),
+    [params, result]
+  );
+
+  const totalQuestions = Number(
+    params.totalQuestions || result?.totalQuestions || answers.length || 0
+  );
+
   const correctCount = Number(
     params.correctCount ??
       result?.correctCount ??
       answers.filter((item) => item?.isCorrect || item?.status === "correct").length
   );
+
   const wrongCount = Number(
     params.wrongCount ??
       result?.wrongCount ??
       answers.filter((item) => item?.status === "wrong").length
   );
+
   const notAttemptedCount = Number(
     params.notAttemptedCount ??
       result?.notAttemptedCount ??
-      answers.filter((item) => item?.status === "not_attempted" || item?.isAttempted === false).length
+      answers.filter(
+        (item) => item?.status === "not_attempted" || item?.isAttempted === false
+      ).length
   );
+
   const totalCoins = Number(params.totalCoins ?? result?.totalCoins ?? 0);
-  const maximumCoins = Number(params.maximumCoins ?? result?.maximumCoins ?? totalQuestions * 5);
+  const maximumCoins = Number(
+    params.maximumCoins ?? result?.maximumCoins ?? totalQuestions * 5
+  );
+
   const percentage = Number(
     params.percentage ??
       result?.percentage ??
       (totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0)
   );
+
   const badge = getBadgeInfo(percentage);
+
   const paperTitle =
     params.paperTitle ||
     result?.paperSnapshot?.paperTitle ||
@@ -273,8 +333,12 @@ export default function ReviewPage({ navigation, route }) {
     "Paper";
 
   const isAnswerVisible = (index) => visibleAnswers[index] !== false;
+
   const toggleAnswer = (index) => {
-    setVisibleAnswers((prev) => ({ ...prev, [index]: !isAnswerVisible(index) }));
+    setVisibleAnswers((prev) => ({
+      ...prev,
+      [index]: !isAnswerVisible(index),
+    }));
   };
 
   if (isLoading || isFetching) {
@@ -284,6 +348,28 @@ export default function ReviewPage({ navigation, route }) {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" />
           <Text style={styles.loadingText}>Loading result...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (isError && !result) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="dark-content" backgroundColor="#F8F7FF" />
+        <View style={styles.loadingContainer}>
+          <Text style={styles.emptyTitle}>Result not found</Text>
+          <Text style={styles.emptyText}>
+            Please complete a paper first, then the review will show here.
+          </Text>
+
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={styles.doneButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.doneButtonText}>Go Back</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -319,9 +405,11 @@ export default function ReviewPage({ navigation, route }) {
 
             <Text style={styles.percentageText}>{percentage}%</Text>
             <Text style={styles.resultSubtitle}>{badge.subtitle}</Text>
+
             <Text style={styles.scoreLine}>
               {correctCount} correct / {wrongCount} wrong / {notAttemptedCount} not marked
             </Text>
+
             <Text style={styles.coinSummaryText}>
               Coins: {totalCoins} / {maximumCoins}
             </Text>
@@ -339,6 +427,7 @@ export default function ReviewPage({ navigation, route }) {
             <Text style={styles.sectionTitle} numberOfLines={2}>
               {paperTitle} Result
             </Text>
+
             <View style={styles.titleDotsWrapper}>
               <View style={styles.titleDotPurple} />
               <View style={styles.titleDotPink} />
@@ -399,9 +488,16 @@ export default function ReviewPage({ navigation, route }) {
           <View style={styles.modalOverlay}>
             <View style={styles.logicModalCard}>
               <Text style={styles.modalTitle}>Explain Logic</Text>
-              <ScrollView showsVerticalScrollIndicator={false} style={styles.logicScrollBox}>
-                <Text style={styles.modalLogicText}>{logicItem?.explanationText || ""}</Text>
+
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                style={styles.logicScrollBox}
+              >
+                <Text style={styles.modalLogicText}>
+                  {logicItem?.explanationText || ""}
+                </Text>
               </ScrollView>
+
               <TouchableOpacity
                 activeOpacity={0.85}
                 style={styles.modalCloseButton}
@@ -423,6 +519,7 @@ export default function ReviewPage({ navigation, route }) {
             <View style={styles.videoModalCard}>
               <View style={styles.videoModalHeader}>
                 <Text style={styles.modalTitle}>Explain Video</Text>
+
                 <TouchableOpacity
                   activeOpacity={0.85}
                   style={styles.videoCloseRound}
@@ -434,6 +531,7 @@ export default function ReviewPage({ navigation, route }) {
 
               {videoItem?.explanationVideoUrl ? (
                 <CrossWebView
+                  key={videoItem?.questionId || videoItem?.explanationVideoUrl}
                   style={styles.videoWebView}
                   source={{ html: buildYouTubeHtml(videoItem.explanationVideoUrl) }}
                 />
@@ -470,6 +568,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F8F7FF",
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 18,
   },
 
   loadingText: {
@@ -668,6 +767,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     alignItems: "center",
     justifyContent: "center",
+
     shadowColor: "#C8C7DE",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.16,
@@ -679,6 +779,7 @@ const styles = StyleSheet.create({
     color: "#101943",
     fontSize: 16,
     fontWeight: "900",
+    textAlign: "center",
   },
 
   emptyText: {
@@ -940,7 +1041,6 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
 
-
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(16, 25, 67, 0.55)",
@@ -955,6 +1055,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 22,
     padding: 18,
+
     shadowColor: "#101943",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.22,
@@ -968,6 +1069,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#000000",
     borderRadius: 22,
     overflow: "hidden",
+
     shadowColor: "#101943",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.22,
@@ -1037,6 +1139,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#000000",
   },
+
   doneButton: {
     marginTop: 10,
     marginHorizontal: 20,

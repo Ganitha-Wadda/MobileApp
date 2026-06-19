@@ -93,8 +93,8 @@ export default function ShortzMenu({ navigation }) {
   const renderActionButton = ({ completed, locked }) => {
     if (completed) {
       return (
-        <View style={[styles.actionBtn, styles.viewBtn]}>
-          <Text style={styles.viewBtnText}>✓ View</Text>
+        <View style={[styles.actionBtn, styles.completedBtn]}>
+          <Text style={styles.completedBtnText}>Completed</Text>
         </View>
       );
     }
@@ -108,8 +108,8 @@ export default function ShortzMenu({ navigation }) {
     }
 
     return (
-      <View style={[styles.actionBtn, styles.playBtn]}>
-        <Text style={styles.playBtnText}>▶ Play</Text>
+      <View style={[styles.actionBtn, styles.viewBtn]}>
+        <Text style={styles.viewBtnText}>View</Text>
       </View>
     );
   };
@@ -364,21 +364,21 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 
-  playBtn: {
+  viewBtn: {
     backgroundColor: "#7C3AED",
   },
 
-  playBtnText: {
+  viewBtnText: {
     color: "#FFFFFF",
     fontSize: 12,
     fontWeight: "900",
   },
 
-  viewBtn: {
+  completedBtn: {
     backgroundColor: "#16A34A",
   },
 
-  viewBtnText: {
+  completedBtnText: {
     color: "#FFFFFF",
     fontSize: 12,
     fontWeight: "900",

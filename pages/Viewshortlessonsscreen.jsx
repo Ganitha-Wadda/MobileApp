@@ -87,6 +87,30 @@ export default function ViewShortLessonsScreen({ navigation, route }) {
     });
   };
 
+  const renderAction = ({ completed, locked }) => {
+    if (completed) {
+      return (
+        <View style={[styles.actionBtn, styles.completedBtn]}>
+          <Text style={styles.completedText}>Completed</Text>
+        </View>
+      );
+    }
+
+    if (locked) {
+      return (
+        <View style={[styles.actionBtn, styles.lockedBtn]}>
+          <Text style={styles.lockedText}>🔒 Locked</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={[styles.actionBtn, styles.viewBtn]}>
+        <Text style={styles.viewText}>View</Text>
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#5e1cce" />
@@ -153,18 +177,19 @@ export default function ViewShortLessonsScreen({ navigation, route }) {
                     <Text style={styles.cardTitle} numberOfLines={2}>
                       {subLesson?.title || `Sub Lesson ${index + 1}`}
                     </Text>
+
                     <Text style={styles.cardSub}>
                       {completed
                         ? "Completed - next lesson unlocked"
                         : locked
                         ? "Locked - finish previous sub lesson"
                         : needsActivities
-                        ? "Please complete all activities, then you can watch the next video"
+                        ? "Please complete all activities, then continue"
                         : `Unlocked • ${watchedCount}/${videoCount} videos watched`}
                     </Text>
                   </View>
 
-                  <Text style={styles.statusIcon}>{completed ? "✅" : locked ? "🔒" : needsActivities ? "📖" : "▶"}</Text>
+                  {renderAction({ completed, locked })}
                 </TouchableOpacity>
               );
             })
@@ -177,6 +202,7 @@ export default function ViewShortLessonsScreen({ navigation, route }) {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#F4F0FF" },
+
   header: {
     backgroundColor: "#5e1cce",
     paddingHorizontal: 16,
@@ -187,6 +213,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
+
   backBtn: {
     width: 42,
     height: 42,
@@ -196,11 +223,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginRight: 12,
   },
+
   backText: { color: "#FFFFFF", fontSize: 34, fontWeight: "600", marginTop: -3 },
+
   headerTextWrap: { flex: 1 },
+
   headerKicker: { color: "#DDD6FE", fontSize: 12, fontWeight: "900" },
+
   headerTitle: { color: "#FFFFFF", fontSize: 21, fontWeight: "900", marginTop: 3 },
+
   content: { padding: 16, paddingBottom: 36 },
+
   card: {
     backgroundColor: "#FFFFFF",
     borderRadius: 22,
@@ -214,8 +247,11 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 7 },
     elevation: 5,
   },
+
   cardLocked: { opacity: 0.58 },
+
   timelineWrap: { alignItems: "center", marginRight: 14 },
+
   dot: {
     width: 46,
     height: 46,
@@ -224,16 +260,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+
   dotDone: { backgroundColor: "#2ECC71" },
+
   dotLocked: { backgroundColor: "#9CA3AF" },
+
   dotText: { color: "#FFFFFF", fontSize: 16, fontWeight: "900" },
+
   line: { width: 2, height: 10, backgroundColor: "#DDD6FE", marginTop: 8 },
+
   cardContent: { flex: 1 },
+
   cardTitle: { color: "#1A1A3E", fontSize: 16, fontWeight: "900" },
+
   cardSub: { marginTop: 5, color: "#7C3AED", fontSize: 12, fontWeight: "700" },
+
   statusIcon: { fontSize: 22, marginLeft: 10 },
+
   stateWrap: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
+
   stateTitle: { marginTop: 12, color: "#1A1A3E", fontSize: 17, fontWeight: "900", textAlign: "center" },
+
   primaryBtn: {
     marginTop: 18,
     backgroundColor: "#7C3AED",
@@ -241,8 +288,53 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
     paddingVertical: 13,
   },
+
   primaryBtnText: { color: "#FFFFFF", fontSize: 14, fontWeight: "900" },
+
   emptyCard: { backgroundColor: "#FFFFFF", borderRadius: 22, padding: 24, alignItems: "center" },
+
   emptyTitle: { color: "#1A1A3E", fontSize: 17, fontWeight: "900" },
+
   emptySub: { marginTop: 6, color: "#7C3AED", fontSize: 13, fontWeight: "700", textAlign: "center" },
+
+  // NEW BUTTON STYLES ONLY
+  actionBtn: {
+    minWidth: 90,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 10,
+  },
+
+  viewBtn: {
+    backgroundColor: "#7C3AED",
+  },
+
+  viewText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  completedBtn: {
+    backgroundColor: "#16A34A",
+  },
+
+  completedText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  lockedBtn: {
+    backgroundColor: "#E5E7EB",
+  },
+
+  lockedText: {
+    color: "#374151",
+    fontSize: 12,
+    fontWeight: "900",
+  },
 });

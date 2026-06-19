@@ -13,27 +13,80 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 
 import { useGetMyPaperResultsQuery } from "../app/features/paperResultApi";
+import useT from "../app/i18n/useT";
 
 const PAGE_SIZE = 10;
 
 const paperTypes = [
   {
     label: "Daily papers",
+    labelKey: "resultDailyPapers",
     value: "daily paper",
   },
   {
     label: "FiveHundredpapers",
+    labelKey: "resultFiveHundredPapers",
     value: "500 paper",
   },
   {
     label: "Pastpapers",
+    labelKey: "resultPastPapers",
     value: "pastpapers",
   },
   {
     label: "lesson by lesson",
+    labelKey: "resultLessonByLessonPapers",
     value: "lesson by lesson",
   },
 ];
+
+const toSafeNumber = (value, fallback = 0) => {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : fallback;
+};
+
+const parseMarksRatio = (marks) => {
+  if (typeof marks !== "string") return null;
+
+  const match = marks.match(/^\s*(\d+)\s*\/\s*(\d+)\s*$/);
+
+  if (!match) return null;
+
+  return {
+    correct: toSafeNumber(match[1]),
+    total: toSafeNumber(match[2]),
+  };
+};
+
+const getPercentageText = (paper = {}) => {
+  const ratio = parseMarksRatio(paper.marks);
+
+  const correctCount = toSafeNumber(
+    paper.correctCount ??
+      paper.correctAnswers ??
+      paper.totalCorrect ??
+      ratio?.correct ??
+      0
+  );
+
+  const totalQuestions = toSafeNumber(
+    paper.totalQuestions ??
+      paper.questionCount ??
+      paper.totalQuestionCount ??
+      ratio?.total ??
+      0
+  );
+
+  if (!totalQuestions || totalQuestions <= 0) {
+    return "0%";
+  }
+
+  const percentage = (correctCount / totalQuestions) * 100;
+  const roundedPercentage =
+    percentage % 1 === 0 ? percentage : Math.round(percentage * 10) / 10;
+
+  return `${roundedPercentage}%`;
+};
 
 function AnimatedCloud({ style, scale = 1, delay = 0, distance = 18 }) {
   const move = useRef(new Animated.Value(0)).current;
@@ -113,9 +166,14 @@ function LeafDecor({ side = "left" }) {
 }
 
 export default function Result() {
+  const { t, sinFont, isSi } = useT();
+
   const [selectedType, setSelectedType] = useState(paperTypes[0]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [page, setPage] = useState(1);
+
+  const sinhalaBoldFont = isSi ? sinFont("bold") : null;
+  const sinhalaRegularFont = isSi ? sinFont("regular") : null;
 
   const { data, isLoading, isFetching, isError, refetch } =
     useGetMyPaperResultsQuery({
@@ -151,7 +209,9 @@ export default function Result() {
       return (
         <View style={styles.emptyRow}>
           <ActivityIndicator size="small" color="#6D28D9" />
-          <Text style={styles.emptyText}>Loading results...</Text>
+          <Text style={[styles.emptyText, sinhalaBoldFont]}>
+            {t("resultLoadingResults")}
+          </Text>
         </View>
       );
     }
@@ -163,7 +223,9 @@ export default function Result() {
           onPress={refetch}
           style={styles.emptyRow}
         >
-          <Text style={styles.emptyText}>Result loading failed. Tap to retry.</Text>
+          <Text style={[styles.emptyText, sinhalaBoldFont]}>
+            {t("resultLoadingFailedTapRetry")}
+          </Text>
         </TouchableOpacity>
       );
     }
@@ -171,14 +233,15 @@ export default function Result() {
     if (!papers.length) {
       return (
         <View style={styles.emptyRow}>
-          <Text style={styles.emptyText}>No results found</Text>
+          <Text style={[styles.emptyText, sinhalaBoldFont]}>
+            {t("resultNoResultsFound")}
+          </Text>
         </View>
       );
     }
 
     return papers.map((paper, index) => {
-      const correctCount = Number(paper.correctCount || 0);
-      const totalQuestions = Number(paper.totalQuestions || 0);
+      const percentageText = getPercentageText(paper);
 
       return (
         <View
@@ -189,14 +252,14 @@ export default function Result() {
           ]}
         >
           <View style={styles.nameCell}>
-            <Text style={styles.cellText} numberOfLines={2}>
-              {paper.name || paper.paperName || "Untitled paper"}
+            <Text style={[styles.cellText, sinhalaBoldFont]} numberOfLines={2}>
+              {paper.name || paper.paperName || t("resultUntitledPaper")}
             </Text>
           </View>
 
           <View style={styles.marksCell}>
-            <Text style={styles.cellText}>
-              {paper.marks || `${correctCount}/${totalQuestions}`}
+            <Text style={[styles.cellText, sinhalaBoldFont]}>
+              {percentageText}
             </Text>
           </View>
         </View>
@@ -238,7 +301,9 @@ export default function Result() {
                 onPress={() => setDropdownOpen(!dropdownOpen)}
                 style={styles.dropdownButton}
               >
-                <Text style={styles.dropdownText}>{selectedType.label}</Text>
+                <Text style={[styles.dropdownText, sinhalaBoldFont]}>
+                  {t(selectedType.labelKey)}
+                </Text>
                 <Text
                   style={[
                     styles.dropdownArrow,
@@ -267,9 +332,12 @@ export default function Result() {
                           styles.dropdownItemText,
                           selectedType.value === type.value &&
                             styles.dropdownItemTextActive,
+                          selectedType.value === type.value
+                            ? sinhalaBoldFont
+                            : sinhalaRegularFont,
                         ]}
                       >
-                        {type.label}
+                        {t(type.labelKey)}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -280,10 +348,14 @@ export default function Result() {
             <View style={styles.tableCard}>
               <View style={styles.headerRow}>
                 <View style={styles.headerCellLeft}>
-                  <Text style={styles.headerText}>paper name</Text>
+                  <Text style={[styles.headerText, sinhalaBoldFont]}>
+                    {t("resultPaperName")}
+                  </Text>
                 </View>
                 <View style={styles.headerCellRight}>
-                  <Text style={styles.headerText}>Marks</Text>
+                  <Text style={[styles.headerText, sinhalaBoldFont]}>
+                    {t("resultPercentage")}
+                  </Text>
                 </View>
               </View>
 
@@ -306,13 +378,14 @@ export default function Result() {
                     styles.paginationButtonText,
                     (!hasPreviousPage || isFetching) &&
                       styles.paginationButtonTextDisabled,
+                    sinhalaBoldFont,
                   ]}
                 >
-                  Previous
+                  {t("previous")}
                 </Text>
               </TouchableOpacity>
 
-              <Text style={styles.pageText}>
+              <Text style={[styles.pageText, sinhalaBoldFont]}>
                 {page} / {totalPages}
               </Text>
 
@@ -330,9 +403,10 @@ export default function Result() {
                     styles.paginationButtonText,
                     (!hasNextPage || isFetching) &&
                       styles.paginationButtonTextDisabled,
+                    sinhalaBoldFont,
                   ]}
                 >
-                  Next
+                  {t("next")}
                 </Text>
               </TouchableOpacity>
             </View>

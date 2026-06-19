@@ -10,6 +10,7 @@ import {
   ScrollView,
   Alert,
   BackHandler,
+  Image,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -38,6 +39,8 @@ const normalizeAttemptAnswersForReview = (answers = []) =>
     lessonName: item.lessonName || "",
     question: item.question || "",
     answers: item.answers || item.answerOptions || [],
+    answerImages: item.answerImages || [],
+    imageUrl: item.imageUrl || "",
     selectedIndexes: item.selectedIndexes || item.selectedAnswerIndexes || [],
     selectedAnswers: item.selectedAnswers || item.selectedAnswerTexts || [],
     correctAnswerIndexes: item.correctAnswerIndexes || [],
@@ -46,6 +49,8 @@ const normalizeAttemptAnswersForReview = (answers = []) =>
     isCorrect: item.isCorrect === true,
     status: item.status || "not_attempted",
     coinsEarned: Number(item.coinsEarned || 0),
+    explanationText: item.explanationText || "",
+    explanationVideoUrl: item.explanationVideoUrl || "",
   }));
 
 const formatTime = (totalSeconds) => {
@@ -109,6 +114,15 @@ export default function Paperpage({ navigation, route }) {
   const currentQuestionId = currentQuestion?.id || currentQuestion?._id || "";
   const selectedAnswerIndex = selectedByQuestionId[currentQuestionId] ?? null;
   const hasSelectedAnswer = selectedAnswerIndex !== null && selectedAnswerIndex !== undefined;
+
+  // ✅ Question image (shown above the question text). Trimmed + falsy-safe.
+  const questionImageUrl = String(currentQuestion?.imageUrl || "").trim();
+
+  // ✅ Answer images aligned to the answers array by index. Missing/blank entries
+  // simply mean "no image for that answer" — handled per-row below.
+  const answerImages = Array.isArray(currentQuestion?.answerImages)
+    ? currentQuestion.answerImages
+    : [];
 
   const navigateToReview = useCallback(
     (result) => {
@@ -409,9 +423,21 @@ export default function Paperpage({ navigation, route }) {
 
             <Text style={styles.questionText}>{currentQuestion.question}</Text>
 
+            {/* ✅ Question image — capped height, full width, shown only if present */}
+            {!!questionImageUrl && (
+              <View style={styles.questionImageWrapper}>
+                <Image
+                  source={{ uri: questionImageUrl }}
+                  style={styles.questionImage}
+                  resizeMode="contain"
+                />
+              </View>
+            )}
+
             <View style={styles.answerList}>
               {(currentQuestion.answers || []).map((answer, index) => {
                 const selected = selectedAnswerIndex === index;
+                const answerImageUrl = String(answerImages[index] || "").trim();
 
                 return (
                   <TouchableOpacity
@@ -424,30 +450,43 @@ export default function Paperpage({ navigation, route }) {
                       selected && styles.answerButtonSelected,
                     ]}
                   >
-                    <View
-                      style={[
-                        styles.answerIndexCircle,
-                        selected && styles.answerIndexCircleSelected,
-                      ]}
-                    >
-                      <Text
+                    <View style={styles.answerTopRow}>
+                      <View
                         style={[
-                          styles.answerIndexText,
-                          selected && styles.answerIndexTextSelected,
+                          styles.answerIndexCircle,
+                          selected && styles.answerIndexCircleSelected,
                         ]}
                       >
-                        {OPTION_LABELS[index] || `${index + 1}.`}
+                        <Text
+                          style={[
+                            styles.answerIndexText,
+                            selected && styles.answerIndexTextSelected,
+                          ]}
+                        >
+                          {OPTION_LABELS[index] || `${index + 1}.`}
+                        </Text>
+                      </View>
+
+                      <Text
+                        style={[
+                          styles.answerText,
+                          selected && styles.answerTextSelected,
+                        ]}
+                      >
+                        {answer}
                       </Text>
                     </View>
 
-                    <Text
-                      style={[
-                        styles.answerText,
-                        selected && styles.answerTextSelected,
-                      ]}
-                    >
-                      {answer}
-                    </Text>
+                    {/* ✅ Answer image — normal size, shown below the answer text */}
+                    {!!answerImageUrl && (
+                      <View style={styles.answerImageWrapper}>
+                        <Image
+                          source={{ uri: answerImageUrl }}
+                          style={styles.answerImage}
+                          resizeMode="contain"
+                        />
+                      </View>
+                    )}
                   </TouchableOpacity>
                 );
               })}
@@ -621,6 +660,22 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
 
+  // ✅ Question image styles — capped at 220 so a large upload never
+  // dominates the card; width fills the card and height stays proportional.
+  questionImageWrapper: {
+    width: "100%",
+    maxHeight: 220,
+    borderRadius: 16,
+    overflow: "hidden",
+    backgroundColor: "#F3F3FA",
+    marginBottom: 18,
+  },
+
+  questionImage: {
+    width: "100%",
+    height: 220,
+  },
+
   answerList: {
     gap: 12,
   },
@@ -632,13 +687,20 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     paddingVertical: 13,
     paddingHorizontal: 12,
-    flexDirection: "row",
-    alignItems: "center",
+    // ✅ Column now, so an answer image (when present) can sit BELOW the
+    // text row instead of squeezed beside it as a tiny thumbnail.
+    flexDirection: "column",
   },
 
   answerButtonSelected: {
     backgroundColor: "#EEF0FF",
     borderColor: "#7B5CFF",
+  },
+
+  // ✅ Top row keeps the circle + answer text laid out exactly as before.
+  answerTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
   },
 
   answerIndexCircle: {
@@ -675,6 +737,22 @@ const styles = StyleSheet.create({
 
   answerTextSelected: {
     color: "#101943",
+  },
+
+  // ✅ Answer image wrapper — full button width, normal viewable size
+  // (same cap style as the question image), positioned below the text.
+  answerImageWrapper: {
+    width: "100%",
+    maxHeight: 160,
+    borderRadius: 14,
+    overflow: "hidden",
+    backgroundColor: "#F3F3FA",
+    marginTop: 12,
+  },
+
+  answerImage: {
+    width: "100%",
+    height: 160,
   },
 
   nextButtonWrapper: {
