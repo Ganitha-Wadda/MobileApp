@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useGetShortSubLessonOverviewQuery } from "../app/features/shortcoinscountApi";
+import useT from "../app/i18n/useT";
 
 const getId = (item = {}) => String(item?._id || item?.id || "");
 
@@ -31,8 +32,9 @@ const getWatchedCount = (subLesson = {}) => {
 };
 
 export default function ViewShortLessonsScreen({ navigation, route }) {
+  const { t } = useT();
   const shortLessonId = route?.params?.shortLessonId || route?.params?.lessonId;
-  const lessonTitle = route?.params?.lessonTitle || "Short Lesson";
+  const lessonTitle = route?.params?.lessonTitle || t("shortLesson");
   const lessonNumber = Number(route?.params?.lessonNumber || 1);
 
   const {
@@ -65,8 +67,8 @@ export default function ViewShortLessonsScreen({ navigation, route }) {
 
     if (locked) {
       Alert.alert(
-        "Sub Lesson Locked",
-        "Watch the previous video and complete all activities first."
+        t("subLessonLockedTitle"),
+        t("subLessonLockedMessage")
       );
       return;
     }
@@ -78,7 +80,7 @@ export default function ViewShortLessonsScreen({ navigation, route }) {
       lessonNumber,
       shortSubLessonId: getId(subLesson),
       subLessonId: getId(subLesson),
-      subLessonTitle: subLesson?.title || `Sub Lesson ${index + 1}`,
+      subLessonTitle: subLesson?.title || `${t("subLesson")} ${index + 1}`,
       links: Array.isArray(subLesson?.links) ? subLesson.links : [],
       shortSubLesson: subLesson,
       allSubLessons: sortedSubLessons,
@@ -91,7 +93,7 @@ export default function ViewShortLessonsScreen({ navigation, route }) {
     if (completed) {
       return (
         <View style={[styles.actionBtn, styles.completedBtn]}>
-          <Text style={styles.completedText}>Completed</Text>
+          <Text style={styles.completedText}>{t("completed")}</Text>
         </View>
       );
     }
@@ -99,14 +101,14 @@ export default function ViewShortLessonsScreen({ navigation, route }) {
     if (locked) {
       return (
         <View style={[styles.actionBtn, styles.lockedBtn]}>
-          <Text style={styles.lockedText}>🔒 Locked</Text>
+          <Text style={styles.lockedText}>🔒 {t("shortzLockedButton")}</Text>
         </View>
       );
     }
 
     return (
       <View style={[styles.actionBtn, styles.viewBtn]}>
-        <Text style={styles.viewText}>View</Text>
+        <Text style={styles.viewText}>{t("view")}</Text>
       </View>
     );
   };
@@ -120,7 +122,7 @@ export default function ViewShortLessonsScreen({ navigation, route }) {
           <Text style={styles.backText}>‹</Text>
         </TouchableOpacity>
         <View style={styles.headerTextWrap}>
-          <Text style={styles.headerKicker}>Short Lesson {lessonNumber}</Text>
+          <Text style={styles.headerKicker}>{t("shortLesson")} {lessonNumber}</Text>
           <Text style={styles.headerTitle} numberOfLines={1}>
             {lessonTitle}
           </Text>
@@ -130,13 +132,13 @@ export default function ViewShortLessonsScreen({ navigation, route }) {
       {isLoading ? (
         <View style={styles.stateWrap}>
           <ActivityIndicator size="large" color="#7C3AED" />
-          <Text style={styles.stateTitle}>Loading sub lessons...</Text>
+          <Text style={styles.stateTitle}>{t("viewShortLessonsLoadingSub")}</Text>
         </View>
       ) : isError ? (
         <View style={styles.stateWrap}>
-          <Text style={styles.stateTitle}>Failed to load sub lessons</Text>
+          <Text style={styles.stateTitle}>{t("viewShortLessonsFailedSub")}</Text>
           <TouchableOpacity style={styles.primaryBtn} onPress={refetch}>
-            <Text style={styles.primaryBtnText}>Try Again</Text>
+            <Text style={styles.primaryBtnText}>{t("tryAgain")}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -147,8 +149,8 @@ export default function ViewShortLessonsScreen({ navigation, route }) {
         >
           {sortedSubLessons.length === 0 ? (
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>No sub lessons found</Text>
-              <Text style={styles.emptySub}>Published short sub lessons will appear here.</Text>
+              <Text style={styles.emptyTitle}>{t("viewShortLessonsNoSub")}</Text>
+              <Text style={styles.emptySub}>{t("viewShortLessonsPublishedSub")}</Text>
             </View>
           ) : (
             sortedSubLessons.map((subLesson, index) => {
@@ -175,17 +177,17 @@ export default function ViewShortLessonsScreen({ navigation, route }) {
 
                   <View style={styles.cardContent}>
                     <Text style={styles.cardTitle} numberOfLines={2}>
-                      {subLesson?.title || `Sub Lesson ${index + 1}`}
+                      {subLesson?.title || `${t("subLesson")} ${index + 1}`}
                     </Text>
 
                     <Text style={styles.cardSub}>
                       {completed
-                        ? "Completed - next lesson unlocked"
+                        ? t("completedNextLessonUnlocked")
                         : locked
-                        ? "Locked - finish previous sub lesson"
+                        ? t("lockedFinishPreviousSubLesson")
                         : needsActivities
-                        ? "Please complete all activities, then continue"
-                        : `Unlocked • ${watchedCount}/${videoCount} videos watched`}
+                        ? t("completeAllActivitiesThenContinue")
+                        : `${t("unlocked")} • ${watchedCount}/${videoCount} ${t("videosWatched")}`}
                     </Text>
                   </View>
 

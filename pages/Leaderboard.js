@@ -1,3 +1,4 @@
+import useT from "../app/i18n/useT";
 import { useGetMyGradeLeaderboardQuery } from "../app/features/rankApi";
 
 const avatarColors = [
@@ -260,7 +261,7 @@ const PodiumCard = ({ player, position }) => {
   );
 };
 
-const LeaderboardRow = ({ player, animDelay }) => {
+const LeaderboardRow = ({ player, animDelay, t }) => {
   const colorIdx = Math.max(0, getNumber(player.rank) - 1);
   const isUser = player.isUser;
 
@@ -314,7 +315,7 @@ const LeaderboardRow = ({ player, animDelay }) => {
             color: isUser ? "#4c1d95" : "#1e1b4b",
           }}
         >
-          {isUser ? `You – ${player.name}` : player.name}
+          {isUser ? `${t("leaderboardYou")} – ${player.name}` : player.name}
         </div>
       </div>
 
@@ -335,6 +336,8 @@ const LeaderboardRow = ({ player, animDelay }) => {
 };
 
 export default function Leaderboard() {
+  const { t } = useT();
+
   const {
     data: leaderboardResponse,
     isLoading,
@@ -383,7 +386,9 @@ export default function Leaderboard() {
 
   const showSeparateUserEntry = Boolean(userEntry && !userInRest);
 
-  const loadingText = isLoading || isFetching ? "Updating leaderboard..." : "All Time";
+  const loadingText = isLoading || isFetching
+    ? t("leaderboardUpdating")
+    : t("leaderboardAllTime");
 
   return (
     <div
@@ -462,7 +467,7 @@ export default function Leaderboard() {
               textShadow: "0 2px 8px rgba(255,255,255,0.4)",
             }}
           >
-            🏆 Leaderboard
+            🏆 {t("leaderboardTitle")}
           </div>
         </div>
 
@@ -515,6 +520,7 @@ export default function Leaderboard() {
               key={player.userId || player.rank}
               player={player}
               animDelay={i * 0.06}
+              t={t}
             />
           ))}
 
@@ -526,7 +532,7 @@ export default function Leaderboard() {
                 paddingTop: 10,
               }}
             >
-              <LeaderboardRow player={userEntry} animDelay={0} />
+              <LeaderboardRow player={userEntry} animDelay={0} t={t} />
             </div>
           )}
 
@@ -545,7 +551,7 @@ export default function Leaderboard() {
 
             <div style={{ flex: 1 }}>
               <div style={{ color: "#ddd6fe", fontSize: 12, fontWeight: 600 }}>
-                Your Rank:
+                {t("leaderboardYourRank")}:
               </div>
 
               <div
@@ -560,11 +566,11 @@ export default function Leaderboard() {
               </div>
 
               <div style={{ color: "#c4b5fd", fontSize: 12, marginTop: 1 }}>
-                Amazing work! You're at the top!
+                {t("leaderboardAmazingWork")}
               </div>
 
               <div style={{ color: "#a78bfa", fontSize: 11 }}>
-                Keep learning and stay on top!
+                {t("leaderboardKeepLearning")}
               </div>
             </div>
 

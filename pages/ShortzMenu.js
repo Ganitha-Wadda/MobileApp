@@ -18,10 +18,12 @@ import {
   useGetMyTotalShortCoinsQuery,
   useGetShortLessonOverviewQuery,
 } from "../app/features/shortcoinscountApi";
+import useT from "../app/i18n/useT";
 
 const getId = (item = {}) => String(item?._id || item?.id || "");
 
 export default function ShortzMenu({ navigation }) {
+  const { t } = useT();
   const [enrollModalVisible, setEnrollModalVisible] = useState(false);
 
   const {
@@ -75,8 +77,8 @@ export default function ShortzMenu({ navigation }) {
 
     if (lesson?.isLocked || lesson?.isUnlocked === false) {
       Alert.alert(
-        "Lesson Locked",
-        "Complete the previous short lesson and all its sub lessons first."
+        t("shortzLessonLocked"),
+        t("shortzCompletePreviousLessonMessage")
       );
       return;
     }
@@ -84,7 +86,7 @@ export default function ShortzMenu({ navigation }) {
     navigation.navigate("ViewShortLessons", {
       shortLessonId: getId(lesson),
       lessonId: getId(lesson),
-      lessonTitle: lesson?.title || `Short Lesson ${index + 1}`,
+      lessonTitle: lesson?.title || `${t("shortLesson")} ${index + 1}`,
       lessonNumber: index + 1,
       shortLesson: lesson,
     });
@@ -94,7 +96,7 @@ export default function ShortzMenu({ navigation }) {
     if (completed) {
       return (
         <View style={[styles.actionBtn, styles.completedBtn]}>
-          <Text style={styles.completedBtnText}>Completed</Text>
+          <Text style={styles.completedBtnText}>{t("completed")}</Text>
         </View>
       );
     }
@@ -102,32 +104,31 @@ export default function ShortzMenu({ navigation }) {
     if (locked) {
       return (
         <View style={[styles.actionBtn, styles.lockedBtn]}>
-          <Text style={styles.lockedBtnText}>🔒 Locked</Text>
+          <Text style={styles.lockedBtnText}>🔒 {t("shortzLockedButton")}</Text>
         </View>
       );
     }
 
     return (
       <View style={[styles.actionBtn, styles.viewBtn]}>
-        <Text style={styles.viewBtnText}>View</Text>
+        <Text style={styles.viewBtnText}>{t("view")}</Text>
       </View>
     );
   };
 
   const renderLockState = () => {
-    let title = "Enrollment Required";
-    let sub = "Enroll and wait for admin approval to unlock Shortz lessons.";
+    let title = t("shortzEnrollmentRequiredTitle");
+    let sub = t("shortzEnrollmentRequiredSub");
 
     if (isPending) {
-      title = "Request Pending";
-      sub = "Your enrollment request is pending. Shortz will unlock after admin approval.";
+      title = t("shortzRequestPendingTitle");
+      sub = t("shortzRequestPendingSub");
     } else if (isRejected) {
-      title = "Request Rejected";
-      sub =
-        "Your enrollment request was rejected. Please submit again with correct details.";
+      title = t("shortzRequestRejectedTitle");
+      sub = t("shortzRequestRejectedSub");
     } else if (isNotEnrolled) {
-      title = "Shortz Locked";
-      sub = "Please enroll first to unlock short lessons.";
+      title = t("shortzLockedTitle");
+      sub = t("shortzLockedSub");
     }
 
     return (
@@ -143,7 +144,7 @@ export default function ShortzMenu({ navigation }) {
           onPress={() => setEnrollModalVisible(true)}
         >
           <Text style={styles.primaryBtnText}>
-            {isPending ? "View Request" : "Enroll Now"}
+            {isPending ? t("viewRequest") : t("enrollNowPlain")}
           </Text>
         </TouchableOpacity>
 
@@ -152,7 +153,7 @@ export default function ShortzMenu({ navigation }) {
           activeOpacity={0.86}
           onPress={refreshAll}
         >
-          <Text style={styles.secondaryBtnText}>Refresh Status</Text>
+          <Text style={styles.secondaryBtnText}>{t("refreshStatus")}</Text>
         </TouchableOpacity>
 
         <EnrollmentModal
@@ -168,7 +169,7 @@ export default function ShortzMenu({ navigation }) {
       <SafeAreaView style={styles.statePage}>
         <StatusBar barStyle="light-content" backgroundColor="#5e1cce" />
         <ActivityIndicator size="large" color="#FFFFFF" />
-        <Text style={styles.stateTitle}>Checking enrollment...</Text>
+        <Text style={styles.stateTitle}>{t("checkingEnrollment")}</Text>
       </SafeAreaView>
     );
   }
@@ -182,7 +183,7 @@ export default function ShortzMenu({ navigation }) {
       <StatusBar barStyle="light-content" backgroundColor="#5e1cce" />
 
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Shortz Lessons</Text>
+        <Text style={styles.headerTitle}>{t("shortzLessons")}</Text>
         <View style={styles.coinPill}>
           <Text style={styles.coinText}>🪙 {totalShortCoins}</Text>
         </View>
@@ -191,13 +192,13 @@ export default function ShortzMenu({ navigation }) {
       {isLoading ? (
         <View style={styles.loadingWrap}>
           <ActivityIndicator size="large" color="#7C3AED" />
-          <Text style={styles.loadingText}>Loading short lessons...</Text>
+          <Text style={styles.loadingText}>{t("shortzLoadingLessons")}</Text>
         </View>
       ) : isError ? (
         <View style={styles.loadingWrap}>
-          <Text style={styles.emptyTitle}>Failed to load lessons</Text>
+          <Text style={styles.emptyTitle}>{t("shortzFailedLoadLessons")}</Text>
           <TouchableOpacity style={styles.primaryBtn} onPress={refreshAll}>
-            <Text style={styles.primaryBtnText}>Try Again</Text>
+            <Text style={styles.primaryBtnText}>{t("tryAgain")}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -210,9 +211,9 @@ export default function ShortzMenu({ navigation }) {
         >
           {sortedLessons.length === 0 ? (
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>No short lessons found</Text>
+              <Text style={styles.emptyTitle}>{t("shortzNoLessonsFound")}</Text>
               <Text style={styles.emptySub}>
-                Published short lessons will appear here.
+                {t("shortzPublishedLessonsAppear")}
               </Text>
             </View>
           ) : (
@@ -235,15 +236,15 @@ export default function ShortzMenu({ navigation }) {
 
                   <View style={styles.lessonInfo}>
                     <Text style={styles.lessonTitle} numberOfLines={2}>
-                      {lesson?.title || `Short Lesson ${index + 1}`}
+                      {lesson?.title || `${t("shortLesson")} ${index + 1}`}
                     </Text>
 
                     <Text style={styles.lessonSub}>
                       {completed
-                        ? "Completed"
+                        ? t("completed")
                         : locked
-                        ? "Locked - complete previous lesson"
-                        : `${done}/${total} sub lessons completed`}
+                        ? t("shortzLockedCompletePreviousLesson")
+                        : `${done}/${total} ${t("shortzSubLessonsCompleted")}`}
                     </Text>
                   </View>
 

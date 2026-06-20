@@ -8,6 +8,8 @@ import {
   Animated,
 } from "react-native";
 
+import useT from "../app/i18n/useT";
+
 const BALLOON_COLORS = {
   green: { body: "#4caf50", shine: "#81c784", shadow: "#2e7d32" },
   yellow: { body: "#ffc107", shine: "#ffd54f", shadow: "#f57f17" },
@@ -105,6 +107,7 @@ export default function ActivityTemplate3({
   coinText = "",
   submittingAnswer = false,
 }) {
+  const { t } = useT();
   const [selectedId, setSelectedId] = useState(null);
   const [submitted, setSubmitted] = useState(false);
   const [isCorrect, setIsCorrect] = useState(null);
@@ -177,7 +180,7 @@ export default function ActivityTemplate3({
   const topRow = options.slice(0, 2);
   const bottomRow = options.slice(2, 4);
   const buttonDisabled = (!submitted && !selectedOption) || submittingAnswer;
-  const buttonLabel = submitted ? nextLabel : submittingAnswer ? "Saving..." : "Submit";
+  const buttonLabel = submitted ? nextLabel : submittingAnswer ? t("saving") : t("submit");
 
   return (
     <SafeAreaView style={styles.page}>
@@ -194,22 +197,22 @@ export default function ActivityTemplate3({
         </View>
 
         <View style={styles.balloonArea}>
-          <Text style={styles.instruction}>Tap the correct balloon</Text>
+          <Text style={styles.instruction}>{t("tapCorrectBalloon")}</Text>
           <Text style={styles.question}>{question}</Text>
 
           <View style={styles.answerBox}>
             {selectedOption ? (
               <>
-                <Text style={styles.answerLabel}>Selected</Text>
+                <Text style={styles.answerLabel}>{t("selected")}</Text>
                 <Text style={styles.answerValue}>{selectedOption.value}</Text>
               </>
             ) : (
-              <Text style={styles.answerPlaceholder}>Choose your answer</Text>
+              <Text style={styles.answerPlaceholder}>{t("chooseYourAnswer")}</Text>
             )}
           </View>
 
-          {submitted && isCorrect === true && <Text style={styles.feedbackCorrect}>✓ Correct!</Text>}
-          {submitted && isCorrect === false && <Text style={styles.feedbackWrong}>✗ Wrong answer</Text>}
+          {submitted && isCorrect === true && <Text style={styles.feedbackCorrect}>{t("correctFeedback")}</Text>}
+          {submitted && isCorrect === false && <Text style={styles.feedbackWrong}>{t("wrongAnswerFeedback")}</Text>}
           {submitted && Boolean(coinText) && <Text style={styles.coinText}>{coinText}</Text>}
 
           <View style={styles.balloonRow}>

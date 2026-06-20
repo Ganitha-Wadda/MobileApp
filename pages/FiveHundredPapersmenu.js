@@ -42,11 +42,11 @@ const buildReviewParams = (attempt, paperTitle, paper) => ({
   status: attempt?.status,
 });
 
-const getAttemptButtonText = (defaultStartText, attempt, isChecking) => {
-  if (isChecking) return "Checking...";
-  if (!attempt?.status) return defaultStartText || "Start";
-  if (attempt.status === "in_progress") return "Continue";
-  return "View Review";
+const getAttemptButtonText = (defaultStartText, attempt, isChecking, labels = {}) => {
+  if (isChecking) return labels.checking || "Checking...";
+  if (!attempt?.status) return defaultStartText || labels.start || "Start";
+  if (attempt.status === "in_progress") return labels.continue || "Continue";
+  return labels.viewReview || "View Review";
 };
 
 
@@ -113,13 +113,13 @@ const getPapersFromResponse = (response) => {
 
 const getPaperId = (paper) => paper?.id || paper?._id || "";
 
-const getPaperTitle = (paper) =>
+const getPaperTitle = (paper, fallbackTitle = "Paper") =>
   String(
     paper?.paperTitle ||
       paper?.paperName ||
       paper?.title ||
       paper?.name ||
-      "Paper"
+      fallbackTitle
   ).trim();
 
 const getPaperSubtitle = (paper) =>
@@ -130,14 +130,14 @@ const getPaperSubtitle = (paper) =>
       ""
   ).trim();
 
-const mapBackendPapersToCards = (papers) =>
+const mapBackendPapersToCards = (papers, fallbackPaperTitle = "Paper") =>
   papers.map((paper, index) => {
     const style = CARD_STYLES[index % CARD_STYLES.length];
 
     return {
       id: getPaperId(paper) || String(index + 1),
       paperId: getPaperId(paper),
-      title: getPaperTitle(paper),
+      title: getPaperTitle(paper, fallbackPaperTitle),
       subtitle: getPaperSubtitle(paper),
       icon: style.icon,
       iconBg: style.iconBg,
@@ -149,17 +149,18 @@ const mapBackendPapersToCards = (papers) =>
     };
   });
 
-const getErrorMessage = (error, token) => {
-  if (!token) return "Please login first.";
+const getErrorMessage = (error, token, t) => {
+  if (!token) return t("pleaseLoginFirst") || "Please login first.";
   return (
     error?.data?.message ||
     error?.error ||
     error?.message ||
+    t("unableToLoadPapers") ||
     "Unable to load papers."
   );
 };
 
-const StateBox = ({ loading, title, message, onRetry }) => (
+const StateBox = ({ loading, title, message, onRetry, retryText = "Tap to retry" }) => (
   <TouchableOpacity
     activeOpacity={onRetry ? 0.85 : 1}
     onPress={onRetry}
@@ -169,7 +170,7 @@ const StateBox = ({ loading, title, message, onRetry }) => (
     {loading && <ActivityIndicator size="small" />}
     <Text style={styles.stateTitle}>{title}</Text>
     {!!message && <Text style={styles.stateText}>{message}</Text>}
-    {!!onRetry && !loading && <Text style={styles.retryText}>Tap to retry</Text>}
+    {!!onRetry && !loading && <Text style={styles.retryText}>{retryText}</Text>}
   </TouchableOpacity>
 );
 
@@ -300,7 +301,11 @@ const PaperCard = ({ item, index, navigation, playClickSound, t, token }) => {
     });
 
   const latestAttempt = getPayloadData(latestResultResponse);
-  const buttonText = getAttemptButtonText(t("start") || "Start", latestAttempt, isCheckingAttempt);
+  const buttonText = getAttemptButtonText(t("start") || "Start", latestAttempt, isCheckingAttempt, {
+    checking: t("checking"),
+    continue: t("continue"),
+    viewReview: t("viewReview"),
+  });
 
   useEffect(() => {
     Animated.parallel([
@@ -441,8 +446,8 @@ export default function FiveHundredPaperMenu({ navigation }) {
   const backendPapers = getPapersFromResponse(data);
 
   const papers = useMemo(
-    () => mapBackendPapersToCards(backendPapers),
-    [backendPapers]
+    () => mapBackendPapersToCards(backendPapers, t("paper") || "Paper"),
+    [backendPapers, t]
   );
 
   useEffect(() => {
@@ -471,7 +476,7 @@ export default function FiveHundredPaperMenu({ navigation }) {
   };
 
   const isBusy = isLoading || isFetching;
-  const errorMessage = error || !token ? getErrorMessage(error, token) : "";
+  const errorMessage = error || !token ? getErrorMessage(error, token, t) : "";
 
   return (
     <View style={styles.container}>
@@ -511,11 +516,19 @@ export default function FiveHundredPaperMenu({ navigation }) {
         showsVerticalScrollIndicator={false}
       >
         {isBusy ? (
-          <StateBox loading title="Loading 500 papers..." />
+          <StateBox loading title={t("loadingFiveHundredPapers")} />
         ) : errorMessage ? (
-          <StateBox title="Cannot load papers" message={errorMessage} onRetry={token ? refetch : undefined} />
+          <StateBox
+            title={t("cannotLoadPapers")}
+            message={errorMessage}
+            onRetry={token ? refetch : undefined}
+            retryText={t("tapToRetry")}
+          />
         ) : papers.length === 0 ? (
-          <StateBox title="No 500 papers" message="No published 500 papers are available for your login grade yet." />
+          <StateBox
+            title={t("noFiveHundredPapers")}
+            message={t("noFiveHundredPapersMessage")}
+          />
         ) : (
           papers.map((item, index) => (
             <PaperCard

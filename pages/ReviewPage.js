@@ -15,6 +15,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { useGetPaperAttemptResultQuery } from "../app/features/paperResultApi";
 import CrossWebView from "../components/CrossWebView";
+import useT from "../app/i18n/useT";
 
 const { width } = Dimensions.get("window");
 
@@ -62,20 +63,20 @@ const buildYouTubeHtml = (url = "") => {
     </html>`;
 };
 
-const getBadgeInfo = (percentage) => {
+const getBadgeInfo = (percentage, t) => {
   if (percentage >= 90) {
-    return { icon: "🏅", text: "Gold Badge", subtitle: "Excellent Result" };
+    return { icon: "🏅", text: t("goldBadge"), subtitle: t("excellentResult") };
   }
 
   if (percentage >= 70) {
-    return { icon: "🥈", text: "Silver Badge", subtitle: "Great Result" };
+    return { icon: "🥈", text: t("silverBadge"), subtitle: t("greatResult") };
   }
 
   if (percentage >= 50) {
-    return { icon: "🥉", text: "Bronze Badge", subtitle: "Good Result" };
+    return { icon: "🥉", text: t("bronzeBadge"), subtitle: t("goodResult") };
   }
 
-  return { icon: "⭐", text: "Keep Practicing", subtitle: "Practice Result" };
+  return { icon: "⭐", text: t("keepPracticing"), subtitle: t("practiceResult") };
 };
 
 const getPayloadData = (response) =>
@@ -127,10 +128,10 @@ const normalizeReviewAnswers = (params, result) => {
   return [];
 };
 
-const getQuestionStatusInfo = (item) => {
+const getQuestionStatusInfo = (item, t) => {
   if (item.status === "not_attempted" || item.isAttempted === false) {
     return {
-      text: "Not marked",
+      text: t("notMarked"),
       mark: "!",
       badgeStyle: styles.notAttemptedBadge,
       tickStyle: styles.notAttemptedTick,
@@ -139,7 +140,7 @@ const getQuestionStatusInfo = (item) => {
 
   if (item.isCorrect || item.status === "correct") {
     return {
-      text: "Correct",
+      text: t("correct"),
       mark: "✓",
       badgeStyle: styles.correctBadge,
       tickStyle: styles.correctTick,
@@ -147,7 +148,7 @@ const getQuestionStatusInfo = (item) => {
   }
 
   return {
-    text: "Wrong",
+    text: t("wrong"),
     mark: "×",
     badgeStyle: styles.wrongBadge,
     tickStyle: styles.wrongTick,
@@ -161,8 +162,9 @@ const ReviewQuestionCard = ({
   onToggleAnswer,
   onShowLogic,
   onShowVideo,
+  t,
 }) => {
-  const statusInfo = getQuestionStatusInfo(item);
+  const statusInfo = getQuestionStatusInfo(item, t);
   const hasLogic = String(item.explanationText || "").trim().length > 0;
   const hasVideo = String(item.explanationVideoUrl || "").trim().length > 0;
 
@@ -170,7 +172,7 @@ const ReviewQuestionCard = ({
     <View style={styles.questionCard}>
       <View style={styles.questionTopRow}>
         <Text style={styles.questionTitle}>
-          Question - {item.questionNumber || index + 1}
+          {`${t("questionDash")} ${item.questionNumber || index + 1}`}
         </Text>
 
         <View style={[styles.completedBadge, statusInfo.badgeStyle]}>
@@ -195,23 +197,23 @@ const ReviewQuestionCard = ({
         onPress={onToggleAnswer}
       >
         <Text style={styles.hideAnswerText}>
-          {showAnswer ? "Hide answer" : "Show answer"}
+          {showAnswer ? t("hideAnswer") : t("showAnswer")}
         </Text>
         <Text style={styles.chevron}>{showAnswer ? "⌄" : "›"}</Text>
       </TouchableOpacity>
 
       {showAnswer && (
         <View style={styles.answerBox}>
-          <Text style={styles.yourAnswerLabel}>Your answer</Text>
+          <Text style={styles.yourAnswerLabel}>{t("yourAnswer")}</Text>
           <Text style={styles.yourAnswerText}>
             {item.status === "not_attempted" || item.isAttempted === false
-              ? "Not marked"
+              ? t("notMarked")
               : toArrayText(item.selectedAnswers)}
           </Text>
 
           <View style={styles.answerDivider} />
 
-          <Text style={styles.correctAnswerLabel}>Correct answer</Text>
+          <Text style={styles.correctAnswerLabel}>{t("correctAnswer")}</Text>
           <Text style={styles.correctAnswerText}>
             {toArrayText(item.correctAnswers)}
           </Text>
@@ -219,7 +221,7 @@ const ReviewQuestionCard = ({
           <View style={styles.answerDivider} />
 
           <Text style={styles.coinText}>
-            Coins earned: {Number(item.coinsEarned || 0)}
+            {t("coinsEarned")}: {Number(item.coinsEarned || 0)}
           </Text>
         </View>
       )}
@@ -232,7 +234,7 @@ const ReviewQuestionCard = ({
               style={styles.logicButton}
               onPress={() => onShowLogic(item)}
             >
-              <Text style={styles.logicButtonText}>Explain Logic</Text>
+              <Text style={styles.logicButtonText}>{t("explainLogic")}</Text>
             </TouchableOpacity>
           )}
 
@@ -248,7 +250,7 @@ const ReviewQuestionCard = ({
                 end={{ x: 1, y: 0 }}
                 style={styles.videoButton}
               >
-                <Text style={styles.videoButtonText}>Explain video</Text>
+                <Text style={styles.videoButtonText}>{t("explainVideo")}</Text>
               </LinearGradient>
             </TouchableOpacity>
           )}
@@ -259,6 +261,7 @@ const ReviewQuestionCard = ({
 };
 
 export default function ReviewPage({ navigation, route }) {
+  const { t } = useT();
   const [visibleAnswers, setVisibleAnswers] = useState({});
   const [logicItem, setLogicItem] = useState(null);
   const [videoItem, setVideoItem] = useState(null);
@@ -322,7 +325,7 @@ export default function ReviewPage({ navigation, route }) {
       (totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0)
   );
 
-  const badge = getBadgeInfo(percentage);
+  const badge = getBadgeInfo(percentage, t);
 
   const paperTitle =
     params.paperTitle ||
@@ -330,7 +333,7 @@ export default function ReviewPage({ navigation, route }) {
     result?.paperSnapshot?.paperName ||
     params.paper?.paperTitle ||
     params.paper?.paperName ||
-    "Paper";
+    t("paper") || "Paper";
 
   const isAnswerVisible = (index) => visibleAnswers[index] !== false;
 
@@ -347,7 +350,7 @@ export default function ReviewPage({ navigation, route }) {
         <StatusBar barStyle="dark-content" backgroundColor="#F8F7FF" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" />
-          <Text style={styles.loadingText}>Loading result...</Text>
+          <Text style={styles.loadingText}>{t("loadingResult")}</Text>
         </View>
       </SafeAreaView>
     );
@@ -358,9 +361,9 @@ export default function ReviewPage({ navigation, route }) {
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="dark-content" backgroundColor="#F8F7FF" />
         <View style={styles.loadingContainer}>
-          <Text style={styles.emptyTitle}>Result not found</Text>
+          <Text style={styles.emptyTitle}>{t("resultNotFound")}</Text>
           <Text style={styles.emptyText}>
-            Please complete a paper first, then the review will show here.
+            {t("completePaperFirstReview")}
           </Text>
 
           <TouchableOpacity
@@ -368,7 +371,7 @@ export default function ReviewPage({ navigation, route }) {
             style={styles.doneButton}
             onPress={() => navigation.goBack()}
           >
-            <Text style={styles.doneButtonText}>Go Back</Text>
+            <Text style={styles.doneButtonText}>{t("goBack")}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -407,11 +410,11 @@ export default function ReviewPage({ navigation, route }) {
             <Text style={styles.resultSubtitle}>{badge.subtitle}</Text>
 
             <Text style={styles.scoreLine}>
-              {correctCount} correct / {wrongCount} wrong / {notAttemptedCount} not marked
+              {correctCount} {t("correctLower")} / {wrongCount} {t("wrongLower")} / {notAttemptedCount} {t("notMarkedLower")}
             </Text>
 
             <Text style={styles.coinSummaryText}>
-              Coins: {totalCoins} / {maximumCoins}
+              {t("coins")}: {totalCoins} / {maximumCoins}
             </Text>
 
             <View style={styles.badgePill}>
@@ -425,7 +428,7 @@ export default function ReviewPage({ navigation, route }) {
           <View style={styles.sectionTitleRow}>
             <Text style={styles.sectionStar}>✦</Text>
             <Text style={styles.sectionTitle} numberOfLines={2}>
-              {paperTitle} Result
+              {paperTitle} {t("result")}
             </Text>
 
             <View style={styles.titleDotsWrapper}>
@@ -436,9 +439,9 @@ export default function ReviewPage({ navigation, route }) {
 
           {answers.length === 0 ? (
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>No review answers</Text>
+              <Text style={styles.emptyTitle}>{t("noReviewAnswers")}</Text>
               <Text style={styles.emptyText}>
-                Please complete a paper first, then the review will show here.
+                {t("completePaperFirstReview")}
               </Text>
             </View>
           ) : (
@@ -451,6 +454,7 @@ export default function ReviewPage({ navigation, route }) {
                 onToggleAnswer={() => toggleAnswer(index)}
                 onShowLogic={setLogicItem}
                 onShowVideo={setVideoItem}
+                t={t}
               />
             ))
           )}
@@ -460,7 +464,7 @@ export default function ReviewPage({ navigation, route }) {
             style={styles.doneButton}
             onPress={() => navigation.goBack()}
           >
-            <Text style={styles.doneButtonText}>Done</Text>
+            <Text style={styles.doneButtonText}>{t("doneButton")}</Text>
           </TouchableOpacity>
         </ScrollView>
 
@@ -487,7 +491,7 @@ export default function ReviewPage({ navigation, route }) {
         >
           <View style={styles.modalOverlay}>
             <View style={styles.logicModalCard}>
-              <Text style={styles.modalTitle}>Explain Logic</Text>
+              <Text style={styles.modalTitle}>{t("explainLogic")}</Text>
 
               <ScrollView
                 showsVerticalScrollIndicator={false}
@@ -503,7 +507,7 @@ export default function ReviewPage({ navigation, route }) {
                 style={styles.modalCloseButton}
                 onPress={() => setLogicItem(null)}
               >
-                <Text style={styles.modalCloseText}>Close</Text>
+                <Text style={styles.modalCloseText}>{t("close")}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -518,7 +522,7 @@ export default function ReviewPage({ navigation, route }) {
           <View style={styles.modalOverlay}>
             <View style={styles.videoModalCard}>
               <View style={styles.videoModalHeader}>
-                <Text style={styles.modalTitle}>Explain Video</Text>
+                <Text style={styles.modalTitle}>{t("explainVideoTitle")}</Text>
 
                 <TouchableOpacity
                   activeOpacity={0.85}

@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
+import useT from "../app/i18n/useT";
 
 import { useGetPaperFullDetailsQuery } from "../app/features/paperApi";
 import {
@@ -72,6 +73,7 @@ const getSelectedAnswerIndexFromAttempt = (attempt, questionId) => {
 
 export default function Paperpage({ navigation, route }) {
   const paperId = getPaperId(route);
+  const { t } = useT();
 
   const [attempt, setAttempt] = useState(null);
   const [remainingSeconds, setRemainingSeconds] = useState(0);
@@ -108,7 +110,7 @@ export default function Paperpage({ navigation, route }) {
     route?.params?.pastPaperYear ||
     backendPaper?.paperTitle ||
     backendPaper?.paperName ||
-    "Paper";
+    t("paper") || "Paper";
 
   const currentQuestion = questions[currentIndex];
   const currentQuestionId = currentQuestion?.id || currentQuestion?._id || "";
@@ -155,15 +157,15 @@ export default function Paperpage({ navigation, route }) {
     useCallback(() => {
       const blockBack = () => {
         Alert.alert(
-          "Paper is running",
-          "You cannot leave the paper while attempting. Finish the paper or wait until time is over."
+          t("paperRunningTitle"),
+          t("paperRunningMessage")
         );
         return true;
       };
 
       const subscription = BackHandler.addEventListener("hardwareBackPress", blockBack);
       return () => subscription.remove();
-    }, [])
+    }, [t])
   );
 
   useEffect(() => {
@@ -204,13 +206,13 @@ export default function Paperpage({ navigation, route }) {
           error?.data?.message ||
           error?.error ||
           error?.message ||
-          "Unable to start paper.";
+          t("unableToStartPaper");
         setScreenError(message);
       }
     };
 
     startAttempt();
-  }, [navigateToReview, paperId, startOrResumePaperAttempt]);
+  }, [navigateToReview, paperId, startOrResumePaperAttempt, t]);
 
   const finalizePaper = useCallback(
     async (expired = false) => {
@@ -233,12 +235,12 @@ export default function Paperpage({ navigation, route }) {
           error?.data?.message ||
           error?.error ||
           error?.message ||
-          "Unable to finish paper.";
+          t("unableToFinishPaper");
         setScreenError(message);
         finalizingRef.current = false;
       }
     },
-    [attempt, finishPaperAttempt, navigateToReview]
+    [attempt, finishPaperAttempt, navigateToReview, t]
   );
 
   useEffect(() => {
@@ -287,9 +289,9 @@ export default function Paperpage({ navigation, route }) {
         error?.data?.message ||
         error?.error ||
         error?.message ||
-        "Unable to save answer.";
+        t("unableToSaveAnswer");
 
-      Alert.alert("Answer not saved", message);
+      Alert.alert(t("answerNotSaved"), message);
 
       const previousSelected = getSelectedAnswerIndexFromAttempt(attempt, qId);
       setSelectedByQuestionId((prev) => ({
@@ -305,7 +307,7 @@ export default function Paperpage({ navigation, route }) {
 
   const handleNext = () => {
     if (!hasSelectedAnswer) {
-      Alert.alert("Select answer", "Please select an answer before going next.");
+      Alert.alert(t("selectAnswer"), t("selectAnswerBeforeNext"));
       return;
     }
 
@@ -335,8 +337,8 @@ export default function Paperpage({ navigation, route }) {
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="dark-content" backgroundColor="#F8F7FF" />
         <View style={styles.centerBox}>
-          <Text style={styles.errorTitle}>Paper not found</Text>
-          <Text style={styles.errorText}>Missing paper id.</Text>
+          <Text style={styles.errorTitle}>{t("paperNotFound")}</Text>
+          <Text style={styles.errorText}>{t("missingPaperId")}</Text>
         </View>
       </SafeAreaView>
     );
@@ -348,7 +350,7 @@ export default function Paperpage({ navigation, route }) {
         <StatusBar barStyle="dark-content" backgroundColor="#F8F7FF" />
         <View style={styles.centerBox}>
           <ActivityIndicator size="large" />
-          <Text style={styles.loadingText}>Preparing paper...</Text>
+          <Text style={styles.loadingText}>{t("preparingPaper")}</Text>
         </View>
       </SafeAreaView>
     );
@@ -359,7 +361,7 @@ export default function Paperpage({ navigation, route }) {
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="dark-content" backgroundColor="#F8F7FF" />
         <View style={styles.centerBox}>
-          <Text style={styles.errorTitle}>Cannot open paper</Text>
+          <Text style={styles.errorTitle}>{t("cannotOpenPaper")}</Text>
           <Text style={styles.errorText}>{errorMessage}</Text>
         </View>
       </SafeAreaView>
@@ -371,8 +373,8 @@ export default function Paperpage({ navigation, route }) {
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="dark-content" backgroundColor="#F8F7FF" />
         <View style={styles.centerBox}>
-          <Text style={styles.errorTitle}>No questions</Text>
-          <Text style={styles.errorText}>This paper does not have questions yet.</Text>
+          <Text style={styles.errorTitle}>{t("noQuestions")}</Text>
+          <Text style={styles.errorText}>{t("paperNoQuestionsYet")}</Text>
         </View>
       </SafeAreaView>
     );
@@ -393,11 +395,11 @@ export default function Paperpage({ navigation, route }) {
             <Text style={styles.paperTitle} numberOfLines={1}>
               {paperTitle}
             </Text>
-            <Text style={styles.progressText}>Question {progressText}</Text>
+            <Text style={styles.progressText}>{t("question")} {progressText}</Text>
           </View>
 
           <View style={styles.timerPill}>
-            <Text style={styles.timerLabel}>Time</Text>
+            <Text style={styles.timerLabel}>{t("time")}</Text>
             <Text style={styles.timerValue}>{formatTime(remainingSeconds)}</Text>
           </View>
         </View>
@@ -409,11 +411,11 @@ export default function Paperpage({ navigation, route }) {
           <View style={styles.questionCard}>
             <View style={styles.questionHeaderRow}>
               <Text style={styles.questionNumber}>
-                Question - {currentQuestion.questionNumber || currentIndex + 1}
+                {`${t("questionDash")} ${currentQuestion.questionNumber || currentIndex + 1}`}
               </Text>
 
               <View style={styles.noSkipBadge}>
-                <Text style={styles.noSkipText}>No Skip</Text>
+                <Text style={styles.noSkipText}>{t("noSkip")}</Text>
               </View>
             </View>
 
@@ -516,14 +518,14 @@ export default function Paperpage({ navigation, route }) {
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
                 <Text style={styles.nextButtonText}>
-                  {currentIndex >= questions.length - 1 ? "Finish Paper" : "Next Question"}
+                  {currentIndex >= questions.length - 1 ? t("finishPaper") : t("nextQuestion")}
                 </Text>
               )}
             </LinearGradient>
           </TouchableOpacity>
 
           <Text style={styles.helpText}>
-            You must answer this question before moving to the next question.
+            {t("mustAnswerBeforeNext")}
           </Text>
         </ScrollView>
       </View>

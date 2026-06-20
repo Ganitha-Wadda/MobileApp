@@ -7,6 +7,8 @@ import {
   SafeAreaView,
 } from "react-native";
 
+import useT from "../app/i18n/useT";
+
 export default function ActivityTemplate2({
   title = "Chakkre (part - 1)",
   activityLabel = "Activity - 1",
@@ -19,6 +21,7 @@ export default function ActivityTemplate2({
   coinText = "",
   submittingAnswer = false,
 }) {
+  const { t } = useT();
   const [selectedId, setSelectedId] = useState(null);
   const [submitted, setSubmitted] = useState(false);
   const [isCorrect, setIsCorrect] = useState(null);
@@ -56,7 +59,7 @@ export default function ActivityTemplate2({
   };
 
   const buttonDisabled = (!submitted && !selectedOption) || submittingAnswer;
-  const buttonLabel = submitted ? nextLabel : submittingAnswer ? "Saving..." : "Submit";
+  const buttonLabel = submitted ? nextLabel : submittingAnswer ? t("saving") : t("submit");
 
   return (
     <SafeAreaView style={styles.wrapper}>
@@ -71,7 +74,7 @@ export default function ActivityTemplate2({
         </View>
 
         <View style={styles.questionBox}>
-          <Text style={styles.instruction}>Drag / Select the correct answer</Text>
+          <Text style={styles.instruction}>{t("dragSelectCorrectAnswer")}</Text>
           <Text style={styles.question}>{question}</Text>
         </View>
 
@@ -96,8 +99,8 @@ export default function ActivityTemplate2({
                 {selectedOption.value}
               </Text>
 
-              {submitted && isCorrect === true && <Text style={styles.feedbackCorrect}>✓ Correct!</Text>}
-              {submitted && isCorrect === false && <Text style={styles.feedbackWrong}>✗ Wrong answer</Text>}
+              {submitted && isCorrect === true && <Text style={styles.feedbackCorrect}>{t("correctFeedback")}</Text>}
+              {submitted && isCorrect === false && <Text style={styles.feedbackWrong}>{t("wrongAnswerFeedback")}</Text>}
               {submitted && Boolean(coinText) && <Text style={styles.coinText}>{coinText}</Text>}
             </View>
           ) : (

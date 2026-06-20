@@ -7,6 +7,8 @@ import {
   SafeAreaView,
 } from "react-native";
 
+import useT from "../app/i18n/useT";
+
 export default function ActivityTemplate1({
   title = "Chakkre (part - 1)",
   activityLabel = "Activity - 1",
@@ -19,6 +21,7 @@ export default function ActivityTemplate1({
   coinText = "",
   submittingAnswer = false,
 }) {
+  const { t } = useT();
   const [selectedId, setSelectedId] = useState(null);
   const [submitted, setSubmitted] = useState(false);
   const [isCorrectSelected, setIsCorrectSelected] = useState(null);
@@ -56,7 +59,7 @@ export default function ActivityTemplate1({
   };
 
   const buttonDisabled = (!submitted && !selectedOption) || submittingAnswer;
-  const buttonLabel = submitted ? nextLabel : submittingAnswer ? "Saving..." : "Submit";
+  const buttonLabel = submitted ? nextLabel : submittingAnswer ? t("saving") : t("submit");
 
   return (
     <SafeAreaView style={styles.page}>
@@ -123,7 +126,7 @@ export default function ActivityTemplate1({
               isCorrectSelected ? styles.feedbackCorrect : styles.feedbackWrong,
             ]}
           >
-            {isCorrectSelected ? "✓ Correct!" : "✗ Wrong answer"}
+            {isCorrectSelected ? t("correctFeedback") : t("wrongAnswerFeedback")}
           </Text>
         )}
 

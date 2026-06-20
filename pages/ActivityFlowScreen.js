@@ -14,6 +14,7 @@ import { useSubmitShortActivityAttemptMutation } from "../app/features/shortcoin
 import ActivityTemplate1 from "./ActivityTemplate1";
 import ActivityTemplate2 from "./ActivityTemplate2";
 import ActivityTemplate3 from "./ActivityTemplate3";
+import useT from "../app/i18n/useT";
 
 const TEMPLATE2_COLORS = [
   { color: "#a8e6a3", textColor: "#3a8c3f" },
@@ -84,10 +85,11 @@ function normalizeActivitiesWithRandomTemplates(rawActivities = []) {
 }
 
 export default function ActivityFlowScreen({ navigation, route }) {
+  const { t } = useT();
   const shortLessonId = route?.params?.shortLessonId || route?.params?.lessonId;
   const shortSubLessonId = route?.params?.shortSubLessonId || route?.params?.subLessonId;
 
-  const title = route?.params?.title || route?.params?.subLessonTitle || "Activity";
+  const title = route?.params?.title || route?.params?.subLessonTitle || t("activityTitle");
   const returnToVideoParams = route?.params?.returnToVideoParams || {};
   const completedVideoId = route?.params?.completedVideoId || route?.params?.completedVideoKey;
   const completedVideoIndex = Number(route?.params?.completedVideoIndex ?? route?.params?.videoIndex ?? 0);
@@ -167,16 +169,16 @@ export default function ActivityFlowScreen({ navigation, route }) {
       setCoinMessages((prev) => ({
         ...prev,
         [String(activityId)]: alreadyAttempted
-          ? `Already attempted • Total coins: ${totalShortCoins}`
+          ? `${t("alreadyAttempted")} • ${t("totalCoins")}: ${totalShortCoins}`
           : isCorrect
-          ? `+${earnedCoins} coins • Total coins: ${totalShortCoins}`
-          : `0 coins • Total coins: ${totalShortCoins}`,
+          ? `+${earnedCoins} ${t("coins")} • ${t("totalCoins")}: ${totalShortCoins}`
+          : `0 ${t("coins")} • ${t("totalCoins")}: ${totalShortCoins}`,
       }));
     } catch (error) {
       attemptedLocalRef.current.delete(String(activityId));
       Alert.alert(
-        "Activity Save Failed",
-        error?.data?.message || error?.message || "Could not save activity answer. Please try again."
+        t("activitySaveFailed"),
+        error?.data?.message || error?.message || t("activitySaveFailedMessage")
       );
     }
   };
@@ -196,10 +198,10 @@ export default function ActivityFlowScreen({ navigation, route }) {
     return (
       <SafeAreaView style={styles.statePage}>
         <StatusBar barStyle="dark-content" backgroundColor="#EDE9FE" />
-        <Text style={styles.stateTitle}>Activity not found</Text>
-        <Text style={styles.stateSub}>Lesson or sub lesson ID is missing.</Text>
+        <Text style={styles.stateTitle}>{t("activityNotFound")}</Text>
+        <Text style={styles.stateSub}>{t("lessonOrSubLessonMissing")}</Text>
         <TouchableOpacity style={styles.stateBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.stateBtnText}>Back</Text>
+          <Text style={styles.stateBtnText}>{t("back")}</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -210,7 +212,7 @@ export default function ActivityFlowScreen({ navigation, route }) {
       <SafeAreaView style={styles.statePage}>
         <StatusBar barStyle="dark-content" backgroundColor="#EDE9FE" />
         <ActivityIndicator size="large" color="#6C5CE7" />
-        <Text style={styles.stateTitle}>Loading activities...</Text>
+        <Text style={styles.stateTitle}>{t("loadingActivities")}</Text>
       </SafeAreaView>
     );
   }
@@ -219,9 +221,9 @@ export default function ActivityFlowScreen({ navigation, route }) {
     return (
       <SafeAreaView style={styles.statePage}>
         <StatusBar barStyle="dark-content" backgroundColor="#EDE9FE" />
-        <Text style={styles.stateTitle}>Failed to load activities</Text>
+        <Text style={styles.stateTitle}>{t("failedLoadActivities")}</Text>
         <TouchableOpacity style={styles.stateBtn} onPress={refetch}>
-          <Text style={styles.stateBtnText}>Try again</Text>
+          <Text style={styles.stateBtnText}>{t("tryAgain")}</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -231,10 +233,10 @@ export default function ActivityFlowScreen({ navigation, route }) {
     return (
       <SafeAreaView style={styles.statePage}>
         <StatusBar barStyle="dark-content" backgroundColor="#EDE9FE" />
-        <Text style={styles.stateTitle}>No activities found</Text>
-        <Text style={styles.stateSub}>No MCQ paper is assigned for this sub lesson.</Text>
+        <Text style={styles.stateTitle}>{t("noActivitiesFound")}</Text>
+        <Text style={styles.stateSub}>{t("noMcqAssigned")}</Text>
         <TouchableOpacity style={styles.stateBtn} onPress={finishAndGoNextVideo}>
-          <Text style={styles.stateBtnText}>{hasNextVideo ? "Next Video" : "Back to Video"}</Text>
+          <Text style={styles.stateBtnText}>{hasNextVideo ? t("nextVideo") : t("backToVideo")}</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -242,8 +244,8 @@ export default function ActivityFlowScreen({ navigation, route }) {
 
   const currentActivity = activities[currentIndex];
   const isLast = currentIndex === activities.length - 1;
-  const activityLabel = `Activity - ${currentIndex + 1}`;
-  const nextLabel = isLast ? (hasNextVideo ? "Next Video" : "Back to Video") : "Next activity";
+  const activityLabel = `${t("activityLabelPrefix")} - ${currentIndex + 1}`;
+  const nextLabel = isLast ? (hasNextVideo ? t("nextVideo") : t("backToVideo")) : t("nextActivity");
   const coinText = coinMessages[String(currentActivity.id)] || "";
 
   const commonProps = {
@@ -307,3 +309,4 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
 });
+

@@ -218,9 +218,7 @@ function buildUnlockedVideoFeed({ subLessons = [], shortLessonId }) {
         activityDone: Boolean(progress?.activitiesCompleted || progress?.isCompleted),
         isSubLessonCompleted: subCompleted,
         needsActivitiesBeforeNext,
-        nextLockedReason:
-          progress?.nextLockedReason ||
-          "Please complete all activities, then you can watch the next video.",
+        nextLockedReason: progress?.nextLockedReason || "",
         progress,
         shortLessonId,
         shortSubLessonId: subLessonId,
@@ -279,15 +277,15 @@ function LockOverlay({ onEnroll, t }) {
   );
 }
 
-function EmptyVideoOverlay({ title }) {
+function EmptyVideoOverlay({ title, t }) {
   return (
     <View style={vcs.playOverlay}>
-      <Text style={vcs.tapPlayText}>{title || "No video link found for this sub lesson"}</Text>
+      <Text style={vcs.tapPlayText}>{title || t("shortVideoNoVideoLink")}</Text>
     </View>
   );
 }
 
-function PlayOverlay({ onPlay, isDisabled, message }) {
+function PlayOverlay({ onPlay, isDisabled, message, t }) {
   return (
     <TouchableOpacity
       style={vcs.playOverlay}
@@ -298,16 +296,16 @@ function PlayOverlay({ onPlay, isDisabled, message }) {
       <View style={[vcs.bigPlayCircle, isDisabled && vcs.bigPlayCircleDisabled]}>
         <View style={vcs.bigPlayTriangle} />
       </View>
-      <Text style={vcs.tapPlayText}>{message || "Tap to Play Video"}</Text>
+      <Text style={vcs.tapPlayText}>{message || t("shortVideoTapToPlay")}</Text>
     </TouchableOpacity>
   );
 }
 
-function ActivityRequiredBanner({ message }) {
+function ActivityRequiredBanner({ message, t }) {
   return (
     <View pointerEvents="none" style={vcs.activityRequiredBanner}>
       <Text style={vcs.activityRequiredText}>
-        {message || "Please complete all activities, then you can watch the next video."}
+        {message || t("shortVideoCompleteActivitiesNext")}
       </Text>
     </View>
   );
@@ -340,7 +338,7 @@ const VideoCard = React.memo(
           {isEnrollmentLocked ? (
             <LockOverlay onEnroll={onEnroll} t={t} />
           ) : !item?.videoSource ? (
-            <EmptyVideoOverlay title="No video link found for this sub lesson" />
+            <EmptyVideoOverlay title={t("shortVideoNoVideoLink")} t={t} />
           ) : isPlaying ? (
             <CrossWebView
               key={`video-${item.id}`}
@@ -350,7 +348,8 @@ const VideoCard = React.memo(
           ) : (
             <PlayOverlay
               onPlay={() => onPlay(index)}
-              message={showActivityRequired ? item.nextLockedReason : "Tap to Play Video"}
+              message={showActivityRequired ? item.nextLockedReason || t("shortVideoCompleteActivitiesNext") : t("shortVideoTapToPlay")}
+              t={t}
             />
           )}
 
@@ -358,7 +357,7 @@ const VideoCard = React.memo(
             <View pointerEvents="none" style={vcs.titleBar}>
               {item.watched && (
                 <View style={vcs.demoPill}>
-                  <Text style={vcs.demoPillText}>WATCHED</Text>
+                  <Text style={vcs.demoPillText}>{t("watched")}</Text>
                 </View>
               )}
               <Text style={vcs.star}>⭐</Text>
@@ -367,7 +366,7 @@ const VideoCard = React.memo(
             </View>
           )}
 
-          {showActivityRequired && <ActivityRequiredBanner message={item.nextLockedReason} />}
+          {showActivityRequired && <ActivityRequiredBanner message={item.nextLockedReason} t={t} />}
         </View>
 
         {!isEnrollmentLocked && (
@@ -390,7 +389,7 @@ const VideoCard = React.memo(
             >
               <Text style={vcs.activityIcon}>📖</Text>
               <Text style={vcs.btnText}>
-                {item.activityDone ? t("done") : item.watched ? t("activity") : "Watch first"}
+                {item.activityDone ? t("done") : item.watched ? t("activity") : t("watchFirst")}
               </Text>
             </TouchableOpacity>
           </View>
@@ -529,9 +528,7 @@ export default function ShortVideoScreen({ navigation, route }) {
                   watched: true,
                   activityDone: Boolean(progress?.activitiesCompleted || progress?.isCompleted),
                   needsActivitiesBeforeNext: Boolean(progress?.needsActivitiesBeforeNext),
-                  nextLockedReason:
-                    progress?.nextLockedReason ||
-                    "Please complete all activities, then you can watch the next video.",
+                  nextLockedReason: progress?.nextLockedReason || "",
                   progress,
                 }
               : lesson
@@ -539,15 +536,15 @@ export default function ShortVideoScreen({ navigation, route }) {
         );
       } catch (error) {
         Alert.alert(
-          "Locked",
+          t("lockedAlertTitle"),
           error?.data?.message ||
             error?.message ||
-            "Please complete all activities, then you can watch the next video."
+            t("shortVideoCompleteActivitiesNext")
         );
         refetch?.();
       }
     },
-    [lessons, markShortVideoWatched, refetch]
+    [lessons, markShortVideoWatched, refetch, t]
   );
 
   const handleNextVideo = useCallback(
@@ -555,15 +552,14 @@ export default function ShortVideoScreen({ navigation, route }) {
       const currentItem = lessons[currentIndex];
 
       if (!currentItem?.watched) {
-        Alert.alert("Watch Video First", "Please watch/play this video before going to the next video.");
+        Alert.alert(t("watchVideoFirstTitle"), t("watchVideoBeforeNext"));
         return;
       }
 
       if (currentItem?.needsActivitiesBeforeNext) {
         Alert.alert(
-          "Activity Required",
-          currentItem?.nextLockedReason ||
-            "Please complete all activities, then you can watch the next video."
+          t("activityRequiredTitle"),
+          currentItem?.nextLockedReason || t("shortVideoCompleteActivitiesNext")
         );
         return;
       }
@@ -578,17 +574,17 @@ export default function ShortVideoScreen({ navigation, route }) {
       }
 
       Alert.alert(
-        "Locked",
-        "Please complete all activities, then you can watch the next video."
+        t("lockedAlertTitle"),
+        t("shortVideoCompleteActivitiesNext")
       );
     },
-    [lessons, stopVideo]
+    [lessons, stopVideo, t]
   );
 
   const handleActivity = useCallback(
     (item, index) => {
       if (!item?.watched) {
-        Alert.alert("Watch Video First", "Please watch/play this video before starting the activity.");
+        Alert.alert(t("watchVideoFirstTitle"), t("watchVideoBeforeActivity"));
         return;
       }
 
@@ -621,7 +617,7 @@ export default function ShortVideoScreen({ navigation, route }) {
         },
       });
     },
-    [navigation, route?.params, lessons, sourceSubLessons, stopVideo]
+    [navigation, route?.params, lessons, sourceSubLessons, stopVideo, t]
   );
 
   const renderItem = useCallback(
@@ -680,17 +676,17 @@ export default function ShortVideoScreen({ navigation, route }) {
         <View style={[vcs.cardContainer, { width: screenWidth, height: pageHeight }]}> 
           <View style={[vcs.playOverlay, { width: screenWidth, height: pageHeight }]}> 
             <ActivityIndicator size="large" color="#FFFFFF" />
-            <Text style={[vcs.tapPlayText, { marginTop: 12 }]}>Loading videos...</Text>
+            <Text style={[vcs.tapPlayText, { marginTop: 12 }]}>{t("shortVideoLoadingVideos")}</Text>
           </View>
         </View>
       ) : lessons.length === 0 ? (
         <View style={[vcs.cardContainer, { width: screenWidth, height: pageHeight }]}> 
           <View style={[vcs.videoArea, { width: screenWidth, height: pageHeight - BOTTOM_BAR_HEIGHT }]}> 
-            <EmptyVideoOverlay />
+            <EmptyVideoOverlay t={t} />
           </View>
 
           <View style={vcs.lockedBottom}>
-            <Text style={vcs.lockedBottomText}>No unlocked videos</Text>
+            <Text style={vcs.lockedBottomText}>{t("shortVideoNoUnlockedVideos")}</Text>
           </View>
         </View>
       ) : (

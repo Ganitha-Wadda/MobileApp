@@ -42,11 +42,11 @@ const buildReviewParams = (attempt, paperTitle, paper) => ({
   status: attempt?.status,
 });
 
-const getAttemptButtonText = (defaultStartText, attempt, isChecking) => {
-  if (isChecking) return "Checking...";
-  if (!attempt?.status) return defaultStartText || "Start";
-  if (attempt.status === "in_progress") return "Continue";
-  return "View Review";
+const getAttemptButtonText = (defaultStartText, attempt, isChecking, labels = {}) => {
+  if (isChecking) return labels.checking || "Checking...";
+  if (!attempt?.status) return defaultStartText || labels.start || "Start";
+  if (attempt.status === "in_progress") return labels.continue || "Continue";
+  return labels.viewReview || "View Review";
 };
 
 
@@ -85,7 +85,7 @@ const getPapersFromResponse = (response) => {
 
 const getPaperId = (paper) => paper?.id || paper?._id || "";
 
-const getPaperTitle = (paper) =>
+const getPaperTitle = (paper, fallbackTitle = "Lesson") =>
   String(
     paper?.paperTitle ||
       paper?.paperName ||
@@ -93,7 +93,7 @@ const getPaperTitle = (paper) =>
       paper?.lessonName ||
       paper?.title ||
       paper?.name ||
-      "Lesson"
+      fallbackTitle
   ).trim();
 
 const getPaperSubtitle = (paper) =>
@@ -104,14 +104,14 @@ const getPaperSubtitle = (paper) =>
       ""
   ).trim();
 
-const mapBackendPapersToLessons = (papers) =>
+const mapBackendPapersToLessons = (papers, fallbackLessonTitle = "Lesson") =>
   papers.map((paper, index) => {
     const style = CARD_STYLES[index % CARD_STYLES.length];
 
     return {
       id: getPaperId(paper) || String(index + 1),
       paperId: getPaperId(paper),
-      title: getPaperTitle(paper),
+      title: getPaperTitle(paper, fallbackLessonTitle),
       subtitle: getPaperSubtitle(paper),
       emoji: style.emoji,
       iconBg: style.iconBg,
@@ -120,17 +120,18 @@ const mapBackendPapersToLessons = (papers) =>
     };
   });
 
-const getErrorMessage = (error, token) => {
-  if (!token) return "Please login first.";
+const getErrorMessage = (error, token, t) => {
+  if (!token) return t("pleaseLoginFirst") || "Please login first.";
   return (
     error?.data?.message ||
     error?.error ||
     error?.message ||
+    t("unableToLoadPapers") ||
     "Unable to load papers."
   );
 };
 
-const StateBox = ({ loading, title, message, onRetry }) => (
+const StateBox = ({ loading, title, message, onRetry, retryText = "Tap to retry" }) => (
   <TouchableOpacity
     activeOpacity={onRetry ? 0.85 : 1}
     onPress={onRetry}
@@ -140,7 +141,7 @@ const StateBox = ({ loading, title, message, onRetry }) => (
     {loading && <ActivityIndicator size="small" />}
     <Text style={styles.stateTitle}>{title}</Text>
     {!!message && <Text style={styles.stateText}>{message}</Text>}
-    {!!onRetry && !loading && <Text style={styles.retryText}>Tap to retry</Text>}
+    {!!onRetry && !loading && <Text style={styles.retryText}>{retryText}</Text>}
   </TouchableOpacity>
 );
 
@@ -258,7 +259,7 @@ const FloatingStar = ({ style, color = "#C8BFFF", size = 18, delay = 0 }) => {
   );
 };
 
-const LessonCard = ({ lesson, index, navigation, playClickSound, startText, token }) => {
+const LessonCard = ({ lesson, index, navigation, playClickSound, startText, token, t }) => {
   const slideAnim = useRef(new Animated.Value(45)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const cardScale = useRef(new Animated.Value(1)).current;
@@ -270,7 +271,11 @@ const LessonCard = ({ lesson, index, navigation, playClickSound, startText, toke
     });
 
   const latestAttempt = getPayloadData(latestResultResponse);
-  const buttonText = getAttemptButtonText(startText, latestAttempt, isCheckingAttempt);
+  const buttonText = getAttemptButtonText(startText, latestAttempt, isCheckingAttempt, {
+    checking: t("checking"),
+    continue: t("continue"),
+    viewReview: t("viewReview"),
+  });
 
   useEffect(() => {
     Animated.parallel([
@@ -410,8 +415,8 @@ export default function LessonByLessonMenu({ navigation }) {
   const backendPapers = getPapersFromResponse(data);
 
   const lessons = useMemo(
-    () => mapBackendPapersToLessons(backendPapers),
-    [backendPapers]
+    () => mapBackendPapersToLessons(backendPapers, t("lesson") || "Lesson"),
+    [backendPapers, t]
   );
 
   useEffect(() => {
@@ -440,7 +445,7 @@ export default function LessonByLessonMenu({ navigation }) {
   };
 
   const isBusy = isLoading || isFetching;
-  const errorMessage = error || !token ? getErrorMessage(error, token) : "";
+  const errorMessage = error || !token ? getErrorMessage(error, token, t) : "";
 
   return (
     <View style={styles.container}>
@@ -474,11 +479,19 @@ export default function LessonByLessonMenu({ navigation }) {
         showsVerticalScrollIndicator={false}
       >
         {isBusy ? (
-          <StateBox loading title="Loading lesson by lesson papers..." />
+          <StateBox loading title={t("loadingLessonByLessonPapers")} />
         ) : errorMessage ? (
-          <StateBox title="Cannot load papers" message={errorMessage} onRetry={token ? refetch : undefined} />
+          <StateBox
+            title={t("cannotLoadPapers")}
+            message={errorMessage}
+            onRetry={token ? refetch : undefined}
+            retryText={t("tapToRetry")}
+          />
         ) : lessons.length === 0 ? (
-          <StateBox title="No lesson papers" message="No published lesson by lesson papers are available for your login grade yet." />
+          <StateBox
+            title={t("noLessonPapers")}
+            message={t("noLessonByLessonPapersMessage")}
+          />
         ) : (
           lessons.map((lesson, index) => (
             <LessonCard
@@ -489,6 +502,7 @@ export default function LessonByLessonMenu({ navigation }) {
               playClickSound={playClickSound}
               startText={t("start") || "Start"}
               token={token}
+              t={t}
             />
           ))
         )}
