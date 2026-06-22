@@ -1,8 +1,10 @@
-import React from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Provider } from "react-redux";
 import { PersistGate } from "redux-persist/integration/react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import store, { persistor } from "./app/features/store";
 
 import SplashScreen from "./pages/SplashScreen";
@@ -46,14 +48,91 @@ import ReviewPage from "./pages/Reviewpage";
 import ChooseAvatarPage from "./pages/ChooseAvatarPage";
 import Battle from "./pages/Battle";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Navigation state persistence key.
+// Bump the version suffix (V1 → V2) if you ever restructure your stack so
+// old saved states don't conflict with the new screen names.
+// ─────────────────────────────────────────────────────────────────────────────
+const NAV_PERSISTENCE_KEY = "NAV_STATE_V1";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// clearNavState — call this on explicit logout so the next app open
+// starts at the default screen instead of resuming a protected screen.
+//
+// Usage in your logout handler:
+//   import { clearNavState } from "../App";
+//   await clearNavState();
+//   dispatch(clearAuth());
+// ─────────────────────────────────────────────────────────────────────────────
+export const clearNavState = async () => {
+  try {
+    await AsyncStorage.removeItem(NAV_PERSISTENCE_KEY);
+  } catch (e) {
+    console.warn("[NavPersist] Failed to clear nav state:", e);
+  }
+};
+
 const Stack = createNativeStackNavigator();
 
 export default function App() {
+  const [isNavReady, setIsNavReady] = useState(false);
+  const [initialNavState, setInitialNavState] = useState(undefined);
+
+  // ── Restore last screen on every app open (works for ALL users: ─────────────
+  //    non-logged-in on OTP / Signup / etc., AND fully logged-in users)
+  useEffect(() => {
+    const restoreNavState = async () => {
+      try {
+        const savedStateString = await AsyncStorage.getItem(NAV_PERSISTENCE_KEY);
+        if (savedStateString) {
+          setInitialNavState(JSON.parse(savedStateString));
+        }
+        // If nothing was saved yet, initialNavState stays undefined and the
+        // navigator uses its own default (Splash screen).
+      } catch (e) {
+        console.warn("[NavPersist] Failed to restore nav state:", e);
+      } finally {
+        // Always mark ready so the app never hangs on a blank screen.
+        setIsNavReady(true);
+      }
+    };
+
+    restoreNavState();
+  }, []);
+
+  // ── Persist nav state on every screen change ────────────────────────────────
+  const onNavStateChange = useCallback(async (state) => {
+    try {
+      if (state) {
+        await AsyncStorage.setItem(NAV_PERSISTENCE_KEY, JSON.stringify(state));
+      }
+    } catch (e) {
+      console.warn("[NavPersist] Failed to save nav state:", e);
+    }
+  }, []);
+
+  // ── Show blank loading view while AsyncStorage is being read ────────────────
+  //    This is extremely brief (< 100ms). Replace with your SplashScreen
+  //    component here if you want a visible splash during this moment.
+  if (!isNavReady) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
+    );
+  }
+
   return (
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
-        <NavigationContainer>
+        <NavigationContainer
+          initialState={initialNavState}    // ← resumes last screen for ALL users
+          onStateChange={onNavStateChange}  // ← saves on every navigation
+        >
           <Stack.Navigator screenOptions={{ headerShown: false }}>
+
+            {/* ── Auth / Onboarding screens (RootLayout) ───────────────────── */}
+
             <Stack.Screen name="Splash">
               {(props) => (
                 <RootLayout>
@@ -133,6 +212,8 @@ export default function App() {
                 </RootLayout>
               )}
             </Stack.Screen>
+
+            {/* ── Main app screens (SecondLayout) ──────────────────────────── */}
 
             <Stack.Screen name="home">
               {(props) => (
@@ -349,9 +430,19 @@ export default function App() {
                 </SecondLayout>
               )}
             </Stack.Screen>
+
           </Stack.Navigator>
         </NavigationContainer>
       </PersistGate>
     </Provider>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#ffffff", // match your splash screen background color
+  },
+});

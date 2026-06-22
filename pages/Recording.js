@@ -18,6 +18,7 @@ import {
   useGetDemoRecordingsQuery,
 } from "../app/features/recordingApi";
 import { EnrollmentModal } from "../components/EnrollmentGate";
+import useT from "../app/i18n/useT";
 
 const ZOOM_ICON = "https://cdn-icons-png.flaticon.com/512/4401/4401470.png";
 
@@ -62,7 +63,7 @@ const isDemoRecording = (recording) => {
   );
 };
 
-const formatRecordingDesc = (recording) => {
+const formatRecordingDesc = (recording, t = (key) => key) => {
   const classInfo = recording?.classId || recording?.raw?.classId || {};
 
   const grade =
@@ -83,7 +84,7 @@ const formatRecordingDesc = (recording) => {
 
   const parts = [];
 
-  if (grade) parts.push(`Grade ${grade}`);
+  if (grade) parts.push(`${t("gradeBadge") || "Grade"} ${grade}`);
   if (batch) parts.push(String(batch));
   if (teacherName) parts.push(String(teacherName));
 
@@ -93,14 +94,14 @@ const formatRecordingDesc = (recording) => {
     try {
       return new Date(recording?.date || recording?.raw?.date).toLocaleDateString();
     } catch {
-      return "This is recording";
+      return t("thisIsRecording");
     }
   }
 
-  return "This is recording";
+  return t("thisIsRecording");
 };
 
-const normalizeRecordingList = (payload) => {
+const normalizeRecordingList = (payload, t = (key) => key) => {
   const list =
     payload?.recordings ??
     payload?.data?.recordings ??
@@ -112,8 +113,8 @@ const normalizeRecordingList = (payload) => {
   return list.map((recording, index) => {
     const item = {
       id: recording?._id || recording?.id || `recording-${index + 1}`,
-      title: recording?.title || `Recordings - ${index + 1}`,
-      desc: formatRecordingDesc(recording),
+      title: recording?.title || `${t("recordingsTitle")} - ${index + 1}`,
+      desc: formatRecordingDesc(recording, t),
       youtubeUrl: getRecordingVideoUrl(recording),
       videoUrl: getRecordingVideoUrl(recording),
       isDemo: Boolean(recording?.isDemo || isDemoRecording(recording)),
@@ -217,7 +218,7 @@ const ZoomIcon = ({ size = 26 }) => (
 // Recording card
 // ─────────────────────────────────────────────────────────────────────────────
 
-const RecordingCard = ({ item, isApproved, onPress }) => {
+const RecordingCard = ({ item, isApproved, onPress, t }) => {
   const locked = !isApproved && !item?.isDemo;
 
   return (
@@ -242,7 +243,7 @@ const RecordingCard = ({ item, isApproved, onPress }) => {
             style={[styles.cardTitle, locked && styles.cardTitleLocked]}
             numberOfLines={1}
           >
-            {locked ? "Enroll to Access" : item.title}
+            {locked ? t("enrollToAccess") : item.title}
           </Text>
         </View>
 
@@ -251,9 +252,9 @@ const RecordingCard = ({ item, isApproved, onPress }) => {
           numberOfLines={1}
         >
           {locked
-            ? "Approve enrollment to unlock this recording"
+            ? t("approveEnrollmentToUnlock")
             : item?.isDemo && !isApproved
-              ? "Free demo lesson — watch now!"
+              ? t("freeDemoLesson")
               : item.desc}
         </Text>
       </View>
@@ -264,7 +265,7 @@ const RecordingCard = ({ item, isApproved, onPress }) => {
         onPress={() => onPress(item)}
         activeOpacity={0.85}
       >
-        <Text style={styles.viewBtnText}>{locked ? "Unlock" : "View"}</Text>
+        <Text style={styles.viewBtnText}>{locked ? t("unlock") : t("view")}</Text>
       </TouchableOpacity>
     </TouchableOpacity>
   );
@@ -275,6 +276,7 @@ const RecordingCard = ({ item, isApproved, onPress }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function Recording({ navigation }) {
+  const { t } = useT();
   const {
     isApproved,
     canAccessRecording,
@@ -312,29 +314,31 @@ export default function Recording({ navigation }) {
   });
 
   const backendRecordings = useMemo(
-    () => normalizeRecordingList(recordingsData),
-    [recordingsData]
+    () => normalizeRecordingList(recordingsData, t),
+    [recordingsData, t]
   );
 
   const demoRecordings = useMemo(() => {
-    const list = normalizeRecordingList(demoRecordingsData).map((item) => ({
+    const list = normalizeRecordingList(demoRecordingsData, t).map((item) => ({
       ...item,
       isDemo: true,
     }));
 
     return list.slice(0, 1);
-  }, [demoRecordingsData]);
+  }, [demoRecordingsData, t]);
 
   const displayRecordings = useMemo(() => {
     if (canLoadRecordings) return backendRecordings;
 
     const lockedCards = lockedPreviewRecordings.map((item, index) => ({
       ...item,
+      title: `${t("recordingsTitle")} - ${index + 1}`,
+      desc: t("thisIsRecording"),
       id: demoRecordings.length > 0 ? `locked-${index + 1}` : item.id,
     }));
 
     return [...demoRecordings, ...lockedCards];
-  }, [canLoadRecordings, backendRecordings, demoRecordings]);
+  }, [canLoadRecordings, backendRecordings, demoRecordings, t]);
 
   const handlePress = (item) => {
     const locked = !canLoadRecordings && !item?.isDemo;
@@ -390,18 +394,18 @@ export default function Recording({ navigation }) {
 
           {/* Title */}
           <View style={styles.titleContainer}>
-            <Text style={styles.pageTitle}>Recordings</Text>
+            <Text style={styles.pageTitle}>{t("recordingsTitle")}</Text>
 
             {canLoadRecordings ? (
               <View style={styles.statusPill}>
-                <Text style={styles.statusPillText}>✅ Full Access</Text>
+                <Text style={styles.statusPillText}>✅ {t("fullAccess")}</Text>
               </View>
             ) : (
               <View style={[styles.statusPill, styles.statusPillPending]}>
                 <Text
                   style={[styles.statusPillText, styles.statusPillTextPending]}
                 >
-                  🔒 Demo Mode
+                  🔒 {t("demoMode")}
                 </Text>
               </View>
             )}
@@ -414,11 +418,11 @@ export default function Recording({ navigation }) {
             showsVerticalScrollIndicator={false}
           >
             {showLoading && (
-              <Text style={styles.infoText}>Loading recordings...</Text>
+              <Text style={styles.infoText}>{t("loadingRecordings")}</Text>
             )}
 
             {showDemoLoading && (
-              <Text style={styles.infoText}>Loading demo lesson...</Text>
+              <Text style={styles.infoText}>{t("loadingDemoLesson")}</Text>
             )}
 
             {showError && (
@@ -427,8 +431,8 @@ export default function Recording({ navigation }) {
                 onPress={refetch}
                 activeOpacity={0.85}
               >
-                <Text style={styles.infoTitle}>Could not load recordings</Text>
-                <Text style={styles.infoSub}>Tap here to try again</Text>
+                <Text style={styles.infoTitle}>{t("couldNotLoadRecordings")}</Text>
+                <Text style={styles.infoSub}>{t("tapHereToTryAgain")}</Text>
               </TouchableOpacity>
             )}
 
@@ -438,14 +442,15 @@ export default function Recording({ navigation }) {
                 item={item}
                 isApproved={canLoadRecordings}
                 onPress={handlePress}
+                t={t}
               />
             ))}
 
             {showEmpty && (
               <View style={styles.infoBox}>
-                <Text style={styles.infoTitle}>No recordings available yet</Text>
+                <Text style={styles.infoTitle}>{t("noRecordingsAvailableYet")}</Text>
                 <Text style={styles.infoSub}>
-                  Your approved grade and batch have no uploaded recordings.
+                  {t("approvedGradeBatchNoRecordings")}
                 </Text>
               </View>
             )}
@@ -467,10 +472,10 @@ export default function Recording({ navigation }) {
 
                   <View style={styles.enrollBannerText}>
                     <Text style={styles.enrollBannerTitle}>
-                      Unlock All Recordings
+                      {t("unlockAllRecordings")}
                     </Text>
                     <Text style={styles.enrollBannerSub}>
-                      Enroll now and get full access once approved.
+                      {t("enrollNowAndGetFullAccess")}
                     </Text>
                   </View>
 

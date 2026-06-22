@@ -34,8 +34,6 @@ import useT from "../app/i18n/useT";
 const PURPLE = "#6c5ce7";
 const LIGHT_BG = "#f0eeff";
 
-// Keep these as URLs so you do not need to add new local asset files.
-// You can replace them with require("../assets/male-kid.png") later if you prefer local images.
 const MALE_KID_AVATAR_URI = "https://cdn-icons-png.flaticon.com/512/4140/4140048.png";
 const FEMALE_KID_AVATAR_URI = "https://cdn-icons-png.flaticon.com/512/4140/4140051.png";
 
@@ -174,14 +172,12 @@ const capitalize = (value) =>
 
 const getUserGradeNumber = (user) => {
   if (!user?.grade) return "";
-  if (typeof user.grade === "object") return String(user.grade.gradeId || "");
-  return String(user.grade || "");
-};
 
-const getGradeLabel = (grade) => {
-  if (!grade) return "";
-  if (typeof grade === "object") return String(grade.gradeId || "");
-  return String(grade);
+  if (typeof user.grade === "object") {
+    return String(user.grade.gradeId || "");
+  }
+
+  return String(user.grade || "");
 };
 
 function ProfileField({ icon, label, value, labelStyle }) {
@@ -200,7 +196,15 @@ function ProfileField({ icon, label, value, labelStyle }) {
   );
 }
 
-function SelectModal({ visible, title, options, selectedValue, onSelect, onClose, emptyText }) {
+function SelectModal({
+  visible,
+  title,
+  options,
+  selectedValue,
+  onSelect,
+  onClose,
+  emptyText,
+}) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.modalOverlay} onPress={onClose}>
@@ -244,7 +248,9 @@ export default function Profile() {
 
   const token = useSelector((state) => state.auth?.token);
   const cachedUser = useSelector((state) => state.user?.user);
-  const reduxLanguage = useSelector((state) => state.languageSelection?.language || "si");
+  const reduxLanguage = useSelector(
+    (state) => state.languageSelection?.language || "si"
+  );
 
   const [isEditing, setIsEditing] = useState(false);
   const [selectedGrade, setSelectedGrade] = useState("");
@@ -266,9 +272,16 @@ export default function Profile() {
     refetch: refetchGrades,
   } = useGetActiveGradesQuery(undefined, { skip: !token });
 
-  const { data: backendLanguage } = useGetLanguageQuery(undefined, { skip: !token });
-  const [updateProfile, { isLoading: isSavingProfile }] = useUpdateCurrentUserProfileMutation();
-  const [updateLanguage, { isLoading: isSavingLanguage }] = useUpdateLanguageMutation();
+  const {
+    data: backendLanguage,
+    refetch: refetchLanguage,
+  } = useGetLanguageQuery(undefined, { skip: !token });
+
+  const [updateProfile, { isLoading: isSavingProfile }] =
+    useUpdateCurrentUserProfileMutation();
+
+  const [updateLanguage, { isLoading: isSavingLanguage }] =
+    useUpdateLanguageMutation();
 
   useEffect(() => {
     if (data?.user) {
@@ -313,27 +326,48 @@ export default function Profile() {
   const displayGrade = getUserGradeNumber(user) || "—";
   const displayDistrict = user?.district || "—";
   const cleanGender = String(user?.gender || "").toLowerCase().trim();
-  const displayGender = cleanGender === "female" ? copy.female : cleanGender === "male" ? copy.male : capitalize(cleanGender) || "—";
-  const avatarUri = cleanGender === "female" ? FEMALE_KID_AVATAR_URI : MALE_KID_AVATAR_URI;
+  const displayGender =
+    cleanGender === "female"
+      ? copy.female
+      : cleanGender === "male"
+      ? copy.male
+      : capitalize(cleanGender) || "—";
+  const avatarUri =
+    cleanGender === "female" ? FEMALE_KID_AVATAR_URI : MALE_KID_AVATAR_URI;
   const displayLanguage = selectedLanguage === "en" ? copy.english : copy.sinhala;
 
   const showInitialLoader = isLoading && !user;
 
   const handleRefresh = () => {
     if (token) {
-      refetch();
-      refetchGrades();
+      refetch?.();
+      refetchGrades?.();
+      refetchLanguage?.();
     }
   };
 
   const handleLanguageSelect = async (nextLanguage) => {
+    const cleanNextLanguage = String(nextLanguage || "si").toLowerCase().trim();
     const previousLanguage = selectedLanguage;
 
-    setSelectedLanguage(nextLanguage);
-    dispatch(setLanguage(nextLanguage));
+    if (!["en", "si"].includes(cleanNextLanguage)) {
+      return;
+    }
+
+    if (cleanNextLanguage === previousLanguage) {
+      return;
+    }
+
+    setSelectedLanguage(cleanNextLanguage);
+    dispatch(setLanguage(cleanNextLanguage));
 
     try {
-      await updateLanguage(nextLanguage).unwrap();
+      const response = await updateLanguage(cleanNextLanguage).unwrap();
+
+      const savedLanguage = response?.language || cleanNextLanguage;
+      setSelectedLanguage(savedLanguage);
+      dispatch(setLanguage(savedLanguage));
+      refetchLanguage?.();
     } catch (err) {
       setSelectedLanguage(previousLanguage);
       dispatch(setLanguage(previousLanguage));
@@ -347,8 +381,22 @@ export default function Profile() {
       return;
     }
 
+    const currentGrade = getUserGradeNumber(user);
+    const nextGrade = String(selectedGrade || "").trim();
+
+    // Important fix:
+    // Language is saved immediately through /api/language.
+    // Do not call /api/auth/profile when only language changed or grade is unchanged.
+    if (String(currentGrade) === String(nextGrade)) {
+      setSelectedGrade(currentGrade);
+      setIsEditing(false);
+      return;
+    }
+
     try {
-      const response = await updateProfile({ grade: Number(selectedGrade) }).unwrap();
+      const response = await updateProfile({
+        grade: Number(nextGrade),
+      }).unwrap();
 
       if (response?.user) {
         dispatch(setUser(response.user));
@@ -406,9 +454,42 @@ export default function Profile() {
               <Star size={16} color="#a78bfa" style={{ bottom: 55, right: 22 }} />
               <Star size={12} color="#60a5fa" style={{ top: 40, left: 14 }} />
 
-              <View style={[styles.dot, { backgroundColor: "#f6c90e", top: 65, right: 44, width: 8, height: 8 }]} />
-              <View style={[styles.dot, { backgroundColor: "#f472b6", top: 80, left: 34, width: 7, height: 7 }]} />
-              <View style={[styles.dot, { backgroundColor: "#60a5fa", bottom: 70, right: 50, width: 9, height: 9 }]} />
+              <View
+                style={[
+                  styles.dot,
+                  {
+                    backgroundColor: "#f6c90e",
+                    top: 65,
+                    right: 44,
+                    width: 8,
+                    height: 8,
+                  },
+                ]}
+              />
+              <View
+                style={[
+                  styles.dot,
+                  {
+                    backgroundColor: "#f472b6",
+                    top: 80,
+                    left: 34,
+                    width: 7,
+                    height: 7,
+                  },
+                ]}
+              />
+              <View
+                style={[
+                  styles.dot,
+                  {
+                    backgroundColor: "#60a5fa",
+                    bottom: 70,
+                    right: 50,
+                    width: 9,
+                    height: 9,
+                  },
+                ]}
+              />
 
               <View style={styles.glowPlatformOuter}>
                 <View style={styles.glowPlatformInner} />
@@ -427,7 +508,9 @@ export default function Profile() {
                   <View style={styles.profileIconBox}>
                     <Text style={styles.profileIconText}>👤</Text>
                   </View>
-                  <Text style={[styles.profileTitle, sinFont("bold")]}>{copy.profile}</Text>
+                  <Text style={[styles.profileTitle, sinFont("bold")]}>
+                    {copy.profile}
+                  </Text>
                 </View>
 
                 <Text style={styles.headerStar}>★</Text>
@@ -438,22 +521,33 @@ export default function Profile() {
               {showInitialLoader ? (
                 <View style={styles.loaderWrap}>
                   <ActivityIndicator size="small" color={PURPLE} />
-                  <Text style={[styles.loaderText, sinFont("regular")]}>{copy.loadingProfile}</Text>
+                  <Text style={[styles.loaderText, sinFont("regular")]}>
+                    {copy.loadingProfile}
+                  </Text>
                 </View>
               ) : (
                 <>
                   {isError && !user && (
-                    <Text style={[styles.errorText, sinFont("bold")]}> {copy.profileLoadError}</Text>
+                    <Text style={[styles.errorText, sinFont("bold")]}>
+                      {copy.profileLoadError}
+                    </Text>
                   )}
 
-                  <ProfileField icon="👤" label={copy.name} value={displayName} labelStyle={sinFont("regular")} />
+                  <ProfileField
+                    icon="👤"
+                    label={copy.name}
+                    value={displayName}
+                    labelStyle={sinFont("regular")}
+                  />
                   <View style={styles.fieldDivider} />
 
                   <View style={styles.fieldRow}>
                     <View style={styles.fieldIconWrap}>
                       <Text style={styles.fieldIcon}>🎓</Text>
                     </View>
-                    <Text style={[styles.fieldLabel, sinFont("regular")]}>{copy.grade}</Text>
+                    <Text style={[styles.fieldLabel, sinFont("regular")]}>
+                      {copy.grade}
+                    </Text>
 
                     {isEditing ? (
                       <TouchableOpacity
@@ -466,8 +560,8 @@ export default function Profile() {
                           {isGradesLoading
                             ? copy.loadingGrades
                             : selectedGrade
-                              ? `${copy.grade} ${selectedGrade}`
-                              : copy.selectGrade}
+                            ? `${copy.grade} ${selectedGrade}`
+                            : copy.selectGrade}
                         </Text>
                         <Text style={styles.chevron}>⌄</Text>
                       </TouchableOpacity>
@@ -479,17 +573,29 @@ export default function Profile() {
                   </View>
                   <View style={styles.fieldDivider} />
 
-                  <ProfileField icon="📍" label={copy.district} value={displayDistrict} labelStyle={sinFont("regular")} />
+                  <ProfileField
+                    icon="📍"
+                    label={copy.district}
+                    value={displayDistrict}
+                    labelStyle={sinFont("regular")}
+                  />
                   <View style={styles.fieldDivider} />
 
-                  <ProfileField icon="👥" label={copy.gender} value={displayGender} labelStyle={sinFont("regular")} />
+                  <ProfileField
+                    icon="👥"
+                    label={copy.gender}
+                    value={displayGender}
+                    labelStyle={sinFont("regular")}
+                  />
                   <View style={styles.fieldDivider} />
 
                   <View style={styles.fieldRow}>
                     <View style={styles.fieldIconWrap}>
                       <Text style={styles.fieldIcon}>🌐</Text>
                     </View>
-                    <Text style={[styles.fieldLabel, sinFont("regular")]}>{copy.language}</Text>
+                    <Text style={[styles.fieldLabel, sinFont("regular")]}>
+                      {copy.language}
+                    </Text>
 
                     <TouchableOpacity
                       style={[styles.fieldValueWrap, styles.selectBox]}
@@ -497,7 +603,9 @@ export default function Profile() {
                       onPress={() => setLanguageModalOpen(true)}
                       disabled={isSavingLanguage}
                     >
-                      <Text style={styles.fieldValue}>{isSavingLanguage ? copy.loadingProfile : displayLanguage}</Text>
+                      <Text style={styles.fieldValue}>
+                        {isSavingLanguage ? copy.loadingProfile : displayLanguage}
+                      </Text>
                       <Text style={styles.chevron}>⌄</Text>
                     </TouchableOpacity>
                   </View>
@@ -507,7 +615,7 @@ export default function Profile() {
               {isEditing ? (
                 <View style={styles.actionRow}>
                   <TouchableOpacity
-                    style={[styles.secondaryBtn]}
+                    style={styles.secondaryBtn}
                     activeOpacity={0.85}
                     onPress={() => {
                       setSelectedGrade(getUserGradeNumber(user));
@@ -515,7 +623,9 @@ export default function Profile() {
                     }}
                     disabled={isSavingProfile}
                   >
-                    <Text style={[styles.secondaryBtnText, sinFont("bold")]}>{copy.cancel}</Text>
+                    <Text style={[styles.secondaryBtnText, sinFont("bold")]}>
+                      {copy.cancel}
+                    </Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -529,7 +639,9 @@ export default function Profile() {
                     ) : (
                       <>
                         <Text style={styles.updateIcon}>✓</Text>
-                        <Text style={[styles.updateText, sinFont("bold")]}>{copy.save}</Text>
+                        <Text style={[styles.updateText, sinFont("bold")]}>
+                          {copy.save}
+                        </Text>
                       </>
                     )}
                   </TouchableOpacity>
@@ -542,7 +654,9 @@ export default function Profile() {
                   disabled={showInitialLoader}
                 >
                   <Text style={styles.updateIcon}>✏️</Text>
-                  <Text style={[styles.updateText, sinFont("bold")]}>{copy.update}</Text>
+                  <Text style={[styles.updateText, sinFont("bold")]}>
+                    {copy.update}
+                  </Text>
                 </TouchableOpacity>
               )}
             </View>

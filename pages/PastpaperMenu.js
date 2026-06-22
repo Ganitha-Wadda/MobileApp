@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo } from "react";
+import React, { useEffect, useRef, useMemo, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Dimensions,
   StatusBar,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useSelector } from "react-redux";
 import { Audio } from "expo-av";
@@ -22,6 +23,23 @@ const { width } = Dimensions.get("window");
 const getPayloadData = (response) => response?.data?.data || response?.data || response;
 
 const getAttemptId = (attempt) => attempt?.id || attempt?._id || "";
+
+const isCompletedAttempt = (attempt) =>
+  Boolean(attempt?.status && attempt.status !== "in_progress");
+
+const getSafeTranslation = (t, key, fallback) => {
+  const value = typeof t === "function" ? t(key) : "";
+  return value && value !== key ? value : fallback;
+};
+
+const getLockedText = (t) => getSafeTranslation(t, "lockedAlertTitle", "Locked");
+
+const getPracticeLockedMessage = (t) =>
+  getSafeTranslation(
+    t,
+    "completePracticePaperFirst",
+    "Please complete the first practice paper before opening other papers."
+  );
 
 const buildReviewParams = (attempt, paperTitle, paper) => ({
   attemptId: getAttemptId(attempt),
@@ -176,21 +194,32 @@ const Star = ({ color, size }) => (
   <Text style={{ color, fontSize: size, lineHeight: size + 4 }}>✦</Text>
 );
 
-const PastPaperCard = ({ item, onPress, startButtonText, token, t }) => {
+const PastPaperCard = ({ item, index, onPress, startButtonText, token, t, locked, onAttemptStatusResolved }) => {
   const { data: latestResultResponse, isFetching: isCheckingAttempt } =
     useGetLatestPaperResultByPaperQuery(item.paperId, {
       skip: !token || !item.paperId,
+      refetchOnFocus: true,
+      refetchOnReconnect: true,
+      refetchOnMountOrArgChange: true,
     });
 
   const latestAttempt = getPayloadData(latestResultResponse);
-  const buttonText = getAttemptButtonText(startButtonText, latestAttempt, isCheckingAttempt, {
-    checking: t("checking"),
-    continue: t("continue"),
-    viewReview: t("viewReview"),
-  });
+  const buttonText = locked
+    ? getLockedText(t)
+    : getAttemptButtonText(startButtonText, latestAttempt, isCheckingAttempt, {
+        checking: t("checking"),
+        continue: t("continue"),
+        viewReview: t("viewReview"),
+      });
+
+  useEffect(() => {
+    if (!isCheckingAttempt) {
+      onAttemptStatusResolved?.(item.paperId, latestAttempt);
+    }
+  }, [isCheckingAttempt, item.paperId, latestAttempt, onAttemptStatusResolved]);
 
   return (
-  <View style={styles.card}>
+  <View style={[styles.card, locked && styles.cardLocked]}>
     <View style={styles.iconWrapper}>
       <View style={styles.iconCircle}>
         <Text style={styles.iconEmoji}>{item.emoji}</Text>
@@ -212,7 +241,7 @@ const PastPaperCard = ({ item, onPress, startButtonText, token, t }) => {
 
       <TouchableOpacity
         style={styles.startButton}
-        onPress={() => onPress(item, latestAttempt)}
+        onPress={() => onPress(item, latestAttempt, locked, index)}
         activeOpacity={0.85}
       >
         <Text style={styles.startButtonText}>{buttonText}</Text>
@@ -230,6 +259,7 @@ export default function PastPaperMenu({ navigation, onSelectYear }) {
   const { t } = useT();
   const soundRef = useRef(null);
   const token = useSelector((state) => state?.auth?.token);
+  const [attemptByPaperId, setAttemptByPaperId] = useState({});
 
   const {
     data,
@@ -248,6 +278,31 @@ export default function PastPaperMenu({ navigation, onSelectYear }) {
     () => mapBackendPapersToYears(backendPapers, t("pastPaper") || "Past Paper"),
     [backendPapers, t]
   );
+
+  const firstPaperId = paperYears?.[0]?.paperId || paperYears?.[0]?.id || "";
+  const practiceCompleted = isCompletedAttempt(
+    attemptByPaperId[String(firstPaperId || "")]
+  );
+
+  const handleAttemptStatusResolved = useCallback((paperId, latestAttempt) => {
+    const key = String(paperId || "");
+    if (!key) return;
+
+    setAttemptByPaperId((prev) => {
+      const previousAttempt = prev[key];
+      const previousStatus = previousAttempt?.status || "";
+      const nextStatus = latestAttempt?.status || "";
+      const previousId = previousAttempt?.id || previousAttempt?._id || "";
+      const nextId = latestAttempt?.id || latestAttempt?._id || "";
+
+      if (previousStatus === nextStatus && previousId === nextId) return prev;
+
+      return {
+        ...prev,
+        [key]: latestAttempt || null,
+      };
+    });
+  }, []);
 
   useEffect(() => {
     const loadSound = async () => {
@@ -274,8 +329,13 @@ export default function PastPaperMenu({ navigation, onSelectYear }) {
     }
   };
 
-  const handleStart = async (item, latestAttempt = null) => {
+  const handleStart = async (item, latestAttempt = null, locked = false, index = 0) => {
     await playClickSound();
+
+    if (locked) {
+      Alert.alert(getLockedText(t), getPracticeLockedMessage(t));
+      return;
+    }
 
     if (latestAttempt?.status && latestAttempt.status !== "in_progress") {
       navigation.navigate("reviewpage", buildReviewParams(latestAttempt, item.title, item.rawPaper));
@@ -288,6 +348,7 @@ export default function PastPaperMenu({ navigation, onSelectYear }) {
         pastPaperYear: item.year,
         paperTitle: item.title,
         paperType: "pastpapers",
+        isPracticePaper: index === 0,
         paper: item.rawPaper,
       });
     }
@@ -327,14 +388,17 @@ export default function PastPaperMenu({ navigation, onSelectYear }) {
             message={t("noPastPapersMessage")}
           />
           ) : (
-            paperYears.map((item) => (
+            paperYears.map((item, index) => (
               <PastPaperCard
                 key={item.id}
                 item={item}
+                index={index}
                 onPress={handleStart}
                 startButtonText={startButtonText}
                 token={token}
                 t={t}
+                locked={index > 0 && !practiceCompleted}
+                onAttemptStatusResolved={handleAttemptStatusResolved}
               />
             ))
           )}
@@ -413,6 +477,9 @@ const styles = StyleSheet.create({
     position: "relative",
     overflow: "hidden",
   },
+  cardLocked: {
+    opacity: 0.58,
+  },
   iconWrapper: {
     width: 72,
     alignItems: "center",
@@ -479,3 +546,4 @@ const styles = StyleSheet.create({
     right: 16,
   },
 });
+

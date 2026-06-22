@@ -205,7 +205,7 @@ function PapersIcon() {
           strokeDasharray="20"
           strokeDashoffset={strokeDash}
         />
-        <G rotation="40" origin="36,12">
+        <G transform="rotate(40 36 12)">
           <Rect x="34" y="4" width="5" height="16" rx="1.5" fill="#FDE047" />
           <Polygon points="34,20 39,20 36.5,25" fill="#FBBF24" />
           <Rect x="34" y="4" width="5" height="4" rx="1" fill="#FB923C" />

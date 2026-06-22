@@ -10,7 +10,7 @@ import {
   SafeAreaView,
   ActivityIndicator,
 } from "react-native";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import Floating from "./Floating";
 import { setLanguage } from "../app/features/Languageselectionslice";
@@ -19,23 +19,30 @@ import { useUpdateLanguageMutation } from "../app/features/Languageapi";
 export default function SelectLanguagePage({ navigation }) {
   const { width, height } = Dimensions.get("screen");
   const dispatch = useDispatch();
+
+  const token = useSelector((state) => state?.auth?.token);
   const [updateLanguage, { isLoading }] = useUpdateLanguageMutation();
 
   const handleSelectLanguage = async (lang) => {
     // 1. Immediately update Redux so the whole app re-renders in the new language
     dispatch(setLanguage(lang));
 
-    // 2. Persist to backend (fire-and-forget — don't block navigation on failure)
-    try {
-      await updateLanguage(lang).unwrap();
-    } catch (_err) {
-      // Silent — local Redux state already reflects the choice.
-      // On next login, getLanguage will sync from backend.
+    // 2. Persist to backend ONLY if user is logged in.
+    // Before signup/login there is no token, so calling /api/language causes 401.
+    if (token) {
+      try {
+        await updateLanguage(lang).unwrap();
+      } catch (_err) {
+        // Silent — local Redux state already reflects the choice.
+        // On next login, getLanguage will sync from backend.
+      }
     }
 
     // 3. Navigate to Signup
     navigation.navigate("Signup");
   };
+
+  const showLoader = Boolean(token) && isLoading;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -72,7 +79,7 @@ export default function SelectLanguagePage({ navigation }) {
         <TouchableOpacity
           style={styles.languageButton}
           activeOpacity={0.8}
-          disabled={isLoading}
+          disabled={showLoader}
           onPress={() => handleSelectLanguage("en")}
         >
           <View style={styles.langCircle}>
@@ -81,7 +88,7 @@ export default function SelectLanguagePage({ navigation }) {
 
           <Text style={styles.langText}>English</Text>
 
-          {isLoading && (
+          {showLoader && (
             <ActivityIndicator
               size="small"
               color="#1B7EEF"
@@ -93,7 +100,7 @@ export default function SelectLanguagePage({ navigation }) {
         <TouchableOpacity
           style={styles.languageButton}
           activeOpacity={0.8}
-          disabled={isLoading}
+          disabled={showLoader}
           onPress={() => handleSelectLanguage("si")}
         >
           <View style={styles.langCircle}>
@@ -102,7 +109,7 @@ export default function SelectLanguagePage({ navigation }) {
 
           <Text style={styles.langText}>සිංහල</Text>
 
-          {isLoading && (
+          {showLoader && (
             <ActivityIndicator
               size="small"
               color="#1B7EEF"

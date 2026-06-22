@@ -1,6 +1,86 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { BASE_URL } from "../api/api";
 
+const isEmptyValue = (value) => {
+  if (value === undefined || value === null) return true;
+  if (typeof value === "string" && value.trim() === "") return true;
+  return false;
+};
+
+const isMongoId = (value) => /^[a-f\d]{24}$/i.test(String(value || "").trim());
+
+const cleanTextValue = (value) => {
+  if (isEmptyValue(value)) return undefined;
+  return String(value).trim();
+};
+
+const getGradeValue = (value) => {
+  if (isEmptyValue(value)) return undefined;
+
+  if (typeof value === "object" && !Array.isArray(value)) {
+    return getGradeValue(
+      value.gradeId ??
+        value.gradeNumber ??
+        value.grade ??
+        value.value ??
+        value.label ??
+        value.name
+    );
+  }
+
+  const stringValue = String(value).trim();
+
+  if (isMongoId(stringValue)) {
+    return undefined;
+  }
+
+  const gradeMatch = stringValue.match(/\d+/);
+  const gradeNumber = gradeMatch ? Number(gradeMatch[0]) : Number(stringValue);
+
+  if (
+    Number.isInteger(gradeNumber) &&
+    gradeNumber > 0 &&
+    gradeNumber < 20
+  ) {
+    return gradeNumber;
+  }
+
+  return undefined;
+};
+
+const cleanProfilePayload = (body = {}) => {
+  const payload = {};
+
+  const name = cleanTextValue(body.name ?? body.fullname ?? body.fullName);
+  const birthday = cleanTextValue(body.birthday);
+  const district = cleanTextValue(body.district);
+  const town = cleanTextValue(body.town);
+  const address = cleanTextValue(body.address);
+  const gender = cleanTextValue(body.gender);
+  const batchnumber = cleanTextValue(body.batchnumber ?? body.batchNumber);
+
+  if (name) payload.name = name;
+  if (birthday) payload.birthday = birthday;
+  if (district) payload.district = district;
+  if (town) payload.town = town;
+  if (address) payload.address = address;
+  if (gender) payload.gender = gender.toLowerCase();
+  if (batchnumber) payload.batchnumber = batchnumber;
+
+  const gradeValue = getGradeValue(
+    body.gradeId ??
+      body.gradeNumber ??
+      body.selectedGrade ??
+      body.grade
+  );
+
+  if (gradeValue !== undefined) {
+    payload.grade = gradeValue;
+  }
+
+  return payload;
+};
+
 export const authApi = createApi({
   reducerPath: "authApi",
 
@@ -69,9 +149,20 @@ export const authApi = createApi({
         method: "POST",
       }),
       invalidatesTags: ["CurrentUser"],
+
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        dispatch(
+          authApi.util.updateQueryData("getCurrentUser", undefined, () => null)
+        );
+
+        try {
+          await queryFulfilled;
+        } catch {
+          // local logout can continue even if backend logout fails
+        }
+      },
     }),
 
-    // Fetches the currently logged-in user's full profile.
     getCurrentUser: builder.query({
       query: () => ({
         url: "/current",
@@ -80,19 +171,15 @@ export const authApi = createApi({
       providesTags: ["CurrentUser"],
     }),
 
-    // Updates the currently logged-in user's profile.
-    // Used by Profile screen for grade change. Backend validates grade
-    // against available active grade documents only.
     updateCurrentUserProfile: builder.mutation({
       query: (body) => ({
         url: "/profile",
         method: "PATCH",
-        body,
+        body: cleanProfilePayload(body),
       }),
       invalidatesTags: ["CurrentUser"],
     }),
 
-    // ============= FORGOT PASSWORD MUTATIONS =============
     forgotPasswordSendOtp: builder.mutation({
       query: ({ phonenumber }) => ({
         url: "/forgot-password/send-otp",

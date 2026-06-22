@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo } from "react";
+import React, { useEffect, useRef, useMemo, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ScrollView,
   StatusBar,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useSelector } from "react-redux";
 import { LinearGradient } from "expo-linear-gradient";
@@ -23,6 +24,23 @@ const { width, height } = Dimensions.get("window");
 const getPayloadData = (response) => response?.data?.data || response?.data || response;
 
 const getAttemptId = (attempt) => attempt?.id || attempt?._id || "";
+
+const isCompletedAttempt = (attempt) =>
+  Boolean(attempt?.status && attempt.status !== "in_progress");
+
+const getSafeTranslation = (t, key, fallback) => {
+  const value = typeof t === "function" ? t(key) : "";
+  return value && value !== key ? value : fallback;
+};
+
+const getLockedText = (t) => getSafeTranslation(t, "lockedAlertTitle", "Locked");
+
+const getPracticeLockedMessage = (t) =>
+  getSafeTranslation(
+    t,
+    "completePracticePaperFirst",
+    "Please complete the first practice paper before opening other papers."
+  );
 
 const buildReviewParams = (attempt, paperTitle, paper) => ({
   attemptId: getAttemptId(attempt),
@@ -259,7 +277,7 @@ const FloatingStar = ({ style, color = "#C8BFFF", size = 18, delay = 0 }) => {
   );
 };
 
-const LessonCard = ({ lesson, index, navigation, playClickSound, startText, token, t }) => {
+const LessonCard = ({ lesson, index, navigation, playClickSound, startText, token, t, locked, onAttemptStatusResolved }) => {
   const slideAnim = useRef(new Animated.Value(45)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const cardScale = useRef(new Animated.Value(1)).current;
@@ -268,14 +286,25 @@ const LessonCard = ({ lesson, index, navigation, playClickSound, startText, toke
   const { data: latestResultResponse, isFetching: isCheckingAttempt } =
     useGetLatestPaperResultByPaperQuery(lesson.paperId, {
       skip: !token || !lesson.paperId,
+      refetchOnFocus: true,
+      refetchOnReconnect: true,
+      refetchOnMountOrArgChange: true,
     });
 
   const latestAttempt = getPayloadData(latestResultResponse);
-  const buttonText = getAttemptButtonText(startText, latestAttempt, isCheckingAttempt, {
-    checking: t("checking"),
-    continue: t("continue"),
-    viewReview: t("viewReview"),
-  });
+  const buttonText = locked
+    ? getLockedText(t)
+    : getAttemptButtonText(startText, latestAttempt, isCheckingAttempt, {
+        checking: t("checking"),
+        continue: t("continue"),
+        viewReview: t("viewReview"),
+      });
+
+  useEffect(() => {
+    if (!isCheckingAttempt) {
+      onAttemptStatusResolved?.(lesson.paperId, latestAttempt);
+    }
+  }, [isCheckingAttempt, lesson.paperId, latestAttempt, onAttemptStatusResolved]);
 
   useEffect(() => {
     Animated.parallel([
@@ -297,6 +326,11 @@ const LessonCard = ({ lesson, index, navigation, playClickSound, startText, toke
   const handleStart = async () => {
     await playClickSound();
 
+    if (locked) {
+      Alert.alert(getLockedText(t), getPracticeLockedMessage(t));
+      return;
+    }
+
     if (latestAttempt?.status && latestAttempt.status !== "in_progress") {
       navigation.navigate("reviewpage", buildReviewParams(latestAttempt, lesson.title, lesson.rawPaper));
       return;
@@ -308,6 +342,7 @@ const LessonCard = ({ lesson, index, navigation, playClickSound, startText, toke
       lessonTitle: lesson.title,
       paperTitle: lesson.title,
       paperType: "lesson by lesson",
+      isPracticePaper: index === 0,
       paper: lesson.rawPaper,
     });
   };
@@ -320,6 +355,7 @@ const LessonCard = ({ lesson, index, navigation, playClickSound, startText, toke
           opacity: fadeAnim,
           transform: [{ translateY: slideAnim }, { scale: cardScale }],
         },
+        locked && styles.cardLocked,
       ]}
     >
       <TouchableOpacity
@@ -400,6 +436,7 @@ export default function LessonByLessonMenu({ navigation }) {
   const soundRef = useRef(null);
   const { t } = useT();
   const token = useSelector((state) => state?.auth?.token);
+  const [attemptByPaperId, setAttemptByPaperId] = useState({});
 
   const {
     data,
@@ -418,6 +455,31 @@ export default function LessonByLessonMenu({ navigation }) {
     () => mapBackendPapersToLessons(backendPapers, t("lesson") || "Lesson"),
     [backendPapers, t]
   );
+
+  const firstPaperId = lessons?.[0]?.paperId || lessons?.[0]?.id || "";
+  const practiceCompleted = isCompletedAttempt(
+    attemptByPaperId[String(firstPaperId || "")]
+  );
+
+  const handleAttemptStatusResolved = useCallback((paperId, latestAttempt) => {
+    const key = String(paperId || "");
+    if (!key) return;
+
+    setAttemptByPaperId((prev) => {
+      const previousAttempt = prev[key];
+      const previousStatus = previousAttempt?.status || "";
+      const nextStatus = latestAttempt?.status || "";
+      const previousId = previousAttempt?.id || previousAttempt?._id || "";
+      const nextId = latestAttempt?.id || latestAttempt?._id || "";
+
+      if (previousStatus === nextStatus && previousId === nextId) return prev;
+
+      return {
+        ...prev,
+        [key]: latestAttempt || null,
+      };
+    });
+  }, []);
 
   useEffect(() => {
     const loadSound = async () => {
@@ -503,6 +565,8 @@ export default function LessonByLessonMenu({ navigation }) {
               startText={t("start") || "Start"}
               token={token}
               t={t}
+              locked={index > 0 && !practiceCompleted}
+              onAttemptStatusResolved={handleAttemptStatusResolved}
             />
           ))
         )}
@@ -569,6 +633,9 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: "#F0EEFF",
     overflow: "hidden",
+  },
+  cardLocked: {
+    opacity: 0.58,
   },
   cardInner: {
     flexDirection: "row",

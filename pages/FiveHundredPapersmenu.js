@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo } from "react";
+import React, { useEffect, useRef, useMemo, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ScrollView,
   StatusBar,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useSelector } from "react-redux";
 import { LinearGradient } from "expo-linear-gradient";
@@ -23,6 +24,23 @@ const { width, height } = Dimensions.get("window");
 const getPayloadData = (response) => response?.data?.data || response?.data || response;
 
 const getAttemptId = (attempt) => attempt?.id || attempt?._id || "";
+
+const isCompletedAttempt = (attempt) =>
+  Boolean(attempt?.status && attempt.status !== "in_progress");
+
+const getSafeTranslation = (t, key, fallback) => {
+  const value = typeof t === "function" ? t(key) : "";
+  return value && value !== key ? value : fallback;
+};
+
+const getLockedText = (t) => getSafeTranslation(t, "lockedAlertTitle", "Locked");
+
+const getPracticeLockedMessage = (t) =>
+  getSafeTranslation(
+    t,
+    "completePracticePaperFirst",
+    "Please complete the first practice paper before opening other papers."
+  );
 
 const buildReviewParams = (attempt, paperTitle, paper) => ({
   attemptId: getAttemptId(attempt),
@@ -289,7 +307,7 @@ const NumberBadge = ({ number, color }) => (
   </View>
 );
 
-const PaperCard = ({ item, index, navigation, playClickSound, t, token }) => {
+const PaperCard = ({ item, index, navigation, playClickSound, t, token, locked, onAttemptStatusResolved }) => {
   const slideAnim = useRef(new Animated.Value(50)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const btnScale = useRef(new Animated.Value(1)).current;
@@ -298,14 +316,25 @@ const PaperCard = ({ item, index, navigation, playClickSound, t, token }) => {
   const { data: latestResultResponse, isFetching: isCheckingAttempt } =
     useGetLatestPaperResultByPaperQuery(item.paperId, {
       skip: !token || !item.paperId,
+      refetchOnFocus: true,
+      refetchOnReconnect: true,
+      refetchOnMountOrArgChange: true,
     });
 
   const latestAttempt = getPayloadData(latestResultResponse);
-  const buttonText = getAttemptButtonText(t("start") || "Start", latestAttempt, isCheckingAttempt, {
-    checking: t("checking"),
-    continue: t("continue"),
-    viewReview: t("viewReview"),
-  });
+  const buttonText = locked
+    ? getLockedText(t)
+    : getAttemptButtonText(t("start") || "Start", latestAttempt, isCheckingAttempt, {
+        checking: t("checking"),
+        continue: t("continue"),
+        viewReview: t("viewReview"),
+      });
+
+  useEffect(() => {
+    if (!isCheckingAttempt) {
+      onAttemptStatusResolved?.(item.paperId, latestAttempt);
+    }
+  }, [isCheckingAttempt, item.paperId, latestAttempt, onAttemptStatusResolved]);
 
   useEffect(() => {
     Animated.parallel([
@@ -327,6 +356,11 @@ const PaperCard = ({ item, index, navigation, playClickSound, t, token }) => {
   const handlePress = async () => {
     await playClickSound();
 
+    if (locked) {
+      Alert.alert(getLockedText(t), getPracticeLockedMessage(t));
+      return;
+    }
+
     if (latestAttempt?.status && latestAttempt.status !== "in_progress") {
       navigation.navigate("reviewpage", buildReviewParams(latestAttempt, item.title, item.rawPaper));
       return;
@@ -336,6 +370,7 @@ const PaperCard = ({ item, index, navigation, playClickSound, t, token }) => {
       paperId: item.paperId,
       paperTitle: item.title,
       paperType: "500 paper",
+      isPracticePaper: index === 0,
       paper: item.rawPaper,
     });
   };
@@ -348,6 +383,7 @@ const PaperCard = ({ item, index, navigation, playClickSound, t, token }) => {
           opacity: fadeAnim,
           transform: [{ translateY: slideAnim }, { scale: cardScale }],
         },
+        locked && styles.cardLocked,
       ]}
     >
       <TouchableOpacity
@@ -431,6 +467,7 @@ export default function FiveHundredPaperMenu({ navigation }) {
   const { t } = useT();
   const soundRef = useRef(null);
   const token = useSelector((state) => state?.auth?.token);
+  const [attemptByPaperId, setAttemptByPaperId] = useState({});
 
   const {
     data,
@@ -449,6 +486,36 @@ export default function FiveHundredPaperMenu({ navigation }) {
     () => mapBackendPapersToCards(backendPapers, t("paper") || "Paper"),
     [backendPapers, t]
   );
+
+  const firstPaperId = papers?.[0]?.paperId || papers?.[0]?.id || "";
+  const practiceCompleted = isCompletedAttempt(
+    attemptByPaperId[String(firstPaperId || "")]
+  );
+
+  const completedPaperCount = papers.reduce((total, item) => {
+    const attemptStatus = attemptByPaperId[String(item.paperId || item.id || "")];
+    return isCompletedAttempt(attemptStatus) ? total + 1 : total;
+  }, 0);
+
+  const handleAttemptStatusResolved = useCallback((paperId, latestAttempt) => {
+    const key = String(paperId || "");
+    if (!key) return;
+
+    setAttemptByPaperId((prev) => {
+      const previousAttempt = prev[key];
+      const previousStatus = previousAttempt?.status || "";
+      const nextStatus = latestAttempt?.status || "";
+      const previousId = previousAttempt?.id || previousAttempt?._id || "";
+      const nextId = latestAttempt?.id || latestAttempt?._id || "";
+
+      if (previousStatus === nextStatus && previousId === nextId) return prev;
+
+      return {
+        ...prev,
+        [key]: latestAttempt || null,
+      };
+    });
+  }, []);
 
   useEffect(() => {
     const loadSound = async () => {
@@ -530,7 +597,14 @@ export default function FiveHundredPaperMenu({ navigation }) {
             message={t("noFiveHundredPapersMessage")}
           />
         ) : (
-          papers.map((item, index) => (
+          <>
+            <View style={styles.progressCard}>
+              <Text style={styles.progressText}>
+                {completedPaperCount}/500 {t("completed") || "completed"}
+              </Text>
+            </View>
+
+            {papers.map((item, index) => (
             <PaperCard
               key={item.id}
               item={item}
@@ -539,8 +613,11 @@ export default function FiveHundredPaperMenu({ navigation }) {
               playClickSound={playClickSound}
               t={t}
               token={token}
+              locked={index > 0 && !practiceCompleted}
+              onAttemptStatusResolved={handleAttemptStatusResolved}
             />
-          ))
+          ))}
+          </>
         )}
       </ScrollView>
     </View>
@@ -617,6 +694,28 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     paddingHorizontal: 18,
     position: "relative",
+  },
+  cardLocked: {
+    opacity: 0.58,
+  },
+  progressCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#2563EB",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    elevation: 3,
+  },
+  progressText: {
+    color: "#1A2850",
+    fontSize: 14,
+    fontWeight: "800",
+    textAlign: "center",
   },
   iconCircle: {
     width: 76,

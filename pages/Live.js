@@ -29,6 +29,10 @@ const isSmallScreen = width < 380;
 const isShortScreen = height < 760;
 const isVeryShortScreen = height < 700;
 
+// Auto-refresh interval in milliseconds.
+// 15 seconds — fast enough to catch quick backend updates without hammering the server.
+const LIVE_POLL_INTERVAL_MS = 15_000;
+
 const ZOOM_ICON =
   "https://cdn-icons-png.flaticon.com/512/4401/4401470.png";
 
@@ -48,7 +52,7 @@ const getGradeNumber = (grade) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Decorative helpers unchanged
+// Decorative helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
 const Star = ({ style, size = 18, color = "#FDE68A" }) => {
@@ -201,7 +205,6 @@ const LiveClassCard = ({ liveClass, index, t }) => {
 
   const openZoomLink = (url) => {
     if (!url) return;
-
     Linking.openURL(url).catch(() => {});
   };
 
@@ -377,10 +380,20 @@ function LiveContent() {
     },
     {
       skip: !canLoadLiveClasses,
+      // Poll every 15 seconds so any backend update (new link, title change,
+      // new class added) appears on screen automatically without manual pull-to-refresh.
+      pollingInterval: LIVE_POLL_INTERVAL_MS,
+      // Re-fetch when the app comes back to the foreground after being backgrounded.
+      refetchOnFocus: true,
+      // Re-fetch when network reconnects.
+      refetchOnReconnect: true,
     }
   );
 
   const liveClasses = data?.liveClasses ?? [];
+
+  // isRefreshing: only show the pull-to-refresh spinner when the user
+  // manually pulls down — not during background polling ticks.
   const isRefreshing =
     canLoadLiveClasses && (isFetching || isEnrollmentFetching) && !isLoading;
 

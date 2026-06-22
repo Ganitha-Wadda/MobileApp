@@ -150,7 +150,7 @@ function pickTitle(params = {}) {
     recording?.title ??
     recording?.recordingTitle ??
     recording?.name ??
-    "Recording Video"
+    ""
   );
 }
 
@@ -278,7 +278,7 @@ export default function Viewrecording({ route }) {
 
   const params = route?.params ?? {};
 
-  const title = normalizeValue(pickTitle(params));
+  const title = normalizeValue(pickTitle(params)) || t("recordingVideoTitle");
   const videoUrl = normalizeValue(pickVideoUrl(params));
 
   const [fullOpen, setFullOpen] = useState(false);
@@ -321,7 +321,7 @@ export default function Viewrecording({ route }) {
         await Linking.openURL(videoUrl);
       }
     } catch (error) {
-      console.log("Failed to open recording video url:", error);
+      console.log(t("failedOpenRecordingVideoUrl"), error);
     }
   };
 
@@ -332,7 +332,7 @@ export default function Viewrecording({ route }) {
       return (
         <View style={styles.playerFallback}>
           <Ionicons name="pause-circle-outline" size={22} color="#FFFFFF" />
-          <Text style={styles.fallbackText}>Playback stopped</Text>
+          <Text style={styles.fallbackText}>{t("playbackStopped")}</Text>
         </View>
       );
     }
@@ -341,7 +341,7 @@ export default function Viewrecording({ route }) {
       return (
         <View style={styles.playerFallback}>
           <Ionicons name="alert-circle-outline" size={22} color="#FFFFFF" />
-          <Text style={styles.fallbackText}>Missing recording video link</Text>
+          <Text style={styles.fallbackText}>{t("missingRecordingVideoLink")}</Text>
         </View>
       );
     }
@@ -379,10 +379,10 @@ export default function Viewrecording({ route }) {
     return (
       <View style={styles.playerFallback}>
         <Ionicons name="alert-circle-outline" size={22} color="#FFFFFF" />
-        <Text style={styles.fallbackText}>This link cannot play inside app</Text>
+        <Text style={styles.fallbackText}>{t("linkCannotPlayInsideApp")}</Text>
 
         <Pressable style={styles.openExternalBtn} onPress={handleOpenExternal}>
-          <Text style={styles.openExternalBtnText}>Open Outside</Text>
+          <Text style={styles.openExternalBtnText}>{t("openOutside")}</Text>
         </Pressable>
       </View>
     );
@@ -430,7 +430,7 @@ export default function Viewrecording({ route }) {
               {fullOpen ? (
                 <View style={styles.playerFallback}>
                   <Ionicons name="expand-outline" size={22} color="#FFFFFF" />
-                  <Text style={styles.fallbackText}>Fullscreen opened</Text>
+                  <Text style={styles.fallbackText}>{t("fullscreenOpened")}</Text>
                 </View>
               ) : (
                 renderPlayer(normalHeight, "normal")
@@ -449,12 +449,12 @@ export default function Viewrecording({ route }) {
                 }}
               >
                 <Ionicons name="expand-outline" size={14} color="#FFFFFF" />
-                <Text style={styles.fullBtnText}>View</Text>
+                <Text style={styles.fullBtnText}>{t("view")}</Text>
               </Pressable>
             </View>
 
             <Text style={[styles.helperText, isSi && styles.helperTextSi]}>
-              {t("tapViewFullScreen") || "Tap View for full screen"}
+              {t("tapViewFullScreen")}
             </Text>
           </View>
         </View>

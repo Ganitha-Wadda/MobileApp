@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -6,13 +6,40 @@ import {
   TouchableOpacity,
   Platform,
   useWindowDimensions,
+  ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { useNavigation } from "@react-navigation/native";
+import { CommonActions, useNavigation } from "@react-navigation/native";
 import { Audio } from "expo-av";
 import { useDispatch, useSelector } from "react-redux";
-import { useGetCurrentUserQuery } from "../app/features/authApi";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+import { useGetCurrentUserQuery, useSignoutMutation } from "../app/features/authApi";
 import { setUser } from "../app/features/userSlice";
+import { LOGOUT_ACTION, persistor } from "../app/features/store";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Storage keys used during logout
+// ─────────────────────────────────────────────────────────────────────────────
+
+const NAV_PERSISTENCE_KEY = "NAV_STATE_V1";
+
+const LOGOUT_STORAGE_KEYS = [
+  NAV_PERSISTENCE_KEY,
+  "persist:root",
+  "token",
+  "accessToken",
+  "authToken",
+  "user",
+  "currentUser",
+  "selectedLanguage",
+  "language",
+  "appLanguage",
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
 
 const getUserFromResponse = (response) => {
   if (!response) return null;
@@ -20,7 +47,11 @@ const getUserFromResponse = (response) => {
   if (response.data?.user && typeof response.data.user === "object") {
     return response.data.user;
   }
-  if (response.data && typeof response.data === "object" && !Array.isArray(response.data)) {
+  if (
+    response.data &&
+    typeof response.data === "object" &&
+    !Array.isArray(response.data)
+  ) {
     return response.data;
   }
   return null;
@@ -28,12 +59,12 @@ const getUserFromResponse = (response) => {
 
 const parseGradeId = (value) => {
   if (value === undefined || value === null || value === "") return "";
-
   if (typeof value === "object") {
     return parseGradeId(value.gradeId ?? value.grade ?? value.value ?? value.id);
   }
 
   const gradeId = Number(value);
+
   return Number.isInteger(gradeId) && gradeId > 0 && gradeId < 20
     ? String(gradeId)
     : "";
@@ -53,9 +84,17 @@ const getUserGradeLabel = (user) => {
 };
 
 const getDisplayName = (user) => {
-  const name = String(user?.name || user?.fullname || user?.fullName || "").trim();
+  const name = String(
+    user?.name || user?.fullname || user?.fullName || ""
+  ).trim();
+
   return name || "Student";
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TopBar
+// Layout: [Profile 🧒] [Name / Grade] [LOGOUT] [Parent 👨‍👩‍👧‍👦]
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function TopBar() {
   const navigation = useNavigation();
@@ -63,9 +102,12 @@ export default function TopBar() {
   const { width } = useWindowDimensions();
   const soundRef = useRef(null);
 
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
   const token = useSelector((state) => state?.auth?.token);
   const cachedUser = useSelector((state) => state?.user?.user);
 
+  // ── Fetch current user ──────────────────────────────────────────────────────
   const {
     data: currentUserResponse,
     isLoading,
@@ -74,6 +116,9 @@ export default function TopBar() {
     skip: !token,
     refetchOnMountOrArgChange: true,
   });
+
+  // ── Backend logout mutation ─────────────────────────────────────────────────
+  const [signout] = useSignoutMutation();
 
   const backendUser = useMemo(
     () => getUserFromResponse(currentUserResponse),
@@ -92,6 +137,7 @@ export default function TopBar() {
   const displayName = isUserLoading ? "Loading..." : getDisplayName(user);
   const displayGrade = isUserLoading ? "Loading grade..." : getUserGradeLabel(user);
 
+  // ── Sound ───────────────────────────────────────────────────────────────────
   useEffect(() => {
     return () => {
       if (soundRef.current) {
@@ -118,6 +164,7 @@ export default function TopBar() {
     }
   }, []);
 
+  // ── Navigation ──────────────────────────────────────────────────────────────
   const goToProfile = async () => {
     await playClickSound();
     navigation.navigate("profile");
@@ -128,6 +175,74 @@ export default function TopBar() {
     navigation.navigate("parent");
   };
 
+  // ── LOGOUT ──────────────────────────────────────────────────────────────────
+  const handleLogout = useCallback(async () => {
+    if (isLoggingOut) return;
+
+    await playClickSound();
+    setIsLoggingOut(true);
+
+    try {
+      // Backend logout is best-effort. Even if backend fails, local logout must work.
+      try {
+        await signout().unwrap();
+      } catch (e) {
+        console.warn("[Logout] Backend logout failed, continuing local logout:", e);
+      }
+
+      // Stop redux-persist while we clear everything.
+      try {
+        persistor.pause();
+      } catch (e) {
+        console.warn("[Logout] Persistor pause error:", e);
+      }
+
+      // Reset Redux memory state.
+      dispatch(LOGOUT_ACTION);
+
+      // Flush pending persistence writes.
+      try {
+        await persistor.flush();
+      } catch (e) {
+        console.warn("[Logout] Persistor flush error:", e);
+      }
+
+      // Purge persisted Redux data.
+      try {
+        await persistor.purge();
+      } catch (e) {
+        console.warn("[Logout] Persistor purge error:", e);
+      }
+
+      // Remove navigation/auth/language storage keys.
+      try {
+        await AsyncStorage.multiRemove(LOGOUT_STORAGE_KEYS);
+      } catch (e) {
+        console.warn("[Logout] AsyncStorage clear error:", e);
+      }
+
+      // Start persistor again for next login/session.
+      try {
+        persistor.persist();
+      } catch (e) {
+        console.warn("[Logout] Persistor restart error:", e);
+      }
+
+      // Reset full navigation stack to SelectLanguage.
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: "SelectLanguage" }],
+        })
+      );
+    } finally {
+      setIsLoggingOut(false);
+    }
+  }, [isLoggingOut, playClickSound, signout, dispatch, navigation]);
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Render
+  // ─────────────────────────────────────────────────────────────────────────────
   return (
     <LinearGradient
       colors={["#5e1cce", "#5e1cce"]}
@@ -135,12 +250,14 @@ export default function TopBar() {
       end={{ x: 1, y: 0 }}
       style={[styles.container, { width }]}
     >
+      {/* ── Profile ──────────────────────────────────────────────────────────── */}
       <TouchableOpacity onPress={goToProfile} activeOpacity={0.8}>
         <View style={styles.avatarCircle}>
           <Text style={styles.avatarEmoji}>🧒</Text>
         </View>
       </TouchableOpacity>
 
+      {/* ── Name + Grade ─────────────────────────────────────────────────────── */}
       <TouchableOpacity
         style={styles.userInfo}
         onPress={goToProfile}
@@ -152,6 +269,34 @@ export default function TopBar() {
         <Text style={styles.userGrade}>{displayGrade}</Text>
       </TouchableOpacity>
 
+      {/* ── Friendly Purple LOGOUT button ────────────────────────────────────── */}
+      <TouchableOpacity
+        onPress={handleLogout}
+        activeOpacity={0.82}
+        disabled={isLoggingOut}
+        style={[
+          styles.logoutTouchable,
+          isLoggingOut && styles.logoutTouchableDisabled,
+        ]}
+      >
+        <LinearGradient
+          colors={["#A78BFA", "#8B5CF6", "#7C3AED"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.logoutBtn}
+        >
+          {isLoggingOut ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <>
+              <Text style={styles.logoutIcon}>⏻</Text>
+              <Text style={styles.logoutText}>Logout</Text>
+            </>
+          )}
+        </LinearGradient>
+      </TouchableOpacity>
+
+      {/* ── Parent ───────────────────────────────────────────────────────────── */}
       <TouchableOpacity onPress={goToParent} activeOpacity={0.8}>
         <View style={styles.avatarCircle}>
           <Text style={styles.avatarEmoji}>👨‍👩‍👧‍👦</Text>
@@ -214,5 +359,47 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: "rgba(255,255,255,0.75)",
     marginTop: 2,
+  },
+
+  // ── Friendly purple logout button ─────────────────────────────────────────
+  logoutTouchable: {
+    marginRight: 10,
+    borderRadius: 18,
+    shadowColor: "#000",
+    shadowOpacity: 0.22,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 5,
+  },
+
+  logoutTouchableDisabled: {
+    opacity: 0.7,
+  },
+
+  logoutBtn: {
+    minWidth: 66,
+    minHeight: 42,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.4,
+    borderColor: "rgba(255,255,255,0.65)",
+  },
+
+  logoutIcon: {
+    fontSize: 15,
+    color: "#FFFFFF",
+    includeFontPadding: false,
+    textAlignVertical: "center",
+  },
+
+  logoutText: {
+    fontSize: 9.5,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: 0.35,
+    marginTop: 1,
   },
 });
