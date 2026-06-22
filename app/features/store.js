@@ -31,34 +31,28 @@ import { shortCoinsCountApi } from "./shortcoinscountApi";
 import { userTotalcoinscountApi } from "./userTotalcoinscountApi";
 import { rankApi } from "./rankApi";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// LOGOUT action type — dispatching this resets ALL reducers to their
-// initial state without needing to know individual slice action names.
-// Import and dispatch this from any screen to perform a full local logout.
-//
-// Usage:
-//   import { LOGOUT_ACTION } from "./store";
-//   dispatch(LOGOUT_ACTION);
-// ─────────────────────────────────────────────────────────────────────────────
 export const LOGOUT_ACTION = { type: "LOGOUT" };
 
+const normalizeAuthPersistState = (state = {}) => {
+  const token = state?.token || state?.accessToken || null;
+
+  return {
+    token,
+    accessToken: token,
+    user: state?.user || null,
+    pendingPhone: "",
+    selectedLevel: null,
+    selectedGrade: null,
+    selectedStream: null,
+    signupDistrict: "",
+    isForgotPasswordFlow: false,
+    forgotPasswordPhone: "",
+  };
+};
+
 const authTransform = createTransform(
-  (inboundState) => ({
-    token: inboundState?.token || null,
-    pendingPhone: "",
-    selectedLevel: null,
-    selectedGrade: null,
-    selectedStream: null,
-    signupDistrict: "",
-  }),
-  (outboundState) => ({
-    token: outboundState?.token || null,
-    pendingPhone: "",
-    selectedLevel: null,
-    selectedGrade: null,
-    selectedStream: null,
-    signupDistrict: "",
-  }),
+  (inboundState) => normalizeAuthPersistState(inboundState),
+  (outboundState) => normalizeAuthPersistState(outboundState),
   { whitelist: ["auth"] }
 );
 
@@ -69,7 +63,6 @@ const persistConfig = {
   transforms: [authTransform],
 };
 
-// ── Step 1: combine all reducers ─────────────────────────────────────────────
 const appReducer = combineReducers({
   auth: authReducer,
   user: userReducer,
@@ -91,17 +84,14 @@ const appReducer = combineReducers({
   [rankApi.reducerPath]: rankApi.reducer,
 });
 
-// ── Step 2: wrap with LOGOUT handler ─────────────────────────────────────────
-// When LOGOUT is dispatched, every reducer receives (undefined, action)
-// which makes each one return its own initial state — a clean full reset.
 const rootReducer = (state, action) => {
   if (action.type === "LOGOUT") {
     return appReducer(undefined, action);
   }
+
   return appReducer(state, action);
 };
 
-// ── Step 3: persist the wrapped root reducer ─────────────────────────────────
 const persistedReducer = persistReducer(persistConfig, rootReducer);
 
 const store = configureStore({

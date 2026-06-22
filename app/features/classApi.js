@@ -2,10 +2,7 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { BASE_URL } from "../api/api";
 
 const getToken = (state) =>
-  state?.auth?.token ??
-  state?.auth?.accessToken ??
-  state?.user?.token ??
-  null;
+  state?.auth?.token ?? null;
 
 const sortTextNumber = (a, b) => {
   return String(a).localeCompare(String(b), undefined, {

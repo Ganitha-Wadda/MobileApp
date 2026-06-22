@@ -2,6 +2,9 @@ import { createSlice } from "@reduxjs/toolkit";
 
 const initialState = {
   token: null,
+  accessToken: null,
+  user: null,
+
   pendingPhone: "",
   selectedLevel: null,
   selectedGrade: null,
@@ -11,15 +14,65 @@ const initialState = {
   forgotPasswordPhone: "",
 };
 
+const readTokenFromValue = (value) => {
+  if (!value) return null;
+
+  if (typeof value === "string") {
+    const clean = value.trim();
+    return clean || null;
+  }
+
+  if (typeof value === "object") {
+    return (
+      readTokenFromValue(value.token) ||
+      readTokenFromValue(value.accessToken) ||
+      readTokenFromValue(value.jwt) ||
+      readTokenFromValue(value.authToken) ||
+      readTokenFromValue(value?.data?.token) ||
+      readTokenFromValue(value?.data?.accessToken) ||
+      readTokenFromValue(value?.user?.token) ||
+      readTokenFromValue(value?.user?.accessToken) ||
+      null
+    );
+  }
+
+  return null;
+};
+
+export const selectAuthToken = (state) =>
+  readTokenFromValue(state?.auth?.token) ||
+  readTokenFromValue(state?.auth?.accessToken) ||
+  readTokenFromValue(state?.auth?.user) ||
+  readTokenFromValue(state?.user?.token) ||
+  readTokenFromValue(state?.user?.accessToken) ||
+  readTokenFromValue(state?.user?.user) ||
+  readTokenFromValue(state?.user?.profile) ||
+  readTokenFromValue(state?.user?.data) ||
+  null;
+
 const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
     setToken: (state, action) => {
-      state.token = action.payload || null;
+      const token = readTokenFromValue(action.payload);
+      state.token = token;
+      state.accessToken = token;
     },
+
+    setCredentials: (state, action) => {
+      const payload = action.payload || {};
+      const token = readTokenFromValue(payload);
+
+      state.token = token;
+      state.accessToken = token;
+      state.user = payload?.user || payload?.profile || state.user || null;
+    },
+
     clearAuth: (state) => {
       state.token = null;
+      state.accessToken = null;
+      state.user = null;
       state.pendingPhone = "";
       state.selectedLevel = null;
       state.selectedGrade = null;
@@ -28,28 +81,34 @@ const authSlice = createSlice({
       state.isForgotPasswordFlow = false;
       state.forgotPasswordPhone = "";
     },
+
     setPendingIdentity: (state, action) => {
       const { phone } = action.payload || {};
       state.pendingPhone = phone || "";
     },
+
     setGradeSelection: (state, action) => {
       const { level, grade, stream } = action.payload || {};
       state.selectedLevel = level ?? null;
       state.selectedGrade = grade ?? null;
       state.selectedStream = stream ?? null;
     },
+
     clearGradeSelection: (state) => {
       state.selectedLevel = null;
       state.selectedGrade = null;
       state.selectedStream = null;
     },
+
     setSignupDistrict: (state, action) => {
       state.signupDistrict = String(action.payload || "");
     },
+
     setForgotPasswordFlow: (state, action) => {
       state.isForgotPasswordFlow = true;
       state.forgotPasswordPhone = action.payload || "";
     },
+
     clearForgotPasswordFlow: (state) => {
       state.isForgotPasswordFlow = false;
       state.forgotPasswordPhone = "";
@@ -59,6 +118,7 @@ const authSlice = createSlice({
 
 export const {
   setToken,
+  setCredentials,
   clearAuth,
   setPendingIdentity,
   setGradeSelection,

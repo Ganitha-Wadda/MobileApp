@@ -1,5 +1,7 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { BASE_URL } from "../api/api";
+import { clearAuth, selectAuthToken, setCredentials } from "./authSlice";
+import { clearUser, setUser } from "./userSlice";
 
 const isEmptyValue = (value) => {
   if (value === undefined || value === null) return true;
@@ -37,11 +39,7 @@ const getGradeValue = (value) => {
   const gradeMatch = stringValue.match(/\d+/);
   const gradeNumber = gradeMatch ? Number(gradeMatch[0]) : Number(stringValue);
 
-  if (
-    Number.isInteger(gradeNumber) &&
-    gradeNumber > 0 &&
-    gradeNumber < 20
-  ) {
+  if (Number.isInteger(gradeNumber) && gradeNumber > 0 && gradeNumber < 20) {
     return gradeNumber;
   }
 
@@ -86,20 +84,18 @@ export const authApi = createApi({
 
   baseQuery: fetchBaseQuery({
     baseUrl: `${BASE_URL}/api/auth`,
+    credentials: "include",
 
     prepareHeaders: (headers, { getState }) => {
-      const token = getState()?.auth?.token;
+      const token = selectAuthToken(getState());
 
       if (token) {
         headers.set("Authorization", `Bearer ${token}`);
       }
 
       headers.set("Content-Type", "application/json");
-
       return headers;
     },
-
-    credentials: "include",
   }),
 
   tagTypes: ["CurrentUser"],
@@ -140,7 +136,33 @@ export const authApi = createApi({
         method: "POST",
         body,
       }),
+
       invalidatesTags: ["CurrentUser"],
+
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+
+          const token = data?.token || data?.accessToken || data?.jwt || null;
+          const user = data?.user || data?.profile || null;
+
+          if (token) {
+            dispatch(
+              setCredentials({
+                token,
+                accessToken: token,
+                user,
+              })
+            );
+          }
+
+          if (user) {
+            dispatch(setUser(user));
+          }
+        } catch {
+          // signin screen handles the visible error
+        }
+      },
     }),
 
     signout: builder.mutation({
@@ -148,9 +170,13 @@ export const authApi = createApi({
         url: "/logout",
         method: "POST",
       }),
+
       invalidatesTags: ["CurrentUser"],
 
       async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        dispatch(clearAuth());
+        dispatch(clearUser());
+
         dispatch(
           authApi.util.updateQueryData("getCurrentUser", undefined, () => null)
         );
@@ -168,7 +194,29 @@ export const authApi = createApi({
         url: "/current",
         method: "GET",
       }),
+
       providesTags: ["CurrentUser"],
+
+      async onQueryStarted(_arg, { dispatch, queryFulfilled, getState }) {
+        try {
+          const { data } = await queryFulfilled;
+          const user = data?.user || data || null;
+          const token = selectAuthToken(getState());
+
+          if (user && typeof user === "object") {
+            dispatch(setUser(user));
+            dispatch(
+              setCredentials({
+                token,
+                accessToken: token,
+                user,
+              })
+            );
+          }
+        } catch {
+          // current user may fail when token is expired
+        }
+      },
     }),
 
     updateCurrentUserProfile: builder.mutation({
@@ -177,7 +225,29 @@ export const authApi = createApi({
         method: "PATCH",
         body: cleanProfilePayload(body),
       }),
+
       invalidatesTags: ["CurrentUser"],
+
+      async onQueryStarted(_arg, { dispatch, queryFulfilled, getState }) {
+        try {
+          const { data } = await queryFulfilled;
+          const user = data?.user || data || null;
+          const token = selectAuthToken(getState());
+
+          if (user && typeof user === "object") {
+            dispatch(setUser(user));
+            dispatch(
+              setCredentials({
+                token,
+                accessToken: token,
+                user,
+              })
+            );
+          }
+        } catch {
+          // profile screen handles the visible error
+        }
+      },
     }),
 
     forgotPasswordSendOtp: builder.mutation({

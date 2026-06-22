@@ -11,26 +11,41 @@ import {
   View,
 } from "react-native";
 import { useSelector } from "react-redux";
+import { selectAuthToken } from "../app/features/authSlice";
 import {
   useEnrollmentStatus,
   useGetAvailableBatchesByGradeQuery,
   useSubmitEnrollmentMutation,
 } from "../app/features/enrollmentApi";
 
-const getProfile = (state) =>
-  state.user?.user ?? state.user?.profile ?? state.user?.data ?? state.auth?.user ?? {};
+const EMPTY_PROFILE = {};
+
+const getProfile = (state) => {
+  const rawProfile =
+    state.user?.user ??
+    state.user?.profile ??
+    state.user?.data ??
+    state.auth?.user ??
+    EMPTY_PROFILE;
+
+  return rawProfile?.user ?? rawProfile?.profile ?? rawProfile ?? EMPTY_PROFILE;
+};
 
 const getGradeNumber = (grade) => {
   if (!grade) return "";
+
   if (typeof grade === "number") return String(grade);
+
   if (typeof grade === "string") {
     const match = grade.match(/\d+/);
     return match?.[0] ?? grade;
   }
+
   if (typeof grade === "object") {
     const value = grade.gradeId ?? grade.grade ?? grade.gradeNumber ?? "";
     return value ? String(value) : "";
   }
+
   return "";
 };
 
@@ -45,6 +60,77 @@ const getBatchNumber = (profile) =>
   ).trim();
 
 const gradeOptions = ["3", "4", "5"];
+
+const normalizeBatchValue = (value) =>
+  String(value ?? "")
+    .trim()
+    .replace(/\s+/g, " ");
+
+const sortTextNumber = (a, b) =>
+  String(a).localeCompare(String(b), undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
+
+const getClassBatchNumber = (item = {}) =>
+  normalizeBatchValue(
+    item?.batchnumber ??
+      item?.batchNumber ??
+      item?.batchNo ??
+      item?.batch ??
+      item?.batch_number ??
+      ""
+  );
+
+const uniqueSortedBatches = (values = []) =>
+  [...new Set(values.map(normalizeBatchValue).filter(Boolean))].sort(
+    sortTextNumber
+  );
+
+const extractAvailableBatches = (payload = {}, selectedGrade = "") => {
+  const gradeKey = String(selectedGrade || "").trim();
+  const root = payload?.data ?? payload;
+
+  const directList = Array.isArray(payload)
+    ? payload
+    : Array.isArray(root)
+    ? root
+    : null;
+
+  const batchesByGrade =
+    root?.batchesByGrade ??
+    root?.batchNumbersByGrade ??
+    payload?.batchesByGrade ??
+    payload?.batchNumbersByGrade ??
+    {};
+
+  const possibleLists = [
+    directList,
+    root?.batches,
+    root?.batchnumbers,
+    root?.batchNumbers,
+    root?.availableBatches,
+    root?.data?.batches,
+    root?.data?.batchnumbers,
+    root?.data?.batchNumbers,
+    root?.data?.availableBatches,
+    batchesByGrade?.[gradeKey],
+    batchesByGrade?.[Number(gradeKey)],
+  ];
+
+  for (const list of possibleLists) {
+    if (Array.isArray(list) && list.length > 0) {
+      return uniqueSortedBatches(list);
+    }
+  }
+
+  const classes =
+    [root?.classes, root?.data?.classes, payload?.classes].find((list) =>
+      Array.isArray(list)
+    ) ?? [];
+
+  return uniqueSortedBatches(classes.map(getClassBatchNumber));
+};
 
 function SelectBox({
   label,
@@ -98,7 +184,8 @@ function SelectBox({
                   <Text
                     style={[
                       styles.dropdownItemText,
-                      String(item) === String(value) && styles.dropdownItemTextActive,
+                      String(item) === String(value) &&
+                        styles.dropdownItemTextActive,
                     ]}
                   >
                     {String(item)}
@@ -116,7 +203,9 @@ function SelectBox({
 }
 
 export function EnrollmentModal({ visible, onClose }) {
+  const authToken = useSelector(selectAuthToken);
   const profile = useSelector(getProfile);
+
   const defaults = useMemo(
     () => ({
       name: String(profile?.name ?? ""),
@@ -137,19 +226,19 @@ export function EnrollmentModal({ visible, onClose }) {
     data: batchesData,
     isLoading: isBatchesLoading,
     isFetching: isBatchesFetching,
+    isError: isBatchesError,
+    error: batchesError,
     refetch: refetchBatches,
   } = useGetAvailableBatchesByGradeQuery(grade, {
-    skip: !grade,
+    skip: !grade || !authToken,
     refetchOnFocus: true,
     refetchOnReconnect: true,
   });
 
-  const availableBatches = useMemo(() => {
-    const batches = batchesData?.batches;
-    return Array.isArray(batches)
-      ? batches.map((b) => String(b).trim()).filter(Boolean)
-      : [];
-  }, [batchesData]);
+  const availableBatches = useMemo(
+    () => extractAvailableBatches(batchesData, grade),
+    [batchesData, grade]
+  );
 
   const [submitEnrollment, { isLoading }] = useSubmitEnrollmentMutation();
 
@@ -183,6 +272,11 @@ export function EnrollmentModal({ visible, onClose }) {
   const handleSubmit = async () => {
     setMessage("");
 
+    if (!authToken) {
+      setMessage("Unauthorized. Please logout and login again.");
+      return;
+    }
+
     if (!name.trim() || !phone.trim() || !grade || !batchnumber.trim()) {
       setMessage("Name, phone, grade, and batch number are required.");
       return;
@@ -196,9 +290,16 @@ export function EnrollmentModal({ visible, onClose }) {
         batchnumber: batchnumber.trim(),
       }).unwrap();
 
-      setMessage(res?.message || "Enrollment request submitted. Please wait for admin approval.");
+      setMessage(
+        res?.message ||
+          "Enrollment request submitted. Please wait for admin approval."
+      );
     } catch (err) {
-      setMessage(err?.data?.message || err?.error || "Failed to submit enrollment request.");
+      setMessage(
+        err?.data?.message ||
+          err?.error ||
+          "Failed to submit enrollment request."
+      );
     }
   };
 
@@ -240,17 +341,23 @@ export function EnrollmentModal({ visible, onClose }) {
             disabled={!grade}
             loading={isBatchesLoading || isBatchesFetching}
             emptyText={
-              grade
+              isBatchesError
+                ? batchesError?.data?.message ||
+                  batchesError?.error ||
+                  "Failed to load batches. Tap Refresh Batches."
+                : grade
                 ? "No batches available for this grade"
                 : "Select grade first"
             }
           />
 
-          {!!grade && (
+          {!!grade && !!authToken && (
             <TouchableOpacity
               style={styles.refreshBatchesBtn}
               activeOpacity={0.85}
-              onPress={refetchBatches}
+              onPress={() => {
+                if (refetchBatches) refetchBatches();
+              }}
             >
               <Text style={styles.refreshBatchesText}>Refresh Batches</Text>
             </TouchableOpacity>
@@ -274,6 +381,7 @@ export function EnrollmentModal({ visible, onClose }) {
 export default function EnrollmentGate({ children, allowWhenNotEnrolled = false }) {
   const { isLoading, isFetching, isApproved, isPending, isRejected, isNotEnrolled, refetch } =
     useEnrollmentStatus();
+
   const [modalVisible, setModalVisible] = useState(false);
 
   if (isLoading || isFetching) {
