@@ -17,6 +17,7 @@ import {
   useGetAvailableBatchesByGradeQuery,
   useSubmitEnrollmentMutation,
 } from "../app/features/enrollmentApi";
+import useT from "../app/i18n/useT";
 
 const EMPTY_PROFILE = {};
 
@@ -141,12 +142,13 @@ function SelectBox({
   disabled = false,
   loading = false,
   emptyText = "No options available",
+  sinFont = {},
 }) {
   const [open, setOpen] = useState(false);
 
   return (
     <View style={styles.selectWrap}>
-      {!!label && <Text style={styles.inputLabel}>{label}</Text>}
+      {!!label && <Text style={[styles.inputLabel, sinFont]}>{label}</Text>}
 
       <TouchableOpacity
         style={[styles.selectButton, disabled && styles.selectButtonDisabled]}
@@ -154,7 +156,7 @@ function SelectBox({
         disabled={disabled}
         onPress={() => setOpen((prev) => !prev)}
       >
-        <Text style={[styles.selectButtonText, !value && styles.placeholderText]}>
+        <Text style={[styles.selectButtonText, !value && styles.placeholderText, sinFont]}>
           {value || placeholder}
         </Text>
         {loading ? (
@@ -186,6 +188,7 @@ function SelectBox({
                       styles.dropdownItemText,
                       String(item) === String(value) &&
                         styles.dropdownItemTextActive,
+                      sinFont,
                     ]}
                   >
                     {String(item)}
@@ -194,7 +197,7 @@ function SelectBox({
               ))}
             </ScrollView>
           ) : (
-            <Text style={styles.dropdownEmpty}>{emptyText}</Text>
+            <Text style={[styles.dropdownEmpty, sinFont]}>{emptyText}</Text>
           )}
         </View>
       )}
@@ -205,6 +208,7 @@ function SelectBox({
 export function EnrollmentModal({ visible, onClose }) {
   const authToken = useSelector(selectAuthToken);
   const profile = useSelector(getProfile);
+  const { t, sinFont } = useT();
 
   const defaults = useMemo(
     () => ({
@@ -273,12 +277,12 @@ export function EnrollmentModal({ visible, onClose }) {
     setMessage("");
 
     if (!authToken) {
-      setMessage("Unauthorized. Please logout and login again.");
+      setMessage(t("enrollmentUnauthorized"));
       return;
     }
 
     if (!name.trim() || !phone.trim() || !grade || !batchnumber.trim()) {
-      setMessage("Name, phone, grade, and batch number are required.");
+      setMessage(t("enrollmentFormError"));
       return;
     }
 
@@ -290,15 +294,12 @@ export function EnrollmentModal({ visible, onClose }) {
         batchnumber: batchnumber.trim(),
       }).unwrap();
 
-      setMessage(
-        res?.message ||
-          "Enrollment request submitted. Please wait for admin approval."
-      );
+      setMessage(res?.message || t("enrollmentSubmitSuccess"));
     } catch (err) {
       setMessage(
         err?.data?.message ||
           err?.error ||
-          "Failed to submit enrollment request."
+          t("submissionFailed")
       );
     }
   };
@@ -307,31 +308,37 @@ export function EnrollmentModal({ visible, onClose }) {
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalBackdrop}>
         <View style={styles.modalCard}>
-          <Text style={styles.modalTitle}>Enrollment Required</Text>
-          <Text style={styles.modalSub}>
-            Submit your request. After admin approval, Shortz, recordings, and live classes will unlock.
+          <Text style={[styles.modalTitle, sinFont()]}>{t("enrollmentRequired")}</Text>
+          <Text style={[styles.modalSub, sinFont()]}>
+            {t("enrollmentGateSub")}
           </Text>
 
-          <TextInput style={styles.input} placeholder="Name" value={name} onChangeText={setName} />
           <TextInput
-            style={styles.input}
-            placeholder="Phone"
+            style={[styles.input, sinFont()]}
+            placeholder={t("fullName")}
+            value={name}
+            onChangeText={setName}
+          />
+          <TextInput
+            style={[styles.input, sinFont()]}
+            placeholder={t("phoneNumber")}
             value={phone}
             onChangeText={setPhone}
             keyboardType="phone-pad"
           />
 
           <SelectBox
-            label="Grade"
-            placeholder="Select grade"
+            label={t("grade")}
+            placeholder={t("selectGrade")}
             value={grade}
             options={gradeOptions}
             onSelect={handleGradeSelect}
+            sinFont={sinFont()}
           />
 
           <SelectBox
-            label="Batch Number"
-            placeholder={grade ? "Select batch number" : "Select grade first"}
+            label={t("batchNumber")}
+            placeholder={grade ? t("selectBatchNumber") : t("selectGradeFirst")}
             value={batchnumber}
             options={availableBatches}
             onSelect={(value) => {
@@ -344,11 +351,12 @@ export function EnrollmentModal({ visible, onClose }) {
               isBatchesError
                 ? batchesError?.data?.message ||
                   batchesError?.error ||
-                  "Failed to load batches. Tap Refresh Batches."
+                  t("failedToLoadBatchesRefresh")
                 : grade
-                ? "No batches available for this grade"
-                : "Select grade first"
+                ? t("noBatchesAvailableForGrade")
+                : t("selectGradeFirst")
             }
+            sinFont={sinFont()}
           />
 
           {!!grade && !!authToken && (
@@ -359,18 +367,18 @@ export function EnrollmentModal({ visible, onClose }) {
                 if (refetchBatches) refetchBatches();
               }}
             >
-              <Text style={styles.refreshBatchesText}>Refresh Batches</Text>
+              <Text style={[styles.refreshBatchesText, sinFont()]}>{t("refreshBatches")}</Text>
             </TouchableOpacity>
           )}
 
-          {!!message && <Text style={styles.message}>{message}</Text>}
+          {!!message && <Text style={[styles.message, sinFont()]}>{message}</Text>}
 
           <TouchableOpacity style={styles.primaryBtn} onPress={handleSubmit} disabled={isLoading}>
-            {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Submit Enrollment</Text>}
+            {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={[styles.primaryBtnText, sinFont()]}>{t("submitEnrollment")}</Text>}
           </TouchableOpacity>
 
           <Pressable style={styles.closeBtn} onPress={onClose}>
-            <Text style={styles.closeBtnText}>Close</Text>
+            <Text style={[styles.closeBtnText, sinFont()]}>{t("close")}</Text>
           </Pressable>
         </View>
       </View>
@@ -381,6 +389,7 @@ export function EnrollmentModal({ visible, onClose }) {
 export default function EnrollmentGate({ children, allowWhenNotEnrolled = false }) {
   const { isLoading, isFetching, isApproved, isPending, isRejected, isNotEnrolled, refetch } =
     useEnrollmentStatus();
+  const { t, sinFont } = useT();
 
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -388,7 +397,7 @@ export default function EnrollmentGate({ children, allowWhenNotEnrolled = false 
     return (
       <View style={styles.centerScreen}>
         <ActivityIndicator size="large" color="#7C3AED" />
-        <Text style={styles.loadingText}>Checking enrollment...</Text>
+        <Text style={[styles.loadingText, sinFont()]}>{t("checkingEnrollment")}</Text>
       </View>
     );
   }
@@ -398,23 +407,23 @@ export default function EnrollmentGate({ children, allowWhenNotEnrolled = false 
   return (
     <View style={styles.centerScreen}>
       <Text style={styles.lockEmoji}>🔒</Text>
-      <Text style={styles.title}>Enrollment Required</Text>
+      <Text style={[styles.title, sinFont()]}>{t("enrollmentRequired")}</Text>
       {isPending ? (
-        <Text style={styles.sub}>Your request is pending. These sections unlock after admin approval.</Text>
+        <Text style={[styles.sub, sinFont()]}>{t("enrollmentPendingGateSub")}</Text>
       ) : isRejected ? (
-        <Text style={styles.sub}>Your request was rejected. Submit again after checking your details.</Text>
+        <Text style={[styles.sub, sinFont()]}>{t("enrollmentRejectedGateSub")}</Text>
       ) : isNotEnrolled ? (
-        <Text style={styles.sub}>Enroll first to unlock Shortz, recordings, and live classes.</Text>
+        <Text style={[styles.sub, sinFont()]}>{t("enrollmentNotEnrolledGateSub")}</Text>
       ) : (
-        <Text style={styles.sub}>Please submit enrollment to continue.</Text>
+        <Text style={[styles.sub, sinFont()]}>{t("enrollmentSubmitToContinue")}</Text>
       )}
 
       <TouchableOpacity style={styles.primaryBtn} onPress={() => setModalVisible(true)}>
-        <Text style={styles.primaryBtnText}>{isPending ? "View Request" : "Enroll Now"}</Text>
+        <Text style={[styles.primaryBtnText, sinFont()]}>{isPending ? t("viewRequest") : t("enrollNowPlain")}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.secondaryBtn} onPress={refetch}>
-        <Text style={styles.secondaryBtnText}>Refresh Status</Text>
+        <Text style={[styles.secondaryBtnText, sinFont()]}>{t("refreshStatus")}</Text>
       </TouchableOpacity>
 
       <EnrollmentModal visible={modalVisible} onClose={() => setModalVisible(false)} />
@@ -555,3 +564,6 @@ const styles = StyleSheet.create({
   closeBtn: { alignItems: "center", padding: 12 },
   closeBtnText: { color: "#6D28D9", fontWeight: "800" },
 });
+
+
+

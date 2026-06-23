@@ -16,6 +16,49 @@ const cleanTextValue = (value) => {
   return String(value).trim();
 };
 
+const getTokenFromResponse = (data) => {
+  return (
+    data?.token ||
+    data?.accessToken ||
+    data?.jwt ||
+    data?.authToken ||
+    data?.data?.token ||
+    data?.data?.accessToken ||
+    data?.data?.jwt ||
+    null
+  );
+};
+
+const getUserFromResponse = (data) => {
+  return (
+    data?.user ||
+    data?.profile ||
+    data?.currentUser ||
+    data?.data?.user ||
+    data?.data?.profile ||
+    null
+  );
+};
+
+const saveAuthResponse = ({ dispatch, data, fallbackToken = null }) => {
+  const token = getTokenFromResponse(data) || fallbackToken || null;
+  const user = getUserFromResponse(data);
+
+  if (token || user) {
+    dispatch(
+      setCredentials({
+        token,
+        accessToken: token,
+        user,
+      })
+    );
+  }
+
+  if (user) {
+    dispatch(setUser(user));
+  }
+};
+
 const getGradeValue = (value) => {
   if (isEmptyValue(value)) return undefined;
 
@@ -66,10 +109,7 @@ const cleanProfilePayload = (body = {}) => {
   if (batchnumber) payload.batchnumber = batchnumber;
 
   const gradeValue = getGradeValue(
-    body.gradeId ??
-      body.gradeNumber ??
-      body.selectedGrade ??
-      body.grade
+    body.gradeId ?? body.gradeNumber ?? body.selectedGrade ?? body.grade
   );
 
   if (gradeValue !== undefined) {
@@ -118,6 +158,24 @@ export const authApi = createApi({
           code,
         },
       }),
+
+      invalidatesTags: ["CurrentUser"],
+
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+
+          // Important fix:
+          // After signup OTP verification, backend now returns token + user.
+          // Save both before navigating Notice -> Avatar -> Home.
+          saveAuthResponse({
+            dispatch,
+            data,
+          });
+        } catch {
+          // OTP screen handles visible error
+        }
+      },
     }),
 
     resendSignupOtp: builder.mutation({
@@ -143,24 +201,12 @@ export const authApi = createApi({
         try {
           const { data } = await queryFulfilled;
 
-          const token = data?.token || data?.accessToken || data?.jwt || null;
-          const user = data?.user || data?.profile || null;
-
-          if (token) {
-            dispatch(
-              setCredentials({
-                token,
-                accessToken: token,
-                user,
-              })
-            );
-          }
-
-          if (user) {
-            dispatch(setUser(user));
-          }
+          saveAuthResponse({
+            dispatch,
+            data,
+          });
         } catch {
-          // signin screen handles the visible error
+          // signin screen handles visible error
         }
       },
     }),
@@ -200,19 +246,13 @@ export const authApi = createApi({
       async onQueryStarted(_arg, { dispatch, queryFulfilled, getState }) {
         try {
           const { data } = await queryFulfilled;
-          const user = data?.user || data || null;
-          const token = selectAuthToken(getState());
+          const fallbackToken = selectAuthToken(getState());
 
-          if (user && typeof user === "object") {
-            dispatch(setUser(user));
-            dispatch(
-              setCredentials({
-                token,
-                accessToken: token,
-                user,
-              })
-            );
-          }
+          saveAuthResponse({
+            dispatch,
+            data,
+            fallbackToken,
+          });
         } catch {
           // current user may fail when token is expired
         }
@@ -231,21 +271,15 @@ export const authApi = createApi({
       async onQueryStarted(_arg, { dispatch, queryFulfilled, getState }) {
         try {
           const { data } = await queryFulfilled;
-          const user = data?.user || data || null;
-          const token = selectAuthToken(getState());
+          const fallbackToken = selectAuthToken(getState());
 
-          if (user && typeof user === "object") {
-            dispatch(setUser(user));
-            dispatch(
-              setCredentials({
-                token,
-                accessToken: token,
-                user,
-              })
-            );
-          }
+          saveAuthResponse({
+            dispatch,
+            data,
+            fallbackToken,
+          });
         } catch {
-          // profile screen handles the visible error
+          // profile screen handles visible error
         }
       },
     }),

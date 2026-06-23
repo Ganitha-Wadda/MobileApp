@@ -432,6 +432,47 @@ export const translations = {
     leaderboardAmazingWork: "විශිෂ්ඨයි",
     leaderboardKeepLearning: "තවත් පුහුණු වන්න. ඔබේ දක්ෂතා වර්ධනය කර ගන්න",
     leaderboardYou: "ඔබ",
+
+    // ── Enrollment Gate extra messages ─────────────────────────────────────
+    batchNumber:                 "කණ්ඩායම් අංකය",
+    enrollmentPendingGateSub:    "ඔබගේ ඉල්ලීම බලාපොරොත්තුවෙන් පවතී. ඇඩ්මින් අනුමත කළ පසු මෙම කොටස් විවෘත වේ.",
+    enrollmentRejectedGateSub:   "ඔබගේ ඉල්ලීම ප්‍රතික්ෂේප විය. විස්තර පරීක්ෂා කර නැවත ඉදිරිපත් කරන්න.",
+    enrollmentNotEnrolledGateSub:"Shortz, recordings සහ live classes විවෘත කිරීමට පළමුව ලියාපදිංචි වන්න.",
+    enrollmentSubmitToContinue:  "ඉදිරියට යාම සඳහා කරුණාකර ලියාපදිංචිය ඉදිරිපත් කරන්න.",
+    enrollmentUnauthorized:      "අවසර නොමැත. කරුණාකර logout වී නැවත login වන්න.",
+    enrollmentSubmitSuccess:     "ලියාපදිංචි ඉල්ලීම ඉදිරිපත් කරන ලදී. ඇඩ්මින් අනුමැතිය ලැබෙන තෙක් රැඳී සිටින්න.",
+    refreshBatches:              "කණ්ඩායම් නැවත පූරණය කරන්න",
+    failedToLoadBatchesRefresh:  "කණ්ඩායම් පූරණය අසාර්ථක විය. නැවත පූරණය කරන්න.",
+    noBatchesAvailableForGrade:  "මෙම ශ්‍රේණියට කණ්ඩායම් නොමැත",
+
+    // ── Districts ──────────────────────────────────────────────────────────
+    districts: {
+      Ampara:       "අම්පාර",
+      Anuradhapura: "අනුරාධපුර",
+      Badulla:      "බදුල්ල",
+      Batticaloa:   "මඩකලපුව",
+      Colombo:      "කොළඹ",
+      Galle:        "ගාල්ල",
+      Gampaha:      "ගම්පහ",
+      Hambantota:   "හම්බන්තොට",
+      Jaffna:       "යාපනය",
+      Kalutara:     "කළුතර",
+      Kandy:        "මහනුවර",
+      Kegalle:      "කෑගල්ල",
+      Kilinochchi:  "කිලිනොච්චිය",
+      Kurunegala:   "කුරුණෑගල",
+      Mannar:       "මන්නාරම",
+      Matale:       "මාතලේ",
+      Matara:       "මාතර",
+      Monaragala:   "මොණරාගල",
+      Mullaitivu:   "මුලතිව්",
+      NuwaraEliya:  "නුවරඑළිය",
+      Polonnaruwa:  "පොළොන්නරුව",
+      Puttalam:     "පුත්තලම",
+      Ratnapura:    "රත්නපුර",
+      Trincomalee:  "ත්‍රිකුණාමලය",
+      Vavuniya:     "වවුනියාව",
+    },
   },
 
   en: {
@@ -868,6 +909,18 @@ export const translations = {
     allTime: "All Time",
     leaderboardYou: "You",
 
+    // ── Enrollment Gate extra messages ─────────────────────────────────────
+    batchNumber:                 "Batch Number",
+    enrollmentPendingGateSub:    "Your request is pending. These sections unlock after admin approval.",
+    enrollmentRejectedGateSub:   "Your request was rejected. Submit again after checking your details.",
+    enrollmentNotEnrolledGateSub:"Enroll first to unlock Shortz, recordings, and live classes.",
+    enrollmentSubmitToContinue:  "Please submit enrollment to continue.",
+    enrollmentUnauthorized:      "Unauthorized. Please logout and login again.",
+    enrollmentSubmitSuccess:     "Enrollment request submitted. Please wait for admin approval.",
+    refreshBatches:              "Refresh Batches",
+    failedToLoadBatchesRefresh:  "Failed to load batches. Tap Refresh Batches.",
+    noBatchesAvailableForGrade:  "No batches available for this grade",
+
     // ── Districts ──────────────────────────────────────────────────────────
     districts: {
       Ampara:       "Ampara",
@@ -898,3 +951,6 @@ export const translations = {
     },
   },
 };
+
+
+

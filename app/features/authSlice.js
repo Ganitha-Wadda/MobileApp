@@ -30,6 +30,7 @@ const readTokenFromValue = (value) => {
       readTokenFromValue(value.authToken) ||
       readTokenFromValue(value?.data?.token) ||
       readTokenFromValue(value?.data?.accessToken) ||
+      readTokenFromValue(value?.data?.jwt) ||
       readTokenFromValue(value?.user?.token) ||
       readTokenFromValue(value?.user?.accessToken) ||
       null
@@ -37,6 +38,19 @@ const readTokenFromValue = (value) => {
   }
 
   return null;
+};
+
+const readUserFromValue = (value) => {
+  if (!value || typeof value !== "object") return null;
+
+  return (
+    value.user ||
+    value.profile ||
+    value.currentUser ||
+    value.data?.user ||
+    value.data?.profile ||
+    null
+  );
 };
 
 export const selectAuthToken = (state) =>
@@ -56,17 +70,27 @@ const authSlice = createSlice({
   reducers: {
     setToken: (state, action) => {
       const token = readTokenFromValue(action.payload);
-      state.token = token;
-      state.accessToken = token;
+
+      if (token) {
+        state.token = token;
+        state.accessToken = token;
+      }
     },
 
     setCredentials: (state, action) => {
       const payload = action.payload || {};
       const token = readTokenFromValue(payload);
+      const user = readUserFromValue(payload);
 
-      state.token = token;
-      state.accessToken = token;
-      state.user = payload?.user || payload?.profile || state.user || null;
+      // Important: never clear a valid token just because one response only returns user.
+      if (token) {
+        state.token = token;
+        state.accessToken = token;
+      }
+
+      if (user) {
+        state.user = user;
+      }
     },
 
     clearAuth: (state) => {

@@ -133,6 +133,25 @@ const getTranslation = (t, key, fallback) => {
   return !value || value === key ? fallback : value;
 };
 
+const getDistrictTranslationKey = (district) => {
+  return String(district || "").replace(/\s+/g, "");
+};
+
+const getDistrictLabel = (t, district) => {
+  const districtMap = t("districts");
+  const cleanDistrict = String(district || "");
+
+  if (districtMap && typeof districtMap === "object") {
+    return (
+      districtMap[getDistrictTranslationKey(cleanDistrict)] ||
+      districtMap[cleanDistrict] ||
+      cleanDistrict
+    );
+  }
+
+  return cleanDistrict;
+};
+
 const buildClassOptions = (classes = []) => {
   const gradeSet = new Set();
   const batchesByGrade = {};
@@ -194,6 +213,11 @@ export default function SignupScreen({ navigation }) {
     if (!form.grade) return [];
     return batchesByGrade[String(form.grade)] || [];
   }, [batchesByGrade, form.grade]);
+
+  const selectedDistrictLabel = useMemo(() => {
+    if (!form.district) return "";
+    return getDistrictLabel(t, form.district);
+  }, [form.district, t]);
 
   useEffect(() => {
     let mounted = true;
@@ -454,7 +478,7 @@ export default function SignupScreen({ navigation }) {
             <SelectField
               icon="🏙️"
               placeholder={t("selectDistrict")}
-              value={form.district}
+              value={selectedDistrictLabel}
               onPress={() => setDropdownVisible("district")}
               sinFont={sinFont()}
             />
@@ -590,6 +614,7 @@ export default function SignupScreen({ navigation }) {
         title={t("selectDistrict")}
         options={DISTRICT_OPTIONS}
         value={form.district}
+        getOptionLabel={(item) => getDistrictLabel(t, item)}
         onClose={() => setDropdownVisible(null)}
         onSelect={(value) => {
           updateField("district", value);
@@ -681,6 +706,7 @@ const DropdownModal = ({
   onClose,
   onSelect,
   labelPrefix = "",
+  getOptionLabel = (item) => item,
   sinFont = {},
   closeLabel = "Close",
   isLoading = false,
@@ -709,6 +735,7 @@ const DropdownModal = ({
             ) : (
               options.map((item) => {
                 const selected = String(value) === String(item);
+                const label = getOptionLabel(item);
 
                 return (
                   <TouchableOpacity
@@ -728,7 +755,7 @@ const DropdownModal = ({
                       ]}
                     >
                       {labelPrefix}
-                      {item}
+                      {label}
                     </Text>
 
                     {selected && <Text style={styles.checkText}>✓</Text>}
@@ -1403,3 +1430,5 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 });
+
+
