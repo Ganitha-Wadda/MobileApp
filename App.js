@@ -30,7 +30,7 @@ import ParentPage from "./pages/Parentpage";
 import Result from "./pages/Result";
 import Attendance from "./pages/Attendance";
 import ViewShortLessonsScreen from "./pages/Viewshortlessonsscreen";
-import ShortVideoScreen from "./pages/ShortVideoScreen";
+import ShortVideoScreen from "./pages/Shortvideoscreen"
 import ActivityFlowScreen from "./pages/ActivityFlowScreen";
 import ViewRecording from "./pages/Viewrecording";
 import Profile from "./pages/Profile";
@@ -39,12 +39,12 @@ import DailyQuizz from "./pages/Dailyquizz";
 import FiveHundredPapers from "./pages/FiveHundredPapers";
 import LessonByLesson from "./pages/Lessonbylesson";
 import PastPaper from "./pages/Pastpaper";
-import DailyQuizzmenu from "./pages/Dailyquizzmenu";
+import DailyQuizzmenu from "./pages/DailyQuizzMenu"
 import FiveHundredPaperMenu from "./pages/FiveHundredPapersmenu";
 import LessonByLessonMenu from "./pages/lessonByLessonMenu";
-import PastPaperMenu from "./pages/PastPaperMenu";
+import PastPaperMenu from "./pages/PastpaperMenu";
 import Paperpage from "./pages/paperpage";
-import ReviewPage from "./pages/Reviewpage";
+import ReviewPage from "./pages/ReviewPage";
 import ChooseAvatarPage from "./pages/ChooseAvatarPage";
 import Battle from "./pages/Battle";
 

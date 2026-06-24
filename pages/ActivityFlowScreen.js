@@ -12,8 +12,8 @@ import {
 import { useGetActivityPaperQuery } from "../app/features/Shortzapi";
 import { useSubmitShortActivityAttemptMutation } from "../app/features/shortcoinscountApi";
 import ActivityTemplate1 from "./ActivityTemplate1";
-import ActivityTemplate2 from "./ActivityTemplate2";
-import ActivityTemplate3 from "./ActivityTemplate3";
+import ActivityTemplate2 from "./Activitytemplate2";
+import ActivityTemplate3 from "./Activitytemplate3";
 import useT from "../app/i18n/useT";
 
 const TEMPLATE2_COLORS = [
