@@ -91,6 +91,9 @@ export const translations = {
     chooseAvatar:          "Avatar තෝරන්න",
     pickFavoriteCharacter: "ඔබ කැමති character තෝරන්න",
     continueButton:        "ඉදිරියට",
+    randomizeAvatar:       "අහඹු ලෙස සකසන්න",
+    saveAvatar:            "Avatar සුරකින්න",
+    avatarSaved:           "ඔබගේ Avatar සුරකින ලදී",
 
     // ── Hero Component / Stats ─────────────────────────────────────────────
     coins:                 "කාසි",
@@ -567,6 +570,9 @@ export const translations = {
     chooseAvatar:          "Choose Avatar",
     pickFavoriteCharacter: "Pick your favorite character",
     continueButton:        "Continue",
+    randomizeAvatar:       "Randomize",
+    saveAvatar:            "Save Avatar",
+    avatarSaved:           "Avatar saved successfully",
 
     // ── Hero Component / Stats ─────────────────────────────────────────────
     coins:                 "Coins",

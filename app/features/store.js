@@ -30,6 +30,7 @@ import { paperResultApi } from "./paperResultApi";
 import { shortCoinsCountApi } from "./shortcoinscountApi";
 import { userTotalcoinscountApi } from "./userTotalcoinscountApi";
 import { rankApi } from "./rankApi";
+import { avatarApi } from "./avatarApi";
 
 export const LOGOUT_ACTION = { type: "LOGOUT" };
 
@@ -82,6 +83,7 @@ const appReducer = combineReducers({
   [shortCoinsCountApi.reducerPath]: shortCoinsCountApi.reducer,
   [userTotalcoinscountApi.reducerPath]: userTotalcoinscountApi.reducer,
   [rankApi.reducerPath]: rankApi.reducer,
+  [avatarApi.reducerPath]: avatarApi.reducer,
 });
 
 const rootReducer = (state, action) => {
@@ -116,7 +118,8 @@ const store = configureStore({
       .concat(paperResultApi.middleware)
       .concat(shortCoinsCountApi.middleware)
       .concat(userTotalcoinscountApi.middleware)
-      .concat(rankApi.middleware),
+      .concat(rankApi.middleware)
+      .concat(avatarApi.middleware),
 });
 
 export const persistor = persistStore(store);

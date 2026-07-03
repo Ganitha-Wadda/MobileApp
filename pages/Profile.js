@@ -30,6 +30,8 @@ import {
 import { setLanguage } from "../app/features/Languageselectionslice";
 import { setUser } from "../app/features/userSlice";
 import useT from "../app/i18n/useT";
+import { buildAvatarUrl, normalizeAvatarConfig } from "../utils/avatarBuilder";
+import { AvatarStage } from "../components/avatar3d";
 
 const PURPLE = "#6c5ce7";
 const LIGHT_BG = "#f0eeff";
@@ -333,7 +335,10 @@ export default function Profile() {
       ? copy.male
       : capitalize(cleanGender) || "—";
   const avatarUri =
-    cleanGender === "female" ? FEMALE_KID_AVATAR_URI : MALE_KID_AVATAR_URI;
+    (user?.avatarConfig
+      ? buildAvatarUrl(normalizeAvatarConfig(user.avatarConfig))
+      : user?.avatarUrl) ||
+    (cleanGender === "female" ? FEMALE_KID_AVATAR_URI : MALE_KID_AVATAR_URI);
   const displayLanguage = selectedLanguage === "en" ? copy.english : copy.sinhala;
 
   const showInitialLoader = isLoading && !user;
@@ -491,14 +496,23 @@ export default function Profile() {
                 ]}
               />
 
-              <View style={styles.glowPlatformOuter}>
-                <View style={styles.glowPlatformInner} />
-              </View>
-
-              <Image
-                source={{ uri: avatarUri }}
-                style={styles.avatarImage}
-                resizeMode="contain"
+              <AvatarStage
+                config={user?.avatarConfig}
+                transparent
+                zoom={4.2}
+                style={styles.avatarStage}
+                fallback={
+                  <View style={styles.avatarFallbackWrap}>
+                    <View style={styles.glowPlatformOuter}>
+                      <View style={styles.glowPlatformInner} />
+                    </View>
+                    <Image
+                      source={{ uri: avatarUri }}
+                      style={styles.avatarImage}
+                      resizeMode="contain"
+                    />
+                  </View>
+                }
               />
             </View>
 
@@ -771,6 +785,18 @@ const styles = StyleSheet.create({
     height: 180,
     marginTop: -70,
     zIndex: 2,
+  },
+
+  avatarStage: {
+    width: "100%",
+    height: 260,
+    zIndex: 2,
+  },
+
+  avatarFallbackWrap: {
+    alignItems: "center",
+    justifyContent: "flex-end",
+    height: 260,
   },
 
   profileCard: {

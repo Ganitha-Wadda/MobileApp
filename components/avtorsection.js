@@ -10,7 +10,10 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from "expo-av";
+import { useSelector } from "react-redux";
 import useT from "../app/i18n/useT";
+import { buildAvatarUrl, normalizeAvatarConfig } from "../utils/avatarBuilder";
+import { AvatarStage } from "./avatar3d";
 
 const AVATAR_URL = "https://cdn-icons-png.flaticon.com/512/6997/6997662.png";
 
@@ -74,6 +77,12 @@ export default function AvatarSection({ navigation }) {
   const rotate = useRef(new Animated.Value(0)).current;
   const soundRef = useRef(null);
   const { t } = useT();
+  const user = useSelector((state) => state.user?.user || null);
+
+  const avatarUri =
+    (user?.avatarConfig
+      ? buildAvatarUrl(normalizeAvatarConfig(user.avatarConfig))
+      : user?.avatarUrl) || AVATAR_URL;
 
   useEffect(() => {
     const rotateLoop = Animated.loop(
@@ -170,10 +179,22 @@ export default function AvatarSection({ navigation }) {
           <View style={[styles.orbitDot, { bottom: 8, right: 8 }]} />
 
           <View style={styles.avatarCircle}>
-            <Image
-              source={{ uri: AVATAR_URL }}
-              style={styles.avatarImage}
-              resizeMode="contain"
+            <AvatarStage
+              config={user?.avatarConfig}
+              interactive={false}
+              autoRotate
+              quality="low"
+              minimal
+              transparent
+              zoom={3.4}
+              style={styles.avatarStage}
+              fallback={
+                <Image
+                  source={{ uri: avatarUri }}
+                  style={styles.avatarImage}
+                  resizeMode="contain"
+                />
+              }
             />
           </View>
         </View>
@@ -338,5 +359,10 @@ const styles = StyleSheet.create({
   avatarImage: {
     width: 62,
     height: 62,
+  },
+
+  avatarStage: {
+    width: 64,
+    height: 64,
   },
 });
